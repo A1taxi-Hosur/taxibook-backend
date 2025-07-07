@@ -1,0 +1,73 @@
+
+You are working on the backend of the TaxiBook app (Flask + SQLAlchemy).
+
+📦 The database already contains the following tables:
+- `driver` (fields: id, username, password, name, phone, car_make, car_model, car_year, car_company, license_number, car_number, car_type, aadhar_url, license_url, rc_book_url, profile_photo_url)
+- `customer` (fields: id, name, phone, created_at)
+- `ride` (fields: id, customer_phone, driver_id, pickup_address, drop_address, status, fare, distance_km, completed_at)
+
+Your job is to create the following **read-only** `GET` API endpoints that will be used to power new **UI tabs** in the **Customer** and **Driver** apps. Do not add any features the backend doesn't already support.
+
+---
+
+## 👨‍✈️ DRIVER ENDPOINTS
+
+1. `GET /driver/profile?username=USERNAME`
+   - Returns all fields from the `driver` table for this username
+   - Required for the Profile tab (no editing needed)
+
+2. `GET /driver/history?username=USERNAME&offset=0&limit=20`
+   - Returns paginated list of completed rides for this driver
+   - Default: `offset=0`, `limit=20`
+   - Use: `driver.username` → `driver.id` → `ride.driver_id`
+   - Filter: `status = 'completed'`
+   - Sort: `completed_at DESC`
+   - Include: ride_id, customer_phone, pickup_address, drop_address, fare, distance_km, completed_at
+
+3. `GET /driver/earnings?username=USERNAME`
+   - Calculate:
+     - total rides completed by driver
+     - total fare earned
+     - per-day summary for the last 7 days: date, ride count, total fare
+   - Group by `DATE(completed_at)`
+   - Use existing `ride` records
+
+---
+
+## 👤 CUSTOMER ENDPOINTS
+
+4. `GET /customer/profile?phone=PHONE`
+   - Returns name, phone, created_at from the `customer` table
+   - Required for Profile tab (no editing)
+
+5. `GET /customer/history?phone=PHONE&offset=0&limit=20`
+   - Returns paginated list of this customer's rides
+   - Default: `offset=0`, `limit=20`
+   - Join with `ride` and optionally `driver` to include driver name
+   - Include: ride_id, pickup_address, drop_address, status, fare, distance_km, completed_at, driver name (if available)
+   - Sort: `completed_at DESC`
+
+6. `GET /customer/total_spent?phone=PHONE`
+   - Calculate:
+     - total rides taken
+     - total fare paid
+     - per-day breakdown for last 7 days: date, ride count, total fare
+   - Group by `DATE(completed_at)`
+   - Use existing `ride` records
+
+---
+
+📌 Constraints:
+- Use SQLAlchemy ORM only (no raw SQL)
+- Validate query parameters (`username`, `phone`)
+- Add pagination support with `offset` and `limit` parameters for history endpoints
+- Return results as JSON
+- Sort history data by `completed_at DESC`
+- Do not modify existing login, booking, or driver assignment logic
+
+---
+
+🧠 Notes:
+- These endpoints will be used with infinite scroll in the frontend
+- First fetch uses `offset=0&limit=20`, next scroll uses `offset=20&limit=20`, etc.
+- Response must **not** replace old records — frontend appends new items

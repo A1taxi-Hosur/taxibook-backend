@@ -1,0 +1,188 @@
+You are building the complete **TaxiBook Backend** for an Indian taxi booking platform. This Replit project will host:
+
+- ✅ The **backend APIs** for Customer, Driver, and Admin
+- ✅ The **Admin UI** (hosted in this same app)
+- ❌ No customer or driver frontend logic — those are separate Replit projects and will use your API
+- ✅ A `.md` file auto-generated after boot (`replit_backend_docs.md`) explaining *everything you implemented* — all screens, logic, flows, endpoints, button behaviors, frontend instructions, and any assumptions made
+
+---
+
+## 🔧 STACK
+
+- Python 3 (Flask backend)
+- SQLAlchemy ORM (with SQLite or PostgreSQL, depending on environment)
+- Flask-CORS, Flask-Login
+- Google Maps Distance Matrix API (for fare and distance calculation)
+- Admin UI built using Flask + HTML templates
+- All timestamps should follow **Asia/Kolkata** timezone
+
+---
+
+## 🎯 GOAL
+
+Build a **professional-grade** backend that supports:
+
+- Full customer ride flow (login → book → monitor → complete/cancel)
+- Full driver ride handling (login → get ride → accept → arrive → start → complete/cancel)
+- Admin dashboard for ride/driver/customer visibility
+- No assumptions — follow only what is asked
+- Avoid all previously encountered bugs
+- Provide `.md` documentation so the customer/driver frontend can read and build 100% accurately
+
+---
+
+## 🧑‍💼 CUSTOMER FLOW (API ONLY)
+
+### 1. Login/Register
+- Endpoint: `POST /customer/login_or_register`
+- Fields: `{ phone, name }`
+- Logic:
+  - If customer exists, log them in
+  - If not, create a new one
+  - Phone must be 10-digit Indian number (`^[6-9]\d{9}$`) — strip `+91` if present
+  - Store in session using `Flask-Login`
+
+### 2. Book Ride
+- Endpoint: `POST /customer/book_ride`
+- Fields: `{ customer_phone, pickup_address, drop_address }`
+- Steps:
+  - Reject if customer has any ongoing ride
+  - Use Google Maps API to get distance
+  - Calculate fare based on ₹12 base + ₹11/km
+  - Create ride with status = `pending`, fare, and timestamp
+
+### 3. Get Ride Status
+- Endpoint: `GET /customer/ride_status?phone=xxxxx`
+- Returns full ride object with status:
+  - `pending`, `accepted`, `started`, `completed`, or `cancelled`
+  - Include driver name if assigned
+  - Include fare and timestamps
+
+### 4. Cancel Ride
+- Endpoint: `POST /customer/cancel_ride`
+- Only allow cancel if status is `pending` or `accepted`
+- Clear ride reference in DB
+
+### 5. Polling Behavior
+- Frontend will poll every 10–15s to `/ride_status`
+- Always respond with either ride data or `"has_active_ride": false`
+
+---
+
+## 🚖 DRIVER FLOW (API ONLY)
+
+### 1. Login/Register
+- Endpoint: `POST /driver/login_or_register`
+- Fields: `{ phone, name }`
+- Same behavior as customer login
+- Use `Flask-Login` session
+
+### 2. Incoming Rides
+- Endpoint: `GET /driver/incoming_rides?phone=xxxxx`
+- Return rides with status `pending` that are not assigned
+- Show distance to pickup using Google Maps API
+- Driver polling every 10–15s
+
+### 3. Accept Ride
+- Endpoint: `POST /driver/accept_ride`
+- Lock the ride to this driver (first come, first served)
+- Set status = `accepted`, assign `driver_id`, store acceptance time
+
+### 4. Arrive at Pickup
+- Endpoint: `POST /driver/arrived`
+- Mark status = `arrived`
+- Add timestamp
+
+### 5. Start Ride
+- Endpoint: `POST /driver/start_ride`
+- Only allowed if status is `arrived`
+- Change status = `started`, store time
+
+### 6. Complete Ride
+- Endpoint: `POST /driver/complete_ride`
+- Set status = `completed`, store time
+
+### 7. Cancel Ride
+- Endpoint: `POST /driver/cancel_ride`
+- Can only cancel if `accepted` or `arrived`
+- Revert ride back to `pending`, clear driver assignment
+
+---
+
+## 🛠 ADMIN PANEL (UI INSIDE THIS APP)
+
+- Hosted at `/admin` and built into Flask templates
+- Login protected (basic password stored in env or config)
+- Admin dashboard features:
+  - View all active rides
+  - View ride history
+  - View all customers
+  - View all drivers
+  - View ride logs
+  - Clear stuck rides / reset DB
+
+---
+
+## ✅ MANDATORY LOGIC RULES (DO NOT SKIP OR ASSUME)
+
+### Google Maps API
+- Use Google Maps Distance Matrix API
+- If fails, return friendly error (`"Could not calculate distance"`)
+- Set Google Maps API key from `.env`
+
+### Location Accuracy
+- If frontend sends location coordinates (lat/lng), store them
+- If location missing/null, reject the request with error
+
+### Status Mapping
+- `pending` → `accepted` → `arrived` → `started` → `completed`
+- `cancelled` can interrupt `pending` or `accepted`
+
+### +91 Handling
+- Remove any `+91` prefix on all phone numbers
+- Store only 10 digits
+- Reject invalid formats (e.g., less than 10, non-numeric)
+
+### Session Behavior
+- Use Flask session (`login_user`, `logout_user`)
+- APIs should respect session and reject if unauthenticated
+
+### Polling Support
+- All APIs must return consistently for polling endpoints (even if no data)
+- Do not crash if session is expired — return safe default response
+
+### Bug Prevention
+- Avoid duplicate ride assignment
+- Avoid stuck rides (implement `/clear_logs`)
+- Avoid stale sessions
+- Avoid frontend assumptions by returning clear errors
+
+---
+
+## 🧾 FINAL STEP: DOCUMENTATION OUTPUT
+
+After setting up all logic, create a file called:
+
+```
+replit_backend_docs.md
+```
+
+This must include:
+
+- Screens and buttons of Admin UI
+- Every route and method (all API endpoints)
+- Sample request + response
+- All status codes and formats
+- What the Customer app must implement (screen-by-screen)
+- What the Driver app must implement (screen-by-screen)
+- Assumptions made
+- Validation rules
+- How to connect from frontend (e.g., must use `credentials: include`, correct field names)
+- Clear section: “❌ What is not implemented by backend (frontend must not assume this)”
+- Fallback instructions for frontend if backend returns error
+
+---
+
+DO NOT invent features not described here. DO NOT skip any steps. DO NOT assume logic like OTP or ride history unless instructed. Build exactly as above and explain every piece in the documentation file.
+
+Let’s begin.

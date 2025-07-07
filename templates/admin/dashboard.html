@@ -1,0 +1,385 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshStats()" id="refreshBtn">
+            <i class="bi bi-arrow-clockwise" id="refreshIcon"></i> <span id="refreshText">Refresh</span>
+        </button>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Customers</h6>
+                        <h3 class="mb-0" data-stat="total_customers">{{ stats.total_customers or 0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Drivers</h6>
+                        <h3 class="mb-0" data-stat="total_drivers">{{ stats.total_drivers or 0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-person-badge fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Rides</h6>
+                        <h3 class="mb-0" data-stat="total_rides">{{ stats.total_rides or 0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-car-front fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Today's Rides</h6>
+                        <h3 class="mb-0" data-stat="today_rides">{{ stats.today_rides or 0 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar-day fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ride Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-warning">Pending</h5>
+                <h3 class="text-warning" data-stat="pending_rides">{{ stats.pending_rides or 0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-primary">Active</h5>
+                <h3 class="text-primary" data-stat="active_rides">{{ stats.active_rides or 0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success">Completed</h5>
+                <h3 class="text-success" data-stat="completed_rides">{{ stats.completed_rides or 0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-danger">Cancelled</h5>
+                <h3 class="text-danger" data-stat="cancelled_rides">{{ stats.cancelled_rides or 0 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Rides -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Rides</h5>
+            </div>
+            <div class="card-body" id="recentRidesContainer">
+                {% if stats.recent_rides %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer</th>
+                                    <th>Driver</th>
+                                    <th>Pickup</th>
+                                    <th>Status</th>
+                                    <th>Fare</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentRidesBody">
+                                {% for ride in stats.recent_rides %}
+                                    <tr>
+                                        <td>#{{ ride.id }}</td>
+                                        <td>
+                                            <div>{{ ride.customer.name }}</div>
+                                            <small class="text-muted">{{ ride.customer_phone }}</small>
+                                        </td>
+                                        <td>
+                                            {% if ride.driver %}
+                                                <div>{{ ride.driver.name }}</div>
+                                                <small class="text-muted">{{ ride.driver.phone }}</small>
+                                            {% else %}
+                                                <span class="text-muted">Not assigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ride.pickup_address[:30] }}...</td>
+                                        <td>
+                                            <span class="badge status-badge 
+                                                {% if ride.status == 'completed' %}bg-success
+                                                {% elif ride.status == 'cancelled' %}bg-danger
+                                                {% elif ride.status == 'pending' %}bg-warning
+                                                {% else %}bg-primary{% endif %}">
+                                                {{ ride.status.title() }}
+                                            </span>
+                                        </td>
+                                        <td>₹{{ "%.2f"|format(ride.fare_amount) }}</td>
+                                        <td>{{ ride.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4" id="noRidesMessage">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2">No rides found</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.stats-card {
+    transition: all 0.3s ease;
+}
+.stats-card.updating {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+</style>
+
+<script>
+let isRefreshing = false;
+
+function setRefreshState(refreshing) {
+    isRefreshing = refreshing;
+    const btn = document.getElementById('refreshBtn');
+    const icon = document.getElementById('refreshIcon');
+    const text = document.getElementById('refreshText');
+    
+    if (refreshing) {
+        btn.disabled = true;
+        icon.className = 'spinner-border spinner-border-sm';
+        text.textContent = 'Updating...';
+        // Add subtle visual feedback to cards
+        document.querySelectorAll('.stats-card').forEach(card => {
+            card.classList.add('updating');
+        });
+    } else {
+        btn.disabled = false;
+        icon.className = 'bi bi-arrow-clockwise';
+        text.textContent = 'Refresh';
+        // Remove visual feedback
+        document.querySelectorAll('.stats-card').forEach(card => {
+            card.classList.remove('updating');
+        });
+    }
+}
+
+function updateStatWithAnimation(element, newValue) {
+    if (!element) return;
+    
+    const currentValue = element.textContent;
+    if (currentValue !== String(newValue)) {
+        element.style.transition = 'all 0.3s ease';
+        element.style.transform = 'scale(1.1)';
+        element.style.color = 'var(--bs-warning)';
+        
+        setTimeout(() => {
+            element.textContent = newValue;
+            element.style.transform = 'scale(1)';
+            element.style.color = '';
+        }, 150);
+    }
+}
+
+function updateRecentRides(rides) {
+    const container = document.getElementById('recentRidesContainer');
+    if (!container) return;
+    
+    if (!rides || rides.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 fade-in" id="noRidesMessage">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <p class="text-muted mt-2">No rides found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const statusBadgeClass = (status) => {
+        switch(status) {
+            case 'completed': return 'bg-success';
+            case 'cancelled': return 'bg-danger';
+            case 'pending': return 'bg-warning';
+            default: return 'bg-primary';
+        }
+    };
+    
+    let tableHTML = `
+        <div class="table-responsive fade-in">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Driver</th>
+                        <th>Pickup</th>
+                        <th>Status</th>
+                        <th>Fare</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    rides.forEach(ride => {
+        tableHTML += `
+            <tr>
+                <td>#${ride.id}</td>
+                <td>
+                    <div>${ride.customer_name}</div>
+                    <small class="text-muted">${ride.customer_phone}</small>
+                </td>
+                <td>
+                    ${ride.driver_name ? 
+                        `<div>${ride.driver_name}</div><small class="text-muted">${ride.driver_phone}</small>` : 
+                        '<span class="text-muted">Not assigned</span>'}
+                </td>
+                <td>${ride.pickup_address.substring(0, 30)}...</td>
+                <td>
+                    <span class="badge ${statusBadgeClass(ride.status)}">
+                        ${ride.status.charAt(0).toUpperCase() + ride.status.slice(1)}
+                    </span>
+                </td>
+                <td>₹${parseFloat(ride.fare_amount).toFixed(2)}</td>
+                <td>${ride.created_at}</td>
+            </tr>
+        `;
+    });
+    
+    tableHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = tableHTML;
+}
+
+function refreshStats() {
+    if (isRefreshing) return;
+    
+    setRefreshState(true);
+    
+    // Fetch both stats and recent rides in parallel
+    Promise.all([
+        fetch('{{ url_for("admin.api_stats") }}', { credentials: 'include' }),
+        fetch('{{ url_for("admin.api_recent_rides") }}', { credentials: 'include' })
+    ])
+    .then(responses => Promise.all(responses.map(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json();
+    })))
+    .then(([statsData, ridesData]) => {
+        if (statsData.error) {
+            console.error('Stats API error:', statsData.error);
+            return;
+        }
+        if (ridesData.error) {
+            console.error('Rides API error:', ridesData.error);
+            return;
+        }
+        
+        // Update stats with smooth animations
+        const statElements = [
+            'total_customers', 'total_drivers', 'total_rides', 'today_rides',
+            'pending_rides', 'active_rides', 'completed_rides', 'cancelled_rides'
+        ];
+        
+        statElements.forEach(stat => {
+            const element = document.querySelector(`[data-stat="${stat}"]`);
+            updateStatWithAnimation(element, statsData[stat] || 0);
+        });
+        
+        // Update recent rides
+        updateRecentRides(ridesData.rides);
+        
+        console.log('Dashboard refreshed successfully');
+    })
+    .catch(error => {
+        console.error('Error refreshing dashboard:', error);
+        // Show a subtle error indication
+        const btn = document.getElementById('refreshBtn');
+        btn.classList.add('btn-outline-danger');
+        setTimeout(() => btn.classList.remove('btn-outline-danger'), 2000);
+    })
+    .finally(() => {
+        setTimeout(() => setRefreshState(false), 500); // Small delay for UX
+    });
+}
+
+// Auto-refresh every 30 seconds (non-blocking)
+setInterval(refreshStats, 30000);
+
+// Refresh on page visibility change
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !isRefreshing) {
+        setTimeout(refreshStats, 1000);
+    }
+});
+</script>
+{% endblock %}

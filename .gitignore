@@ -1,0 +1,20 @@
+# Ignore environment variable files
+.env
+
+# Ignore local SQLite development database
+dev.db
+
+# Ignore Python bytecode and cache folders
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Replit configuration files
+.replit
+*.replit
+replit.nix
+
+# Ignore virtual environments (if added later)
+venv/
+env/
+*.egg-info/

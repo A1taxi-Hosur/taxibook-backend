@@ -1,0 +1,192 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Rides - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Rides Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('admin.rides', status='all') }}" 
+               class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                All
+            </a>
+            <a href="{{ url_for('admin.rides', status='pending') }}" 
+               class="btn btn-sm {% if status_filter == 'pending' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                Pending
+            </a>
+            <a href="{{ url_for('admin.rides', status='accepted') }}" 
+               class="btn btn-sm {% if status_filter == 'accepted' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                Accepted
+            </a>
+            <a href="{{ url_for('admin.rides', status='completed') }}" 
+               class="btn btn-sm {% if status_filter == 'completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                Completed
+            </a>
+            <a href="{{ url_for('admin.rides', status='cancelled') }}" 
+               class="btn btn-sm {% if status_filter == 'cancelled' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                Cancelled
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if rides and rides.items %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Customer</th>
+                            <th>Driver</th>
+                            <th>Route</th>
+                            <th>Status</th>
+                            <th>Fare</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ride in rides.items %}
+                            <tr>
+                                <td>#{{ ride.id }}</td>
+                                <td>
+                                    <div>{{ ride.customer.name }}</div>
+                                    <small class="text-muted">{{ ride.customer_phone }}</small>
+                                </td>
+                                <td>
+                                    {% if ride.driver %}
+                                        <div>{{ ride.driver.name }}</div>
+                                        <small class="text-muted">{{ ride.driver.phone }}</small>
+                                    {% else %}
+                                        <span class="text-muted">Not assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        <strong>From:</strong> {{ ride.pickup_address[:40] }}...
+                                    </div>
+                                    <div class="small">
+                                        <strong>To:</strong> {{ ride.drop_address[:40] }}...
+                                    </div>
+                                    {% if ride.distance_km %}
+                                        <div class="small text-muted">
+                                            {{ "%.2f"|format(ride.distance_km) }} km
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge status-badge 
+                                        {% if ride.status == 'completed' %}bg-success
+                                        {% elif ride.status == 'cancelled' %}bg-danger
+                                        {% elif ride.status == 'pending' %}bg-warning
+                                        {% elif ride.status == 'accepted' %}bg-info
+                                        {% elif ride.status == 'arrived' %}bg-primary
+                                        {% elif ride.status == 'started' %}bg-primary
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ ride.status.title() }}
+                                    </span>
+                                </td>
+                                <td>₹{{ "%.2f"|format(ride.fare_amount) }}</td>
+                                <td>
+                                    <div class="small">{{ ride.created_at.strftime('%Y-%m-%d') }}</div>
+                                    <div class="small text-muted">{{ ride.created_at.strftime('%H:%M:%S') }}</div>
+                                </td>
+                                <td>
+                                    {% if ride.status not in ['completed', 'cancelled'] %}
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="cancelRide({{ ride.id }})">
+                                            Cancel
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if rides.pages > 1 %}
+                <nav aria-label="Rides pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if rides.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.rides', page=rides.prev_num, status=status_filter) }}">
+                                    Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in rides.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != rides.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.rides', page=page_num, status=status_filter) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if rides.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.rides', page=rides.next_num, status=status_filter) }}">
+                                    Next
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <p class="text-muted mt-2">No rides found</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function cancelRide(rideId) {
+    if (!confirm('Are you sure you want to cancel this ride?')) {
+        return;
+    }
+    
+    fetch(`{{ url_for('admin.cancel_ride_admin', ride_id=0) }}`.replace('0', rideId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert('Ride cancelled successfully');
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error cancelling ride');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,59 @@
+The backend for the TaxiBook app is fully implemented and its `.md` documentation already exists. Please carefully review the existing `.md` and update it to include all missing or incomplete information listed below. Do not rewrite sections that are already accurate — only append or enhance as needed.
+
+🔧 Update the `.md` with the following:
+
+1. ✅ **Google Maps Distance Matrix Integration**
+   - Clearly state that it is used for calculating real road distance and travel time between pickup and drop.
+   - Mention that both address-based and coordinate-based lookups are supported.
+   - Include an example (e.g., Connaught Place → India Gate with actual distance used).
+
+2. ✅ **Fare Calculation**
+   - Explicitly document the fare formula: `fare = ₹12 + (₹11 × distance_km)`
+   - Mention that the final fare is rounded to 2 decimal places.
+   - Add an example of calculated fare from real coordinates or address.
+
+3. ✅ **Frontend Notes / Responsibilities**
+   - Add a section or inline notes under each relevant endpoint or screen explaining:
+     - Frontend should draw the pickup→drop route on Google Maps.
+     - Fare should be shown to the customer **before** final ride confirmation.
+     - Since there is no ride history API, the frontend should store ride history locally if needed.
+     - Frontend must send requests with `credentials: 'include'` to maintain Flask-Login sessions.
+     - For location fields, frontend must retrieve lat/lng using device GPS and send with ride request.
+
+4. ✅ **Polling Strategy**
+   - Under relevant endpoints, add:
+     - `/customer/ride_status`: should be polled every 10–15 seconds
+     - `/driver/incoming_rides` and `/driver/current_ride`: also polled every 10–15 seconds
+     - Frontend must show a "searching for driver..." UI while polling if status is `pending`
+
+5. ✅ **Error Handling Details**
+   - Confirm and expand the “API Errors” section:
+     - Standard error format is:
+       ```json
+       {
+         "status": "error",
+         "message": "Clear description here",
+         "data": null
+       }
+       ```
+     - Add list of common errors (e.g., “Invalid phone format”, “Missing pickup address”, “Already has active ride”, “Ride not found”)
+
+6. ✅ **Backend Limitations**
+   - Ensure the `.md` clearly lists the following as NOT supported:
+     - OTP/SMS verification
+     - Payment or billing APIs
+     - Push notifications
+     - Real-time driver location via WebSockets
+     - Ratings/reviews
+     - Profile edit/update endpoints
+     - Ride history API
+
+7. ✅ **Session Management Clarification**
+   - Reiterate that authentication uses Flask-Login sessions with cookies.
+   - All API calls must be sent with `credentials: 'include'` for session continuity.
+
+📌 Final Instructions:
+- Append or update only where necessary — keep the structure and tone consistent.
+- Do not invent features or add anything not supported by the backend.
+- Ensure the final `.md` is clear, accurate, frontend-ready, and fully synced with backend logic.
+

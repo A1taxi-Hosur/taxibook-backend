@@ -1,0 +1,115 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Customers - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Customers Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <span class="badge bg-primary fs-6">Total: {{ customers.total if customers else 0 }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if customers and customers.items %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Total Rides</th>
+                            <th>Active Rides</th>
+                            <th>Joined</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers.items %}
+                            <tr>
+                                <td>#{{ customer.id }}</td>
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.phone }}</td>
+                                <td>{{ customer.rides|length }}</td>
+                                <td>
+                                    {% set active_rides = customer.rides|selectattr('status', 'in', ['pending', 'accepted', 'arrived', 'started'])|list %}
+                                    {% if active_rides %}
+                                        <span class="badge bg-warning">{{ active_rides|length }}</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small">{{ customer.created_at.strftime('%Y-%m-%d') }}</div>
+                                    <div class="small text-muted">{{ customer.created_at.strftime('%H:%M:%S') }}</div>
+                                </td>
+                                <td>
+                                    {% if customer.rides %}
+                                        {% set last_ride = customer.rides|sort(attribute='created_at', reverse=true)|first %}
+                                        <div class="small">{{ last_ride.created_at.strftime('%Y-%m-%d') }}</div>
+                                        <div class="small text-muted">{{ last_ride.created_at.strftime('%H:%M:%S') }}</div>
+                                    {% else %}
+                                        <span class="text-muted">No rides</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if customers.pages > 1 %}
+                <nav aria-label="Customers pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if customers.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.customers', page=customers.prev_num) }}">
+                                    Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in customers.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != customers.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.customers', page=page_num) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if customers.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.customers', page=customers.next_num) }}">
+                                    Next
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-people display-4 text-muted"></i>
+                <p class="text-muted mt-2">No customers found</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
