@@ -190,8 +190,8 @@ def ride_status():
         if not active_ride:
             return create_success_response({'has_active_ride': False}, "No active ride")
         
-        # Return ride details
-        ride_data = active_ride.to_dict()
+        # Return ride details with OTP for customer
+        ride_data = active_ride.to_dict(include_otp=True)
         ride_data['has_active_ride'] = True
         
         return create_success_response(ride_data, "Ride status retrieved")

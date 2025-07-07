@@ -139,6 +139,7 @@ Changelog:
 - July 07, 2025. Implemented ride estimate endpoint with Google Maps integration and multi-vehicle fare calculation (Version 1.6)
 - July 07, 2025. Enhanced ride estimate endpoint with simplified JSON format and strengthened backend-only pricing control (Version 1.6.1)
 - July 07, 2025. Implemented comprehensive GPS tracking system with real-time driver location updates, customer location retrieval, and optimized database indexing (Version 1.7)
+- July 07, 2025. Implemented OTP-based ride start confirmation system with 6-digit OTP generation, customer OTP retrieval, driver OTP verification, and automatic OTP cleanup for enhanced security (Version 1.8)
 ```
 
 ## User Preferences

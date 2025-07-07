@@ -81,6 +81,9 @@ class Ride(db.Model):
     # Status tracking
     status = db.Column(db.String(20), default='pending')  # pending, accepted, arrived, started, completed, cancelled
     
+    # OTP for ride start confirmation
+    start_otp = db.Column(db.String(6), nullable=True)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=get_ist_time)
     accepted_at = db.Column(db.DateTime, nullable=True)
@@ -92,7 +95,7 @@ class Ride(db.Model):
     def __repr__(self):
         return f'<Ride {self.id} - {self.status}>'
     
-    def to_dict(self):
+    def to_dict(self, include_otp=False):
         """Convert ride to dictionary for API responses"""
         ride_data = {
             'id': self.id,
@@ -115,6 +118,10 @@ class Ride(db.Model):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'cancelled_at': self.cancelled_at.isoformat() if self.cancelled_at else None,
         }
+        
+        # Include OTP for customer responses only when driver is assigned
+        if include_otp and self.driver and self.start_otp:
+            ride_data['start_otp'] = self.start_otp
         
         # Add driver details only when driver is assigned
         if self.driver:

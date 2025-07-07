@@ -174,6 +174,10 @@ def accept_ride():
         if not ride:
             return create_error_response("Ride not available or already accepted")
         
+        # Generate OTP for ride start confirmation
+        import random
+        ride.start_otp = str(random.randint(100000, 999999))
+        
         # Assign ride to driver
         ride.driver_id = driver.id
         ride.status = 'accepted'
@@ -305,44 +309,65 @@ def arrived():
 
 @driver_bp.route('/start_ride', methods=['POST'])
 def start_ride():
-    """Start the ride"""
+    """Start the ride with OTP verification"""
     try:
         data = request.get_json()
         if not data:
             return create_error_response("Invalid JSON data")
         
-        driver_phone = data.get('driver_phone')
-        if not driver_phone:
-            return create_error_response("Driver phone is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['ride_id', 'otp'])
         if not valid:
-            return create_error_response(phone_or_error)
+            return create_error_response(error)
         
-        phone = phone_or_error
+        ride_id = data['ride_id']
+        submitted_otp = data['otp'].strip()
         
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
-        if not driver:
-            return create_error_response("Driver not found")
+        # Validate OTP format (6 digits)
+        if not submitted_otp.isdigit() or len(submitted_otp) != 6:
+            return create_error_response("OTP must be exactly 6 digits")
         
-        # Find arrived ride
-        ride = Ride.query.filter_by(
-            driver_id=driver.id,
-            status='arrived'
-        ).first()
-        
+        # Find the ride
+        ride = Ride.query.filter_by(id=ride_id).first()
         if not ride:
-            return create_error_response("No arrived ride found")
+            return create_error_response("Ride not found")
+        
+        # Validate ride state
+        if ride.status not in ['accepted', 'arrived']:
+            return create_error_response("Ride cannot be started from current status")
+        
+        if ride.status == 'started':
+            return create_error_response("Ride is already started")
+        
+        if ride.status in ['completed', 'cancelled']:
+            return create_error_response("Ride is already completed or cancelled")
+        
+        # Verify driver is assigned to this ride
+        if not ride.driver_id:
+            return create_error_response("No driver assigned to this ride")
+        
+        # Check if current user is the assigned driver (for session-based auth)
+        if hasattr(current_user, 'id') and current_user.is_authenticated:
+            if current_user.id != ride.driver_id:
+                return create_error_response("You are not authorized to start this ride")
+        
+        # Verify OTP
+        if not ride.start_otp:
+            return create_error_response("No OTP generated for this ride")
+        
+        if ride.start_otp != submitted_otp:
+            logging.warning(f"Invalid OTP attempt for ride {ride_id}: expected {ride.start_otp}, got {submitted_otp}")
+            return create_error_response("Invalid OTP", 403)
         
         # Start the ride
         ride.status = 'started'
         ride.started_at = get_ist_time()
+        # Clear OTP after successful verification (optional security measure)
+        ride.start_otp = None
         
         db.session.commit()
         
-        logging.info(f"Ride started: {ride.id} by driver {driver.name}")
+        logging.info(f"Ride started: {ride.id} by driver {ride.driver.name} with OTP verification")
         return create_success_response({
             'ride_id': ride.id,
             'status': 'started'
