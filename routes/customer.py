@@ -317,23 +317,20 @@ def ride_estimate():
             # Calculate fare using database configuration
             fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
             if fare_success:
-                estimates[ride_type] = {
-                    'distance_km': round(distance_km, 2),
-                    'fare_amount': round(fare_amount, 2),
-                    'currency': 'INR'
-                }
+                estimates[ride_type] = round(fare_amount, 2)
             else:
                 # Fallback if fare calculation fails
-                estimates[ride_type] = {
-                    'distance_km': round(distance_km, 2),
-                    'fare_amount': 0,
-                    'currency': 'INR',
-                    'error': fare_error
-                }
+                estimates[ride_type] = 0
+                logging.error(f"Fare calculation failed for {ride_type}: {fare_error}")
         
         logging.info(f"Fare estimates calculated for {distance_km:.2f}km: {estimates}")
         
-        return jsonify(estimates)
+        # Return response in the exact format specified
+        return jsonify({
+            'success': True,
+            'distance_km': round(distance_km, 2),
+            'estimates': estimates
+        })
         
     except Exception as e:
         logging.error(f"Error in ride_estimate: {str(e)}")
