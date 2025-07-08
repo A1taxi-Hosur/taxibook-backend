@@ -57,8 +57,9 @@ TaxiBook/
 - **Booking System**: Customer ride requests with pickup/drop locations
 - **Driver Assignment**: Automatic driver assignment based on availability
 - **Status Tracking**: Real-time ride status updates through multiple states
-- **Fare Calculation**: Integration with Google Maps API for distance and pricing
+- **Fare Calculation**: Database-driven fare configuration with admin-controlled pricing
 - **GPS Tracking**: Real-time driver location tracking with optimized database indexing
+- **OTP Verification**: Secure ride start confirmation with 6-digit OTP system
 
 ### API Integration
 - **Google Maps Distance Matrix API**: Calculate distances, routes, and travel times
@@ -85,7 +86,8 @@ TaxiBook/
 1. **Dashboard**: Overview of system statistics and active rides
 2. **User Management**: Monitor and manage customers and drivers
 3. **Ride Monitoring**: Track all rides and their statuses
-4. **Analytics**: View system performance and usage metrics
+4. **Fare Configuration**: Real-time pricing management with surge control
+5. **Analytics**: View system performance and usage metrics
 
 ## External Dependencies
 
@@ -140,6 +142,7 @@ Changelog:
 - July 07, 2025. Enhanced ride estimate endpoint with simplified JSON format and strengthened backend-only pricing control (Version 1.6.1)
 - July 07, 2025. Implemented comprehensive GPS tracking system with real-time driver location updates, customer location retrieval, and optimized database indexing (Version 1.7)
 - July 07, 2025. Implemented OTP-based ride start confirmation system with 6-digit OTP generation, customer OTP retrieval, driver OTP verification, and automatic OTP cleanup for enhanced security (Version 1.8)
+- July 08, 2025. Implemented database-driven fare configuration system with admin web interface for real-time pricing management, replacing hardcoded fare calculations with configurable base_fare, per_km_rate, and surge_multiplier settings (Version 1.9)
 ```
 
 ## User Preferences

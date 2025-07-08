@@ -65,6 +65,12 @@
                                 <i class="bi bi-person-badge"></i> Drivers
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'admin.fare_config' %}active{% endif %}" 
+                               href="{{ url_for('admin.fare_config') }}">
+                                <i class="bi bi-currency-rupee"></i> Fare Config
+                            </a>
+                        </li>
                         <li class="nav-item mt-3">
                             <hr class="text-muted">
                         </li>

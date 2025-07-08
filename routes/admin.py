@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db, get_ist_time
-from models import Admin, Customer, Driver, Ride
+from models import Admin, Customer, Driver, Ride, FareConfig
 from utils.validators import create_error_response, create_success_response, validate_phone, validate_required_fields
 import logging
 import random
@@ -568,3 +568,122 @@ def get_driver(driver_id):
     except Exception as e:
         logging.error(f"Error getting driver details: {str(e)}")
         return create_error_response('Error retrieving driver details', 500)
+
+
+@admin_bp.route('/fare_config')
+@login_required
+def fare_config():
+    """Fare configuration management page"""
+    if not isinstance(current_user, Admin):
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('admin.login'))
+    
+    return render_template('admin/fare_config.html')
+
+
+@admin_bp.route('/api/fare_config', methods=['GET'])
+@login_required
+def api_get_fare_config():
+    """API endpoint to get all fare configurations"""
+    if not isinstance(current_user, Admin):
+        return create_error_response("Access denied", 403)
+    
+    try:
+        fare_configs = FareConfig.query.all()
+        return create_success_response({
+            'fare_configs': [config.to_dict() for config in fare_configs]
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting fare configurations: {str(e)}")
+        return create_error_response("Failed to get fare configurations")
+
+
+@admin_bp.route('/api/fare_config', methods=['POST'])
+@login_required
+def api_update_fare_config():
+    """API endpoint to update fare configuration for a specific ride type"""
+    if not isinstance(current_user, Admin):
+        return create_error_response("Access denied", 403)
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['ride_type', 'base_fare', 'per_km_rate'])
+        if not valid:
+            return create_error_response(error)
+        
+        ride_type = data['ride_type'].lower()
+        base_fare = float(data['base_fare'])
+        per_km_rate = float(data['per_km_rate'])
+        
+        # Validate values
+        if base_fare < 0 or per_km_rate < 0:
+            return create_error_response("Base fare and per km rate must be positive")
+        
+        if ride_type not in ['hatchback', 'sedan', 'suv']:
+            return create_error_response("Invalid ride type")
+        
+        # Find and update the fare configuration
+        fare_config = FareConfig.query.filter_by(ride_type=ride_type).first()
+        if not fare_config:
+            return create_error_response(f"Fare configuration not found for ride type: {ride_type}")
+        
+        fare_config.base_fare = base_fare
+        fare_config.per_km_rate = per_km_rate
+        fare_config.updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Fare configuration updated for {ride_type}: base=₹{base_fare}, per_km=₹{per_km_rate}")
+        return create_success_response(fare_config.to_dict(), f"Fare configuration updated for {ride_type}")
+    
+    except ValueError:
+        return create_error_response("Invalid numeric values for fare amounts")
+    except Exception as e:
+        logging.error(f"Error updating fare configuration: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update fare configuration")
+
+
+@admin_bp.route('/api/fare_config/surge', methods=['POST'])
+@login_required
+def api_update_surge_multiplier():
+    """API endpoint to update global surge multiplier for all ride types"""
+    if not isinstance(current_user, Admin):
+        return create_error_response("Access denied", 403)
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        surge_multiplier = float(data.get('surge_multiplier', 1.0))
+        
+        # Validate surge multiplier
+        if surge_multiplier < 0.5 or surge_multiplier > 5.0:
+            return create_error_response("Surge multiplier must be between 0.5 and 5.0")
+        
+        # Update all fare configurations with new surge multiplier
+        fare_configs = FareConfig.query.all()
+        for config in fare_configs:
+            config.surge_multiplier = surge_multiplier
+            config.updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Global surge multiplier updated to {surge_multiplier}x")
+        return create_success_response({
+            'surge_multiplier': surge_multiplier,
+            'updated_configs': len(fare_configs)
+        }, f"Global surge multiplier updated to {surge_multiplier}x")
+    
+    except ValueError:
+        return create_error_response("Invalid numeric value for surge multiplier")
+    except Exception as e:
+        logging.error(f"Error updating surge multiplier: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update surge multiplier")

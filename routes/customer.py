@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, get_ist_time
-from models import Customer, Ride, RideLocation
+from models import Customer, Ride, RideLocation, FareConfig
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
 import logging
@@ -117,13 +117,18 @@ def book_ride():
         drop_lat = data.get('drop_lat')
         drop_lng = data.get('drop_lng')
         
-        # Calculate distance and fare using Google Maps API
-        success, distance_km, fare_amount, error_msg = get_distance_and_fare(
+        # Calculate distance using Google Maps API (for distance only)
+        success, distance_km, _, error_msg = get_distance_and_fare(
             pickup_address, drop_address, pickup_lat, pickup_lng, drop_lat, drop_lng
         )
         
         if not success:
             return create_error_response(error_msg)
+        
+        # Calculate fare using database configuration
+        fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
+        if not fare_success:
+            return create_error_response(fare_error)
         
         # Create new ride
         ride = Ride(
@@ -293,7 +298,7 @@ def ride_estimate():
                 'error': 'Could not calculate fare estimate'
             }), 500
         
-        # Calculate fare estimates for each ride type
+        # Calculate fare estimates using database configuration
         # CENTRALIZED PRICING LOGIC - BACKEND ONLY
         # ========================================
         # ALL fare calculations MUST happen on backend to ensure:
@@ -304,19 +309,27 @@ def ride_estimate():
         #
         # NEVER allow frontend/mobile apps to calculate fares independently
         # Frontend should only display backend-provided pricing
-        fare_rates = {
-            'hatchback': 12,  # ₹12 per kilometer
-            'sedan': 15,      # ₹15 per kilometer
-            'suv': 18         # ₹18 per kilometer
-        }
         
         estimates = {}
-        for ride_type, rate_per_km in fare_rates.items():
-            # Calculate raw fare
-            raw_fare = distance_km * rate_per_km
-            # Round to nearest ₹5
-            rounded_fare = round(raw_fare / 5.0) * 5
-            estimates[ride_type] = int(rounded_fare)
+        ride_types = ['hatchback', 'sedan', 'suv']
+        
+        for ride_type in ride_types:
+            # Calculate fare using database configuration
+            fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
+            if fare_success:
+                estimates[ride_type] = {
+                    'distance_km': round(distance_km, 2),
+                    'fare_amount': round(fare_amount, 2),
+                    'currency': 'INR'
+                }
+            else:
+                # Fallback if fare calculation fails
+                estimates[ride_type] = {
+                    'distance_km': round(distance_km, 2),
+                    'fare_amount': 0,
+                    'currency': 'INR',
+                    'error': fare_error
+                }
         
         logging.info(f"Fare estimates calculated for {distance_km:.2f}km: {estimates}")
         
