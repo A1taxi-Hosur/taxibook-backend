@@ -139,7 +139,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        fareConfigs = data.fare_configs;
+                        fareConfigs = data.data.fare_configs;
                         renderFareConfigCards();
                         updateGlobalSurgeDisplay();
                     } else {
