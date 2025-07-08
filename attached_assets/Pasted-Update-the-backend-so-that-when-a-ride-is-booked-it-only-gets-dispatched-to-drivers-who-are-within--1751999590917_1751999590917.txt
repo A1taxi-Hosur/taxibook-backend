@@ -1,0 +1,57 @@
+Update the backend so that when a ride is booked, it only gets dispatched to drivers who are within 5 kilometers of the pickup location. Here's how to implement it:
+
+1. Modify the `/book_ride` route.
+2. Use the Haversine formula to calculate the distance between the pickup point and each online driver's current location.
+3. Only dispatch the ride to drivers whose distance is 5 km or less.
+
+Add this utility function to calculate the distance:
+
+```python
+import math
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371  # Earth radius in km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c  # in kilometers
+Then update the /book_ride route like this:
+
+python
+Copy
+Edit
+@app.route('/book_ride', methods=['POST'])
+def book_ride():
+    data = request.json
+    pickup_lat = data['pickup_lat']
+    pickup_lng = data['pickup_lng']
+
+    # Get all online drivers with location
+    online_drivers = Driver.query.filter_by(is_online=True).all()
+
+    eligible_drivers = []
+
+    for driver in online_drivers:
+        if driver.current_lat is None or driver.current_lng is None:
+            continue
+
+        distance = haversine_distance(
+            pickup_lat, pickup_lng,
+            driver.current_lat, driver.current_lng
+        )
+        if distance <= 5:
+            eligible_drivers.append(driver)
+
+    if not eligible_drivers:
+        return jsonify({'status': 'no_drivers_within_radius'})
+
+    for driver in eligible_drivers:
+        notify_driver(driver, ride_data=data)  # Or your existing dispatch logic
+
+    return jsonify({'status': 'ride_dispatched_to_nearby_drivers'})
+Make sure driver.current_lat and driver.current_lng are updated when the driver logs in or moves.

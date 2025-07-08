@@ -38,6 +38,11 @@ class Driver(UserMixin, db.Model):
     rcbook_url = db.Column(db.String(255), nullable=True)
     profile_photo_url = db.Column(db.String(255), nullable=True)
     
+    # Current location for proximity-based dispatch
+    current_lat = db.Column(db.Float, nullable=True)
+    current_lng = db.Column(db.Float, nullable=True)
+    location_updated_at = db.Column(db.DateTime, nullable=True)
+    
     # Relationship with rides
     rides = db.relationship('Ride', backref='driver', lazy=True)
     

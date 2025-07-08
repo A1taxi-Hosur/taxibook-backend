@@ -698,3 +698,60 @@ def update_location():
         logging.error(f"Error updating location: {str(e)}")
         db.session.rollback()
         return create_error_response("Internal server error")
+
+@driver_bp.route('/update_current_location', methods=['POST'])
+def update_current_location():
+    """Update driver's current location for proximity-based dispatch"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("No data provided")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['phone', 'latitude', 'longitude'])
+        if not valid:
+            return create_error_response(error)
+        
+        # Validate phone number
+        valid, phone_or_error = validate_phone(data['phone'])
+        if not valid:
+            return create_error_response(phone_or_error)
+        
+        phone = phone_or_error
+        
+        try:
+            latitude = float(data['latitude'])
+            longitude = float(data['longitude'])
+        except (ValueError, TypeError):
+            return create_error_response("Invalid latitude or longitude format")
+        
+        # Validate coordinates
+        if not (-90 <= latitude <= 90):
+            return create_error_response("Invalid latitude value")
+        if not (-180 <= longitude <= 180):
+            return create_error_response("Invalid longitude value")
+        
+        # Find driver
+        driver = Driver.query.filter_by(phone=phone).first()
+        if not driver:
+            return create_error_response("Driver not found")
+        
+        # Update driver's current location
+        driver.current_lat = latitude
+        driver.current_lng = longitude
+        driver.location_updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Driver current location updated: {driver.name} at ({latitude}, {longitude})")
+        return create_success_response({
+            'driver_id': driver.id,
+            'latitude': latitude,
+            'longitude': longitude,
+            'updated_at': driver.location_updated_at.isoformat()
+        }, "Current location updated successfully")
+        
+    except Exception as e:
+        logging.error(f"Error updating driver current location: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Internal server error")

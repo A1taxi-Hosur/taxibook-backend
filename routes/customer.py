@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, get_ist_time
-from models import Customer, Ride, RideLocation, FareConfig
+from models import Customer, Ride, RideLocation, FareConfig, Driver
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
+from utils.distance import haversine_distance, filter_drivers_by_proximity
 import logging
 
 customer_bp = Blueprint('customer', __name__)
@@ -129,6 +130,20 @@ def book_ride():
         fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
         if not fare_success:
             return create_error_response(fare_error)
+        
+        # Check if we have pickup coordinates for proximity dispatch
+        if pickup_lat is None or pickup_lng is None:
+            return create_error_response("Pickup coordinates are required for ride booking")
+        
+        # Find eligible drivers within 5km radius
+        online_drivers = Driver.query.filter_by(is_online=True, car_type=ride_type).all()
+        eligible_drivers = filter_drivers_by_proximity(
+            online_drivers, pickup_lat, pickup_lng, max_distance_km=5.0
+        )
+        
+        # Check if any drivers are available within range
+        if not eligible_drivers:
+            return create_error_response("No drivers available within 5km of pickup location")
         
         # Create new ride
         ride = Ride(
