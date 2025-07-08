@@ -109,7 +109,7 @@
     </div>
 
     <script>
-        let fareConfigs = [];
+        let fareConfigs = null;
         
         // Load fare configurations on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -138,12 +138,13 @@
             fetch('/admin/api/fare_config')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'success') {
+                    if (data.status === 'success' && data.data && data.data.fare_configs) {
                         fareConfigs = data.data.fare_configs;
                         renderFareConfigCards();
                         updateGlobalSurgeDisplay();
                     } else {
-                        showAlert('Failed to load fare configurations: ' + data.message, 'danger');
+                        showAlert('Failed to load fare configurations: ' + (data.message || 'Invalid response structure'), 'danger');
+                        fareConfigs = [];
                     }
                 })
                 .catch(error => {
@@ -154,6 +155,12 @@
         function renderFareConfigCards() {
             const container = document.getElementById('fareConfigContainer');
             container.innerHTML = '';
+            
+            // Check if fareConfigs is defined and is an array
+            if (!fareConfigs || !Array.isArray(fareConfigs)) {
+                showAlert('No fare configurations available', 'warning');
+                return;
+            }
             
             fareConfigs.forEach(config => {
                 const card = document.createElement('div');
@@ -190,14 +197,22 @@
         }
         
         function updateGlobalSurgeDisplay() {
-            if (fareConfigs.length > 0) {
+            if (fareConfigs && Array.isArray(fareConfigs) && fareConfigs.length > 0) {
                 document.getElementById('globalSurgeMultiplier').value = fareConfigs[0].surge_multiplier;
             }
         }
         
         function editFareConfig(rideType) {
+            if (!fareConfigs || !Array.isArray(fareConfigs)) {
+                showAlert('Fare configurations not loaded', 'warning');
+                return;
+            }
+            
             const config = fareConfigs.find(c => c.ride_type === rideType);
-            if (!config) return;
+            if (!config) {
+                showAlert('Fare configuration not found for ' + rideType, 'warning');
+                return;
+            }
             
             document.getElementById('modalRideType').value = rideType;
             document.getElementById('modalBaseFare').value = config.base_fare;
