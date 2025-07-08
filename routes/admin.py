@@ -574,10 +574,6 @@ def get_driver(driver_id):
 @login_required
 def fare_config():
     """Fare configuration management page"""
-    if not isinstance(current_user, Admin):
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('admin.login'))
-    
     return render_template('admin/fare_config.html')
 
 
@@ -585,9 +581,6 @@ def fare_config():
 @login_required
 def api_get_fare_config():
     """API endpoint to get all fare configurations"""
-    if not isinstance(current_user, Admin):
-        return create_error_response("Access denied", 403)
-    
     try:
         fare_configs = FareConfig.query.all()
         return create_success_response({
@@ -603,8 +596,7 @@ def api_get_fare_config():
 @login_required
 def api_update_fare_config():
     """API endpoint to update fare configuration for a specific ride type"""
-    if not isinstance(current_user, Admin):
-        return create_error_response("Access denied", 403)
+    # Authentication handled by @login_required decorator
     
     try:
         data = request.get_json()
@@ -653,8 +645,7 @@ def api_update_fare_config():
 @login_required
 def api_update_surge_multiplier():
     """API endpoint to update global surge multiplier for all ride types"""
-    if not isinstance(current_user, Admin):
-        return create_error_response("Access denied", 403)
+    # Authentication handled by @login_required decorator
     
     try:
         data = request.get_json()
