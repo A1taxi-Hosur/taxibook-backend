@@ -45,7 +45,7 @@
 
 <!-- Add/Edit Zone Modal -->
 <div class="modal fade" id="zoneModal" tabindex="-1" aria-labelledby="zoneModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="zoneModalLabel">Add Zone</h5>
@@ -84,9 +84,16 @@
                             </label>
                         </div>
                     </div>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Tip:</strong> You can click on the map to set center coordinates automatically.
+                    <div class="mb-3">
+                        <label class="form-label">Zone Map</label>
+                        <div id="modalMap" style="height: 300px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                            <p class="text-muted">Loading map...</p>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> Click on the map to set center coordinates automatically.
+                            </small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -225,6 +232,14 @@ function openAddZoneModal() {
     
     const modal = new bootstrap.Modal(document.getElementById('zoneModal'));
     modal.show();
+    
+    // Initialize modal map when modal is shown
+    const modalElement = document.getElementById('zoneModal');
+    modalElement.addEventListener('shown.bs.modal', function () {
+        setTimeout(() => {
+            initModalMap();
+        }, 100);
+    }, { once: true });
 }
 
 function editZone(zoneId) {
@@ -244,6 +259,28 @@ function editZone(zoneId) {
                 
                 const modal = new bootstrap.Modal(document.getElementById('zoneModal'));
                 modal.show();
+                
+                // Initialize modal map when modal is shown
+                const modalElement = document.getElementById('zoneModal');
+                modalElement.addEventListener('shown.bs.modal', function () {
+                    setTimeout(() => {
+                        initModalMap();
+                        
+                        // Center map on existing zone and add marker
+                        const center = { lat: parseFloat(zone.center_lat), lng: parseFloat(zone.center_lng) };
+                        modalMap.setCenter(center);
+                        
+                        // Add marker at existing location
+                        if (window.modalMarker) {
+                            window.modalMarker.setMap(null);
+                        }
+                        window.modalMarker = new google.maps.Marker({
+                            position: center,
+                            map: modalMap,
+                            title: 'Zone Center'
+                        });
+                    }, 100);
+                }, { once: true });
             } else {
                 showError('Failed to load zone details');
             }
@@ -383,24 +420,46 @@ function showSuccess(message) {
 
 // Initialize Google Maps (if available)
 let map;
+let modalMap;
 let zoneCircles = [];
 
 function initMap() {
     if (typeof google !== 'undefined' && google.maps) {
+        // Initialize main map
         map = new google.maps.Map(document.getElementById('map'), {
             zoom: 12,
             center: { lat: 12.7400, lng: 77.8253 }, // Hosur coordinates
             mapTypeId: 'roadmap'
         });
         
-        // Add click listener to set coordinates
-        map.addListener('click', function(e) {
-            document.getElementById('centerLat').value = e.latLng.lat().toFixed(6);
-            document.getElementById('centerLng').value = e.latLng.lng().toFixed(6);
-        });
-        
         // Load and display existing zones
         loadZonesOnMap();
+    }
+}
+
+function initModalMap() {
+    if (typeof google !== 'undefined' && google.maps) {
+        modalMap = new google.maps.Map(document.getElementById('modalMap'), {
+            zoom: 12,
+            center: { lat: 12.7400, lng: 77.8253 }, // Hosur coordinates
+            mapTypeId: 'roadmap'
+        });
+        
+        // Add click listener to set coordinates
+        modalMap.addListener('click', function(e) {
+            document.getElementById('centerLat').value = e.latLng.lat().toFixed(6);
+            document.getElementById('centerLng').value = e.latLng.lng().toFixed(6);
+            
+            // Add marker at clicked location
+            if (window.modalMarker) {
+                window.modalMarker.setMap(null);
+            }
+            window.modalMarker = new google.maps.Marker({
+                position: e.latLng,
+                map: modalMap,
+                title: 'Zone Center'
+            });
+        });
     }
 }
 
