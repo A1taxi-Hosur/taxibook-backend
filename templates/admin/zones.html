@@ -184,8 +184,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Google Maps JavaScript API -->
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry&callback=initializeGoogleMaps" async defer></script>
+<!-- Google Maps JavaScript API with Drawing Library -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry,drawing&callback=initializeGoogleMaps" async defer></script>
 <script>
 let selectedZoneId = null;
 
@@ -406,6 +406,17 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
         is_active: formData.get('is_active') === 'on'
     };
     
+    // Add polygon coordinates if available
+    if (polygonCoordinates.length > 0) {
+        data.polygon_coordinates = polygonCoordinates;
+    }
+    
+    // Add enhanced zone fields
+    data.number_of_rings = parseInt(formData.get('number_of_rings')) || 3;
+    data.ring_radius_km = parseFloat(formData.get('ring_radius_km')) || 2.0;
+    data.expansion_delay_sec = parseInt(formData.get('expansion_delay_sec')) || 15;
+    data.priority_order = parseInt(formData.get('priority_order')) || 1;
+    
     const zoneId = formData.get('zone_id');
     const isEdit = zoneId && zoneId !== '';
     
@@ -496,6 +507,9 @@ function initModalMap() {
             mapTypeId: 'roadmap'
         });
         
+        // Initialize drawing manager
+        initDrawingManager();
+        
         // Add click listener to set coordinates
         modalMap.addListener('click', function(e) {
             document.getElementById('centerLat').value = e.latLng.lat().toFixed(6);
@@ -563,6 +577,156 @@ function displayZonesOnMap(zones) {
         
         zoneCircles.push(circle);
     });
+}
+
+// Drawing Manager and Shape Handling
+let drawingManager;
+let currentShape = null;
+let polygonCoordinates = [];
+
+function initDrawingManager() {
+    if (typeof google !== 'undefined' && google.maps && google.maps.drawing) {
+        drawingManager = new google.maps.drawing.DrawingManager({
+            drawingMode: null,
+            drawingControl: false,
+            circleOptions: {
+                fillColor: '#ff0000',
+                fillOpacity: 0.2,
+                strokeWeight: 2,
+                clickable: false,
+                editable: true,
+                zIndex: 1
+            },
+            polygonOptions: {
+                fillColor: '#ff0000',
+                fillOpacity: 0.2,
+                strokeWeight: 2,
+                clickable: false,
+                editable: true,
+                zIndex: 1
+            }
+        });
+        
+        drawingManager.setMap(modalMap);
+        
+        // Handle shape completion
+        google.maps.event.addListener(drawingManager, 'circlecomplete', function(circle) {
+            if (currentShape) {
+                currentShape.setMap(null);
+            }
+            currentShape = circle;
+            
+            // Update form fields with circle center and radius
+            const center = circle.getCenter();
+            const radius = circle.getRadius() / 1000; // Convert to km
+            
+            document.getElementById('centerLat').value = center.lat().toFixed(6);
+            document.getElementById('centerLng').value = center.lng().toFixed(6);
+            document.getElementById('radiusKm').value = radius.toFixed(2);
+            
+            // Clear polygon coordinates
+            polygonCoordinates = [];
+            
+            // Stop drawing
+            drawingManager.setDrawingMode(null);
+            
+            // Update button states
+            updateDrawingButtons();
+        });
+        
+        google.maps.event.addListener(drawingManager, 'polygoncomplete', function(polygon) {
+            if (currentShape) {
+                currentShape.setMap(null);
+            }
+            currentShape = polygon;
+            
+            // Get polygon coordinates
+            const path = polygon.getPath();
+            polygonCoordinates = [];
+            
+            for (let i = 0; i < path.getLength(); i++) {
+                const point = path.getAt(i);
+                polygonCoordinates.push([point.lat(), point.lng()]);
+            }
+            
+            // Calculate polygon center
+            let centerLat = 0;
+            let centerLng = 0;
+            
+            polygonCoordinates.forEach(coord => {
+                centerLat += coord[0];
+                centerLng += coord[1];
+            });
+            
+            centerLat /= polygonCoordinates.length;
+            centerLng /= polygonCoordinates.length;
+            
+            document.getElementById('centerLat').value = centerLat.toFixed(6);
+            document.getElementById('centerLng').value = centerLng.toFixed(6);
+            
+            // Stop drawing
+            drawingManager.setDrawingMode(null);
+            
+            // Update button states
+            updateDrawingButtons();
+        });
+        
+        // Initialize drawing buttons
+        setupDrawingButtons();
+    } else {
+        console.error('Google Maps Drawing Library not available');
+    }
+}
+
+function setupDrawingButtons() {
+    // Circle drawing button
+    document.getElementById('drawCircleBtn').addEventListener('click', function() {
+        if (drawingManager) {
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
+            updateDrawingButtons('circle');
+        }
+    });
+    
+    // Polygon drawing button
+    document.getElementById('drawPolygonBtn').addEventListener('click', function() {
+        if (drawingManager) {
+            drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+            updateDrawingButtons('polygon');
+        }
+    });
+    
+    // Clear shapes button
+    document.getElementById('clearShapesBtn').addEventListener('click', function() {
+        if (currentShape) {
+            currentShape.setMap(null);
+            currentShape = null;
+        }
+        if (drawingManager) {
+            drawingManager.setDrawingMode(null);
+        }
+        polygonCoordinates = [];
+        updateDrawingButtons();
+    });
+}
+
+function updateDrawingButtons(activeMode = null) {
+    const circleBtn = document.getElementById('drawCircleBtn');
+    const polygonBtn = document.getElementById('drawPolygonBtn');
+    const clearBtn = document.getElementById('clearShapesBtn');
+    
+    // Reset button states
+    circleBtn.classList.remove('active');
+    polygonBtn.classList.remove('active');
+    
+    // Set active state
+    if (activeMode === 'circle') {
+        circleBtn.classList.add('active');
+    } else if (activeMode === 'polygon') {
+        polygonBtn.classList.add('active');
+    }
+    
+    // Enable/disable clear button
+    clearBtn.disabled = !currentShape;
 }
 
 // Initialize page
