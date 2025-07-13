@@ -1,0 +1,406 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Ongoing Rides - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Ongoing Rides</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary" onclick="refreshOngoingRides()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<div id="ongoing-rides-container">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading ongoing rides...</p>
+    </div>
+</div>
+
+<!-- Action Modal -->
+<div class="modal fade" id="actionModal" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="actionModalLabel">Ride Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="action-details"></div>
+                <div id="action-form"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmActionBtn" onclick="confirmAction()">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedRideId = null;
+let selectedAction = null;
+
+function refreshOngoingRides() {
+    document.getElementById('ongoing-rides-container').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading ongoing rides...</p>
+        </div>
+    `;
+    
+    fetch('/admin/api/bookings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayOngoingRides(data.data.bookings);
+            } else {
+                showError('Failed to load ongoing rides');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Network error occurred');
+        });
+}
+
+function displayOngoingRides(allRides) {
+    const container = document.getElementById('ongoing-rides-container');
+    
+    // Filter ongoing rides (assigned, active, or scheduled within 30 minutes)
+    const now = new Date();
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+    
+    const ongoingRides = allRides.filter(ride => {
+        if (ride.status === 'assigned' || ride.status === 'active' || ride.status === 'accepted') {
+            return true;
+        }
+        
+        // Check if scheduled within 30 minutes
+        if (ride.scheduled_date && ride.scheduled_time) {
+            const scheduledDateTime = new Date(`${ride.scheduled_date}T${ride.scheduled_time}`);
+            return scheduledDateTime <= thirtyMinutesFromNow && scheduledDateTime >= now;
+        }
+        
+        return false;
+    });
+    
+    if (ongoingRides.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-clock display-1 text-muted"></i>
+                <p class="mt-3 text-muted">No ongoing rides at the moment</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    ongoingRides.forEach(ride => {
+        const statusBadge = getStatusBadge(ride.status);
+        const categoryBadge = getCategoryBadge(ride.ride_category);
+        const typeBadge = getTypeBadge(ride.ride_type);
+        
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="card-title">
+                                Ride #${ride.id}
+                                ${statusBadge}
+                                ${categoryBadge}
+                                ${typeBadge}
+                            </h5>
+                            <p class="card-text">
+                                <strong>Customer:</strong> ${ride.customer_name || 'N/A'}<br>
+                                <strong>Driver:</strong> ${ride.driver_name || 'Not assigned'}<br>
+                                <strong>From:</strong> ${ride.pickup_address}<br>
+                                <strong>To:</strong> ${ride.drop_address}<br>
+                                <strong>Distance:</strong> ${ride.distance_km} km<br>
+                                <strong>Fare:</strong> ₹${ride.final_fare || ride.fare_amount}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <small class="text-muted">Timeline</small>
+                                <div class="timeline">
+                                    <div class="timeline-item ${ride.created_at ? 'completed' : ''}">
+                                        <i class="bi bi-plus-circle"></i> Booked
+                                        ${ride.created_at ? `<br><small>${formatDateTime(ride.created_at)}</small>` : ''}
+                                    </div>
+                                    <div class="timeline-item ${ride.assigned_time ? 'completed' : ''}">
+                                        <i class="bi bi-person-check"></i> Assigned
+                                        ${ride.assigned_time ? `<br><small>${formatDateTime(ride.assigned_time)}</small>` : ''}
+                                    </div>
+                                    <div class="timeline-item ${ride.arrived_at ? 'completed' : ''}">
+                                        <i class="bi bi-geo-alt"></i> Arrived
+                                        ${ride.arrived_at ? `<br><small>${formatDateTime(ride.arrived_at)}</small>` : ''}
+                                    </div>
+                                    <div class="timeline-item ${ride.started_at ? 'completed' : ''}">
+                                        <i class="bi bi-play-circle"></i> Started
+                                        ${ride.started_at ? `<br><small>${formatDateTime(ride.started_at)}</small>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <div class="btn-group-vertical" role="group">
+                                <button class="btn btn-success btn-sm mb-1" onclick="openActionModal(${ride.id}, 'complete')">
+                                    <i class="bi bi-check-circle"></i> Mark Completed
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="openActionModal(${ride.id}, 'cancel')">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-outline-info btn-sm" onclick="showLocation(${ride.id})">
+                                    <i class="bi bi-geo-alt"></i> Show Location
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'assigned': '<span class="badge bg-warning">Assigned</span>',
+        'accepted': '<span class="badge bg-info">Accepted</span>',
+        'active': '<span class="badge bg-success">Active</span>',
+        'arrived': '<span class="badge bg-primary">Arrived</span>',
+        'started': '<span class="badge bg-success">Started</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function getCategoryBadge(category) {
+    const badges = {
+        'regular': '<span class="badge bg-secondary">Regular</span>',
+        'airport': '<span class="badge bg-warning">Airport</span>',
+        'rental': '<span class="badge bg-info">Rental</span>',
+        'outstation': '<span class="badge bg-danger">Outstation</span>'
+    };
+    return badges[category] || '<span class="badge bg-secondary">Regular</span>';
+}
+
+function getTypeBadge(type) {
+    const badges = {
+        'hatchback': '<span class="badge bg-light text-dark">Hatchback</span>',
+        'sedan': '<span class="badge bg-primary">Sedan</span>',
+        'suv': '<span class="badge bg-success">SUV</span>'
+    };
+    return badges[type] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function openActionModal(rideId, action) {
+    selectedRideId = rideId;
+    selectedAction = action;
+    
+    const actionTitle = action === 'complete' ? 'Complete Ride' : 'Cancel Ride';
+    const actionClass = action === 'complete' ? 'btn-success' : 'btn-danger';
+    const actionIcon = action === 'complete' ? 'bi-check-circle' : 'bi-x-circle';
+    
+    document.getElementById('actionModalLabel').textContent = actionTitle;
+    document.getElementById('confirmActionBtn').className = `btn ${actionClass}`;
+    document.getElementById('confirmActionBtn').innerHTML = `<i class="${actionIcon}"></i> ${actionTitle}`;
+    
+    // Load ride details
+    fetch(`/admin/get_ride_details/${rideId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const ride = data.data;
+                document.getElementById('action-details').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>Ride #${ride.id}</strong><br>
+                        Customer: ${ride.customer_name || 'N/A'}<br>
+                        Driver: ${ride.driver_name || 'Not assigned'}<br>
+                        From: ${ride.pickup_address}<br>
+                        To: ${ride.drop_address}<br>
+                        Fare: ₹${ride.final_fare || ride.fare_amount}
+                    </div>
+                `;
+                
+                if (action === 'cancel') {
+                    document.getElementById('action-form').innerHTML = `
+                        <div class="mb-3">
+                            <label for="cancelReason" class="form-label">Cancellation Reason</label>
+                            <textarea class="form-control" id="cancelReason" rows="3" placeholder="Enter reason for cancellation"></textarea>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('action-form').innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            This will mark the ride as completed. Are you sure?
+                        </div>
+                    `;
+                }
+            }
+        });
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
+    modal.show();
+}
+
+function confirmAction() {
+    if (!selectedRideId || !selectedAction) {
+        showError('Invalid action');
+        return;
+    }
+    
+    const confirmBtn = document.getElementById('confirmActionBtn');
+    confirmBtn.disabled = true;
+    
+    let requestData = {
+        ride_id: selectedRideId,
+        action: selectedAction
+    };
+    
+    if (selectedAction === 'cancel') {
+        const reason = document.getElementById('cancelReason').value;
+        if (!reason.trim()) {
+            showError('Please provide a cancellation reason');
+            confirmBtn.disabled = false;
+            return;
+        }
+        requestData.reason = reason;
+    }
+    
+    fetch('/admin/api/ride_action', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showSuccess(`Ride ${selectedAction}d successfully`);
+            bootstrap.Modal.getInstance(document.getElementById('actionModal')).hide();
+            refreshOngoingRides();
+        } else {
+            showError(data.message || `Failed to ${selectedAction} ride`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Network error occurred');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+    });
+}
+
+function showLocation(rideId) {
+    // This would open a map showing the current location of the ride
+    // For now, we'll show a placeholder
+    showInfo('Location tracking feature coming soon');
+}
+
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+function showSuccess(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+function showInfo(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    refreshOngoingRides();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(refreshOngoingRides, 30000);
+});
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 10px;
+    border-left: 2px solid #dee2e6;
+    padding-left: 15px;
+    margin-bottom: 5px;
+    font-size: 0.875rem;
+}
+
+.timeline-item.completed {
+    border-left-color: #28a745;
+}
+
+.timeline-item.completed i {
+    color: #28a745;
+}
+
+.timeline-item i {
+    position: absolute;
+    left: -8px;
+    top: 0;
+    background: white;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.timeline-item:last-child {
+    border-left: none;
+}
+</style>
+{% endblock %}

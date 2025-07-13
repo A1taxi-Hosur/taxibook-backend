@@ -983,3 +983,303 @@ def api_get_all_bookings():
     except Exception as e:
         logging.error(f"Error getting all bookings: {str(e)}")
         return create_error_response("Failed to get bookings")
+
+
+# New template route handlers for enhanced admin features
+@admin_bp.route('/bookings')
+@login_required
+def bookings():
+    """Admin bookings page"""
+    return render_template('admin/bookings.html')
+
+
+@admin_bp.route('/ongoing')
+@login_required
+def ongoing():
+    """Admin ongoing rides page"""
+    return render_template('admin/ongoing.html')
+
+
+@admin_bp.route('/history')
+@login_required
+def history():
+    """Admin history page"""
+    return render_template('admin/history.html')
+
+
+@admin_bp.route('/zones')
+@login_required
+def zones():
+    """Admin zones management page"""
+    return render_template('admin/zones.html')
+
+
+@admin_bp.route('/special_fares')
+@login_required
+def special_fares():
+    """Admin special fares management page"""
+    return render_template('admin/special_fares.html')
+
+
+@admin_bp.route('/live_map')
+@login_required
+def live_map():
+    """Admin live map page"""
+    import os
+    google_maps_api_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('admin/live_map.html', google_maps_api_key=google_maps_api_key)
+
+
+# Additional API endpoints for enhanced features
+@admin_bp.route('/api/live_driver_locations', methods=['GET'])
+@login_required
+def api_live_driver_locations():
+    """API endpoint to get live driver locations"""
+    try:
+        # Get all drivers with their current locations
+        drivers = Driver.query.all()
+        
+        driver_locations = []
+        for driver in drivers:
+            driver_data = {
+                'id': driver.id,
+                'name': driver.name,
+                'phone': driver.phone,
+                'current_lat': driver.current_lat,
+                'current_lng': driver.current_lng,
+                'location_updated_at': driver.location_updated_at.isoformat() if driver.location_updated_at else None,
+                'is_online': driver.is_online,
+                'out_of_zone': driver.out_of_zone,
+                'car_type': driver.car_type,
+                'car_number': driver.car_number,
+                'car_make': driver.car_make,
+                'car_model': driver.car_model,
+                'car_year': driver.car_year,
+                'company_name': 'A1 Taxi',  # Default company name
+                'zone': driver.zone.zone_name if driver.zone else None
+            }
+            driver_locations.append(driver_data)
+        
+        return create_success_response({
+            'drivers': driver_locations,
+            'total_count': len(driver_locations)
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting live driver locations: {str(e)}")
+        return create_error_response("Failed to get driver locations")
+
+
+@admin_bp.route('/api/ride_action', methods=['POST'])
+@login_required
+def api_ride_action():
+    """API endpoint for ride actions (complete/cancel)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        ride_id = data.get('ride_id')
+        action = data.get('action')
+        
+        if not ride_id or not action:
+            return create_error_response("Ride ID and action are required")
+        
+        ride = Ride.query.get(ride_id)
+        if not ride:
+            return create_error_response("Ride not found")
+        
+        if action == 'complete':
+            ride.status = 'completed'
+            ride.completed_at = get_ist_time()
+            logging.info(f"Admin completed ride {ride_id}")
+        elif action == 'cancel':
+            reason = data.get('reason', 'Cancelled by admin')
+            ride.status = 'cancelled'
+            ride.cancelled_at = get_ist_time()
+            # You could add a cancellation reason field to the model
+            logging.info(f"Admin cancelled ride {ride_id}: {reason}")
+        else:
+            return create_error_response("Invalid action")
+        
+        db.session.commit()
+        
+        return create_success_response({
+            'ride_id': ride_id,
+            'action': action,
+            'status': ride.status
+        }, f"Ride {action}d successfully")
+    
+    except Exception as e:
+        logging.error(f"Error in ride action: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to perform action")
+
+
+@admin_bp.route('/api/zones/<int:zone_id>', methods=['GET'])
+@login_required
+def api_get_zone(zone_id):
+    """API endpoint to get a specific zone"""
+    try:
+        zone = Zone.query.get(zone_id)
+        if not zone:
+            return create_error_response("Zone not found")
+        
+        return create_success_response(zone.to_dict())
+    
+    except Exception as e:
+        logging.error(f"Error getting zone {zone_id}: {str(e)}")
+        return create_error_response("Failed to get zone")
+
+
+@admin_bp.route('/api/zones/<int:zone_id>', methods=['PUT'])
+@login_required
+def api_update_zone(zone_id):
+    """API endpoint to update a zone"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        zone = Zone.query.get(zone_id)
+        if not zone:
+            return create_error_response("Zone not found")
+        
+        # Update zone fields
+        zone.zone_name = data.get('zone_name', zone.zone_name)
+        zone.center_lat = data.get('center_lat', zone.center_lat)
+        zone.center_lng = data.get('center_lng', zone.center_lng)
+        zone.radius_km = data.get('radius_km', zone.radius_km)
+        zone.is_active = data.get('is_active', zone.is_active)
+        zone.updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Admin updated zone {zone_id}")
+        return create_success_response(zone.to_dict(), "Zone updated successfully")
+    
+    except Exception as e:
+        logging.error(f"Error updating zone {zone_id}: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update zone")
+
+
+@admin_bp.route('/api/zones/<int:zone_id>', methods=['DELETE'])
+@login_required
+def api_delete_zone(zone_id):
+    """API endpoint to delete a zone"""
+    try:
+        zone = Zone.query.get(zone_id)
+        if not zone:
+            return create_error_response("Zone not found")
+        
+        zone_name = zone.zone_name
+        db.session.delete(zone)
+        db.session.commit()
+        
+        logging.info(f"Admin deleted zone {zone_id}: {zone_name}")
+        return create_success_response({
+            'zone_id': zone_id,
+            'zone_name': zone_name
+        }, "Zone deleted successfully")
+    
+    except Exception as e:
+        logging.error(f"Error deleting zone {zone_id}: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to delete zone")
+
+
+@admin_bp.route('/api/special_fare_config/<int:fare_id>', methods=['PUT'])
+@login_required
+def api_update_special_fare(fare_id):
+    """API endpoint to update a special fare configuration"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        fare = SpecialFareConfig.query.get(fare_id)
+        if not fare:
+            return create_error_response("Special fare not found")
+        
+        # Update fare fields
+        fare.ride_category = data.get('ride_category', fare.ride_category)
+        fare.ride_type = data.get('ride_type', fare.ride_type)
+        fare.base_fare = data.get('base_fare', fare.base_fare)
+        fare.per_km = data.get('per_km', fare.per_km)
+        fare.hourly = data.get('hourly', fare.hourly)
+        fare.flat_rate = data.get('flat_rate', fare.flat_rate)
+        fare.is_active = data.get('is_active', fare.is_active)
+        fare.updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Admin updated special fare {fare_id}")
+        return create_success_response(fare.to_dict(), "Special fare updated successfully")
+    
+    except Exception as e:
+        logging.error(f"Error updating special fare {fare_id}: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update special fare")
+
+
+@admin_bp.route('/api/special_fare_config/<int:fare_id>', methods=['DELETE'])
+@login_required
+def api_delete_special_fare(fare_id):
+    """API endpoint to delete a special fare configuration"""
+    try:
+        fare = SpecialFareConfig.query.get(fare_id)
+        if not fare:
+            return create_error_response("Special fare not found")
+        
+        fare_info = f"{fare.ride_category} {fare.ride_type}"
+        db.session.delete(fare)
+        db.session.commit()
+        
+        logging.info(f"Admin deleted special fare {fare_id}: {fare_info}")
+        return create_success_response({
+            'fare_id': fare_id,
+            'fare_info': fare_info
+        }, "Special fare deleted successfully")
+    
+    except Exception as e:
+        logging.error(f"Error deleting special fare {fare_id}: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to delete special fare")
+
+
+@admin_bp.route('/api/drivers', methods=['GET'])
+@login_required
+def api_get_drivers():
+    """API endpoint to get drivers with filters"""
+    try:
+        available_only = request.args.get('available', 'false').lower() == 'true'
+        
+        query = Driver.query
+        
+        if available_only:
+            query = query.filter_by(is_online=True)
+        
+        drivers = query.all()
+        
+        driver_list = []
+        for driver in drivers:
+            driver_data = {
+                'id': driver.id,
+                'name': driver.name,
+                'phone': driver.phone,
+                'car_type': driver.car_type,
+                'car_number': driver.car_number,
+                'is_online': driver.is_online,
+                'zone': driver.zone.zone_name if driver.zone else None
+            }
+            driver_list.append(driver_data)
+        
+        return create_success_response({
+            'drivers': driver_list,
+            'total_count': len(driver_list)
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting drivers: {str(e)}")
+        return create_error_response("Failed to get drivers")

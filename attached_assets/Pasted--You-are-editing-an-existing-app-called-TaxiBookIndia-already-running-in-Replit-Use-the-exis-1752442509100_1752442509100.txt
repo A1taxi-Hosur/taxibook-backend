@@ -1,0 +1,113 @@
+❗ You are editing an **existing app called `TaxiBookIndia` already running in Replit**. Use the existing folder structure. Do not rename or break anything. Add only the following new tabs and templates.
+
+You are working inside an existing Flask + Jinja2 Admin Panel from `TaxiBookIndia.zip`.
+
+Your task is to **add new features and screens** as per the updated plan for **A1 Taxi Hosur Dev**, without touching or breaking the existing dashboard, login, rides, fare config, or driver/customer tabs.
+
+---
+
+✅ Add the following tabs and templates to the Admin UI navigation bar (`admin/base.html`):
+
+1. **Bookings**
+   - File: `admin/bookings.html`
+   - Displays all new ride requests:
+     - Both **instant** and **scheduled**
+     - Show ride category (Regular, Airport, Rental, Outstation)
+     - Show ride type (Sedan/SUV)
+     - Show scheduled time (if any)
+     - Show fare (frozen)
+     - Add **"Assign Driver"** button → opens modal with driver list
+
+2. **Ongoing**
+   - File: `admin/ongoing.html`
+   - Rides currently active (status `accepted` or within 30 mins of scheduled)
+   - Shows driver + customer info, live location (if GPS is available)
+   - Add "Mark Completed" and "Cancel" buttons
+
+3. **History**
+   - File: `admin/history.html`
+   - Past rides with filters (date, type, category)
+   - Show fare, distance, driver/customer summary
+
+4. **Zones**
+   - File: `admin/zones.html`
+   - Admin can:
+     - Add zone: `zone_name`, `center_lat`, `center_lng`, `radius_km`
+     - Edit or delete zone
+   - Optional: View zones on map using Google Maps Embed or Leaflet.js
+   - Backend API: `/admin/api/zones`
+
+5. **Fare Matrix**
+   - File: `admin/special_fares.html`
+   - Tabs:
+     - Regular Fares (linked to existing `/admin/fare_config`)
+     - Airport
+     - Rental
+     - Outstation
+   - Each tab pulls from `/admin/api/special_fare_config`
+   - Editable fields:
+     - Base fare, Per KM, Flat rate (based on ride category)
+   - Allow Admin to update and save
+
+6. **Live Map**
+   - File: `admin/live_map.html`
+   - Shows a real-time map view of all active drivers using Google Maps JS or Leaflet.js
+   - Pulls data from `/admin/api/live_driver_locations` every 10 seconds
+   - Display pins for each driver:
+     - Use marker color based on `driver.company_name` (e.g., Red, Blue, Green)
+     - Tooltip/hover = `Driver Name, Phone, Car Type, Company, Zone`
+     - Click popup shows full profile card with:
+       - Driver Name
+       - Mobile Number
+       - Vehicle Type
+       - Status (Online, Busy, Out of Zone)
+       - Assigned Zone
+   - Filters:
+     - By Status: Online / Busy / Out of Zone
+     - By Company
+     - By Zone
+   - Map should auto-refresh driver locations without losing applied filters
+   - Admins see all drivers; Managers see only drivers under their company
+   - Out-of-zone drivers have a faded/grey marker
+   - Map centered around Hosur region on load (default lat/lng: `12.7400, 77.8253`)
+
+---
+
+🎨 Design & Layout Notes:
+- Match the style of `admin/rides.html` and `admin/fare_config.html`
+- Use Bootstrap cards and tables where possible
+- Use modal popups for:
+  - Assign Driver
+  - Edit Zone
+  - Edit Special Fare
+
+---
+
+🔧 Backend Integration:
+- All APIs already exist in the updated backend:
+  - `/admin/api/special_fare_config`
+  - `/admin/api/zones`
+  - `/admin/assign_driver`
+  - `/admin/get_ride_details/<ride_id>`
+- Use AJAX (`fetch`) or form submit to interact with these routes.
+
+---
+
+🚫 DO NOT:
+- Modify existing `dashboard.html`, `rides.html`, `fare_config.html`, etc.
+- Change login routes or templates
+
+✅ DO:
+- Extend `base.html` to include new links: Bookings, Ongoing, History, Zones, Fare Matrix, Live Map
+- Create new templates cleanly inside the `admin/` folder
+- Use existing Flask `render_template()` and Jinja2 patterns
+
+---
+
+✅ Final Checks:
+- All templates load with sample data
+- Admin can assign driver from Bookings tab
+- Fare Matrix is editable
+- Zone screen shows list + edit form
+- Rides correctly flow from Bookings → Ongoing → History
+- Live Map shows drivers and updates every 10 sec

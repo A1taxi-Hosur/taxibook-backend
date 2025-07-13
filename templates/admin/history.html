@@ -1,0 +1,515 @@
+{% extends "admin/base.html" %}
+
+{% block title %}History - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Ride History</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="toggleFilters()">
+            <i class="bi bi-funnel"></i> Filters
+        </button>
+        <button type="button" class="btn btn-sm btn-primary" onclick="refreshHistory()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="card mb-3" id="filters-panel" style="display: none;">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="dateFrom" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="dateFrom">
+            </div>
+            <div class="col-md-3">
+                <label for="dateTo" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="dateTo">
+            </div>
+            <div class="col-md-2">
+                <label for="categoryFilter" class="form-label">Category</label>
+                <select class="form-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="regular">Regular</option>
+                    <option value="airport">Airport</option>
+                    <option value="rental">Rental</option>
+                    <option value="outstation">Outstation</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="typeFilter" class="form-label">Type</label>
+                <select class="form-select" id="typeFilter">
+                    <option value="">All Types</option>
+                    <option value="hatchback">Hatchback</option>
+                    <option value="sedan">Sedan</option>
+                    <option value="suv">SUV</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="statusFilter" class="form-label">Status</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-3" id="summary-cards">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">Total Rides</h5>
+                <h3 class="text-primary" id="total-rides">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">Completed</h5>
+                <h3 class="text-success" id="completed-rides">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">Cancelled</h5>
+                <h3 class="text-danger" id="cancelled-rides">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">Total Revenue</h5>
+                <h3 class="text-info" id="total-revenue">₹-</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="history-container">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading ride history...</p>
+    </div>
+</div>
+
+<!-- Ride Details Modal -->
+<div class="modal fade" id="rideDetailsModal" tabindex="-1" aria-labelledby="rideDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rideDetailsModalLabel">Ride Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="ride-details-content">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilters = {};
+let allRides = [];
+
+function toggleFilters() {
+    const panel = document.getElementById('filters-panel');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function refreshHistory() {
+    document.getElementById('history-container').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading ride history...</p>
+        </div>
+    `;
+    
+    fetch('/admin/api/bookings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                allRides = data.data.bookings;
+                displayHistory(allRides);
+                updateSummary(allRides);
+            } else {
+                showError('Failed to load ride history');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Network error occurred');
+        });
+}
+
+function displayHistory(rides) {
+    const container = document.getElementById('history-container');
+    
+    // Filter for completed and cancelled rides
+    const historyRides = rides.filter(ride => 
+        ride.status === 'completed' || ride.status === 'cancelled'
+    );
+    
+    if (historyRides.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-clock-history display-1 text-muted"></i>
+                <p class="mt-3 text-muted">No ride history found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by completion/cancellation date (newest first)
+    historyRides.sort((a, b) => {
+        const aDate = new Date(a.completed_at || a.cancelled_at);
+        const bDate = new Date(b.completed_at || b.cancelled_at);
+        return bDate - aDate;
+    });
+    
+    let html = '<div class="table-responsive">';
+    html += `
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Ride ID</th>
+                    <th>Customer</th>
+                    <th>Driver</th>
+                    <th>Route</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Distance</th>
+                    <th>Fare</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    historyRides.forEach(ride => {
+        const statusBadge = ride.status === 'completed' ? 
+            '<span class="badge bg-success">Completed</span>' : 
+            '<span class="badge bg-danger">Cancelled</span>';
+        
+        const categoryBadge = getCategoryBadge(ride.ride_category);
+        const typeBadge = getTypeBadge(ride.ride_type);
+        
+        const completionDate = ride.completed_at || ride.cancelled_at;
+        
+        html += `
+            <tr>
+                <td>#${ride.id}</td>
+                <td>${ride.customer_name || 'N/A'}</td>
+                <td>${ride.driver_name || 'N/A'}</td>
+                <td>
+                    <small class="text-muted">
+                        ${truncateText(ride.pickup_address, 20)}<br>
+                        → ${truncateText(ride.drop_address, 20)}
+                    </small>
+                </td>
+                <td>${categoryBadge}</td>
+                <td>${typeBadge}</td>
+                <td>${ride.distance_km} km</td>
+                <td>₹${ride.final_fare || ride.fare_amount}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <small>${formatDateTime(completionDate)}</small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showRideDetails(${ride.id})">
+                        <i class="bi bi-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function updateSummary(rides) {
+    const historyRides = rides.filter(ride => 
+        ride.status === 'completed' || ride.status === 'cancelled'
+    );
+    
+    const completedRides = historyRides.filter(ride => ride.status === 'completed');
+    const cancelledRides = historyRides.filter(ride => ride.status === 'cancelled');
+    
+    const totalRevenue = completedRides.reduce((sum, ride) => 
+        sum + (ride.final_fare || ride.fare_amount || 0), 0
+    );
+    
+    document.getElementById('total-rides').textContent = historyRides.length;
+    document.getElementById('completed-rides').textContent = completedRides.length;
+    document.getElementById('cancelled-rides').textContent = cancelledRides.length;
+    document.getElementById('total-revenue').textContent = `₹${totalRevenue.toFixed(2)}`;
+}
+
+function applyFilters() {
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const category = document.getElementById('categoryFilter').value;
+    const type = document.getElementById('typeFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let filteredRides = allRides.filter(ride => 
+        ride.status === 'completed' || ride.status === 'cancelled'
+    );
+    
+    if (dateFrom) {
+        filteredRides = filteredRides.filter(ride => {
+            const rideDate = new Date(ride.completed_at || ride.cancelled_at);
+            return rideDate >= new Date(dateFrom);
+        });
+    }
+    
+    if (dateTo) {
+        filteredRides = filteredRides.filter(ride => {
+            const rideDate = new Date(ride.completed_at || ride.cancelled_at);
+            return rideDate <= new Date(dateTo + 'T23:59:59');
+        });
+    }
+    
+    if (category) {
+        filteredRides = filteredRides.filter(ride => ride.ride_category === category);
+    }
+    
+    if (type) {
+        filteredRides = filteredRides.filter(ride => ride.ride_type === type);
+    }
+    
+    if (status) {
+        filteredRides = filteredRides.filter(ride => ride.status === status);
+    }
+    
+    displayHistory(filteredRides);
+    updateSummary(filteredRides);
+}
+
+function clearFilters() {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('typeFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    
+    displayHistory(allRides);
+    updateSummary(allRides);
+}
+
+function showRideDetails(rideId) {
+    fetch(`/admin/get_ride_details/${rideId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const ride = data.data;
+                displayRideDetailsModal(ride);
+            } else {
+                showError('Failed to load ride details');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Network error occurred');
+        });
+}
+
+function displayRideDetailsModal(ride) {
+    const statusBadge = ride.status === 'completed' ? 
+        '<span class="badge bg-success">Completed</span>' : 
+        '<span class="badge bg-danger">Cancelled</span>';
+    
+    const categoryBadge = getCategoryBadge(ride.ride_category);
+    const typeBadge = getTypeBadge(ride.ride_type);
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Ride Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Ride ID:</strong></td><td>#${ride.id}</td></tr>
+                    <tr><td><strong>Status:</strong></td><td>${statusBadge}</td></tr>
+                    <tr><td><strong>Category:</strong></td><td>${categoryBadge}</td></tr>
+                    <tr><td><strong>Type:</strong></td><td>${typeBadge}</td></tr>
+                    <tr><td><strong>Distance:</strong></td><td>${ride.distance_km} km</td></tr>
+                    <tr><td><strong>Fare:</strong></td><td>₹${ride.final_fare || ride.fare_amount}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Customer & Driver</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Customer:</strong></td><td>${ride.customer_name || 'N/A'}</td></tr>
+                    <tr><td><strong>Customer Phone:</strong></td><td>${ride.customer_phone || 'N/A'}</td></tr>
+                    <tr><td><strong>Driver:</strong></td><td>${ride.driver_name || 'N/A'}</td></tr>
+                    <tr><td><strong>Driver Phone:</strong></td><td>${ride.driver_phone || 'N/A'}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h6>Route Details</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Pickup:</strong></td><td>${ride.pickup_address}</td></tr>
+                    <tr><td><strong>Drop:</strong></td><td>${ride.drop_address}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h6>Timeline</h6>
+                <div class="timeline">
+                    ${ride.created_at ? `<div class="timeline-item completed">
+                        <i class="bi bi-plus-circle"></i> Booked on ${formatDateTime(ride.created_at)}
+                    </div>` : ''}
+                    ${ride.assigned_time ? `<div class="timeline-item completed">
+                        <i class="bi bi-person-check"></i> Assigned on ${formatDateTime(ride.assigned_time)}
+                    </div>` : ''}
+                    ${ride.arrived_at ? `<div class="timeline-item completed">
+                        <i class="bi bi-geo-alt"></i> Driver arrived on ${formatDateTime(ride.arrived_at)}
+                    </div>` : ''}
+                    ${ride.started_at ? `<div class="timeline-item completed">
+                        <i class="bi bi-play-circle"></i> Trip started on ${formatDateTime(ride.started_at)}
+                    </div>` : ''}
+                    ${ride.completed_at ? `<div class="timeline-item completed">
+                        <i class="bi bi-check-circle"></i> Completed on ${formatDateTime(ride.completed_at)}
+                    </div>` : ''}
+                    ${ride.cancelled_at ? `<div class="timeline-item completed">
+                        <i class="bi bi-x-circle"></i> Cancelled on ${formatDateTime(ride.cancelled_at)}
+                    </div>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('ride-details-content').innerHTML = content;
+    
+    const modal = new bootstrap.Modal(document.getElementById('rideDetailsModal'));
+    modal.show();
+}
+
+function getCategoryBadge(category) {
+    const badges = {
+        'regular': '<span class="badge bg-secondary">Regular</span>',
+        'airport': '<span class="badge bg-warning">Airport</span>',
+        'rental': '<span class="badge bg-info">Rental</span>',
+        'outstation': '<span class="badge bg-danger">Outstation</span>'
+    };
+    return badges[category] || '<span class="badge bg-secondary">Regular</span>';
+}
+
+function getTypeBadge(type) {
+    const badges = {
+        'hatchback': '<span class="badge bg-light text-dark">Hatchback</span>',
+        'sedan': '<span class="badge bg-primary">Sedan</span>',
+        'suv': '<span class="badge bg-success">SUV</span>'
+    };
+    return badges[type] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+}
+
+function showError(message) {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    refreshHistory();
+});
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 10px;
+    border-left: 2px solid #dee2e6;
+    padding-left: 15px;
+    margin-bottom: 5px;
+    font-size: 0.875rem;
+}
+
+.timeline-item.completed {
+    border-left-color: #28a745;
+}
+
+.timeline-item.completed i {
+    color: #28a745;
+}
+
+.timeline-item i {
+    position: absolute;
+    left: -8px;
+    top: 0;
+    background: white;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.timeline-item:last-child {
+    border-left: none;
+}
+
+.stats-card {
+    border: none;
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

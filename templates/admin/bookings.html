@@ -1,0 +1,360 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Bookings - TaxiBook Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Bookings</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="filterBookings('all')">All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="filterBookings('instant')">Instant</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="filterBookings('scheduled')">Scheduled</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="refreshBookings()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<div id="bookings-container">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading bookings...</p>
+    </div>
+</div>
+
+<!-- Assign Driver Modal -->
+<div class="modal fade" id="assignDriverModal" tabindex="-1" aria-labelledby="assignDriverModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignDriverModalLabel">Assign Driver</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="ride-details" class="mb-3"></div>
+                <div id="driver-list">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading drivers...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignBtn" onclick="confirmAssignDriver()" disabled>
+                    Assign Driver
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedRideId = null;
+let selectedDriverId = null;
+
+function refreshBookings() {
+    document.getElementById('bookings-container').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading bookings...</p>
+        </div>
+    `;
+    
+    fetch('/admin/api/bookings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayBookings(data.data.bookings);
+            } else {
+                showError('Failed to load bookings');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Network error occurred');
+        });
+}
+
+function displayBookings(bookings) {
+    const container = document.getElementById('bookings-container');
+    
+    if (bookings.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-calendar-x display-1 text-muted"></i>
+                <p class="mt-3 text-muted">No new bookings at the moment</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const newBookings = bookings.filter(booking => booking.status === 'new');
+    
+    let html = '';
+    newBookings.forEach(booking => {
+        const isScheduled = booking.scheduled_date && booking.scheduled_time;
+        const categoryBadge = getCategoryBadge(booking.ride_category);
+        const typeBadge = getTypeBadge(booking.ride_type);
+        
+        html += `
+            <div class="card mb-3 booking-card" data-category="${booking.ride_category}" data-type="${isScheduled ? 'scheduled' : 'instant'}">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="card-title">
+                                Ride #${booking.id}
+                                ${categoryBadge}
+                                ${typeBadge}
+                                ${isScheduled ? '<span class="badge bg-info">Scheduled</span>' : '<span class="badge bg-success">Instant</span>'}
+                            </h5>
+                            <p class="card-text">
+                                <strong>Customer:</strong> ${booking.customer_name || 'N/A'}<br>
+                                <strong>From:</strong> ${booking.pickup_address}<br>
+                                <strong>To:</strong> ${booking.drop_address}<br>
+                                <strong>Distance:</strong> ${booking.distance_km} km<br>
+                                <strong>Fare:</strong> ₹${booking.final_fare || booking.fare_amount}
+                                ${isScheduled ? `<br><strong>Scheduled:</strong> ${booking.scheduled_date} at ${booking.scheduled_time}` : ''}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <p class="text-muted small">
+                                <i class="bi bi-clock"></i> ${formatDateTime(booking.created_at)}
+                            </p>
+                            <button class="btn btn-primary btn-sm" onclick="openAssignDriverModal(${booking.id})">
+                                <i class="bi bi-person-plus"></i> Assign Driver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getCategoryBadge(category) {
+    const badges = {
+        'regular': '<span class="badge bg-secondary">Regular</span>',
+        'airport': '<span class="badge bg-warning">Airport</span>',
+        'rental': '<span class="badge bg-info">Rental</span>',
+        'outstation': '<span class="badge bg-danger">Outstation</span>'
+    };
+    return badges[category] || '<span class="badge bg-secondary">Regular</span>';
+}
+
+function getTypeBadge(type) {
+    const badges = {
+        'hatchback': '<span class="badge bg-light text-dark">Hatchback</span>',
+        'sedan': '<span class="badge bg-primary">Sedan</span>',
+        'suv': '<span class="badge bg-success">SUV</span>'
+    };
+    return badges[type] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function filterBookings(type) {
+    const cards = document.querySelectorAll('.booking-card');
+    cards.forEach(card => {
+        if (type === 'all' || card.dataset.type === type) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // Update button states
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function openAssignDriverModal(rideId) {
+    selectedRideId = rideId;
+    selectedDriverId = null;
+    
+    // Load ride details
+    fetch(`/admin/get_ride_details/${rideId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const ride = data.data;
+                document.getElementById('ride-details').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>Ride #${ride.id}</strong><br>
+                        From: ${ride.pickup_address}<br>
+                        To: ${ride.drop_address}<br>
+                        Type: ${ride.ride_type} | Category: ${ride.ride_category}<br>
+                        Fare: ₹${ride.final_fare || ride.fare_amount}
+                    </div>
+                `;
+            }
+        });
+    
+    // Load available drivers
+    loadAvailableDrivers();
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('assignDriverModal'));
+    modal.show();
+}
+
+function loadAvailableDrivers() {
+    const driverList = document.getElementById('driver-list');
+    driverList.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading drivers...</span>
+            </div>
+        </div>
+    `;
+    
+    fetch('/admin/api/drivers?available=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayDriverList(data.data.drivers);
+            } else {
+                driverList.innerHTML = '<div class="alert alert-warning">No available drivers found</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            driverList.innerHTML = '<div class="alert alert-danger">Error loading drivers</div>';
+        });
+}
+
+function displayDriverList(drivers) {
+    const driverList = document.getElementById('driver-list');
+    
+    if (drivers.length === 0) {
+        driverList.innerHTML = '<div class="alert alert-warning">No available drivers found</div>';
+        return;
+    }
+    
+    let html = '<div class="list-group">';
+    drivers.forEach(driver => {
+        html += `
+            <div class="list-group-item list-group-item-action driver-item" onclick="selectDriver(${driver.id})">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${driver.name}</h6>
+                    <small class="text-muted">${driver.phone}</small>
+                </div>
+                <p class="mb-1">
+                    <span class="badge bg-info">${driver.car_type || 'Unknown'}</span>
+                    ${driver.car_number ? `<span class="badge bg-secondary">${driver.car_number}</span>` : ''}
+                </p>
+                <small class="text-muted">
+                    ${driver.zone ? `Zone: ${driver.zone}` : 'No zone assigned'}
+                </small>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    driverList.innerHTML = html;
+}
+
+function selectDriver(driverId) {
+    selectedDriverId = driverId;
+    
+    // Update UI
+    document.querySelectorAll('.driver-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+    
+    // Enable confirm button
+    document.getElementById('confirmAssignBtn').disabled = false;
+}
+
+function confirmAssignDriver() {
+    if (!selectedRideId || !selectedDriverId) {
+        showError('Please select a driver');
+        return;
+    }
+    
+    const confirmBtn = document.getElementById('confirmAssignBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Assigning...';
+    
+    fetch('/admin/assign_driver', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            ride_id: selectedRideId,
+            driver_id: selectedDriverId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showSuccess('Driver assigned successfully');
+            bootstrap.Modal.getInstance(document.getElementById('assignDriverModal')).hide();
+            refreshBookings();
+        } else {
+            showError(data.message || 'Failed to assign driver');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Network error occurred');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Assign Driver';
+    });
+}
+
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+}
+
+function showError(message) {
+    // Create alert element
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-danger alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at top of main content
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+function showSuccess(message) {
+    // Create alert element
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success alert-dismissible fade show';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at top of main content
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    refreshBookings();
+});
+</script>
+{% endblock %}
