@@ -135,6 +135,8 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Google Maps JavaScript API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry&callback=initializeGoogleMaps" async defer></script>
 <script>
 let selectedZoneId = null;
 
@@ -517,19 +519,40 @@ function displayZonesOnMap(zones) {
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     refreshZones();
-    
-    // Try to initialize map
-    if (typeof google !== 'undefined') {
+});
+
+// Initialize map when Google Maps API is loaded
+function initializeGoogleMaps() {
+    initMap();
+}
+
+// Wait for Google Maps to load
+window.addEventListener('load', function() {
+    // Check if Google Maps is available
+    if (typeof google !== 'undefined' && google.maps) {
         initMap();
     } else {
-        // Fallback if Google Maps is not available
-        document.getElementById('map').innerHTML = `
-            <div class="text-center p-4">
-                <i class="bi bi-map display-4 text-muted"></i>
-                <p class="mt-2 text-muted">Google Maps not available</p>
-                <small class="text-muted">You can still add zones using coordinates</small>
-            </div>
-        `;
+        // Wait for Google Maps to load
+        let attempts = 0;
+        const maxAttempts = 30; // 3 seconds total
+        
+        const checkGoogleMaps = setInterval(() => {
+            attempts++;
+            if (typeof google !== 'undefined' && google.maps) {
+                clearInterval(checkGoogleMaps);
+                initMap();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkGoogleMaps);
+                // Fallback if Google Maps is not available
+                document.getElementById('map').innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="bi bi-map display-4 text-muted"></i>
+                        <p class="mt-2 text-muted">Google Maps not available</p>
+                        <small class="text-muted">You can still add zones using coordinates</small>
+                    </div>
+                `;
+            }
+        }, 100);
     }
 });
 </script>

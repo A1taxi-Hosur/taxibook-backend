@@ -1011,7 +1011,9 @@ def history():
 @login_required
 def zones():
     """Admin zones management page"""
-    return render_template('admin/zones.html')
+    import os
+    google_maps_api_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+    return render_template('admin/zones.html', google_maps_api_key=google_maps_api_key)
 
 
 @admin_bp.route('/special_fares')
