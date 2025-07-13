@@ -1,0 +1,115 @@
+You are working inside the existing Flask + Jinja2 admin panel from TaxiBookIndia.zip.
+
+Implement the following features without touching existing ride/fare/driver/customer logic.
+
+1. 🔒 Admin Password Change
+Add new link in admin/base.html → Change Password
+
+Create new template: admin/change_password.html
+
+UI Form:
+
+Old Password
+
+New Password
+
+Confirm Password
+
+Route: /admin/change_password (GET/POST)
+
+Logic:
+
+Verify old password
+
+If correct → update in DB
+
+Show success/error using flash()
+
+2. ➕ Add Admin
+Add button: Add Admin on admin/dashboard.html
+
+Opens a modal or links to admin/create_admin.html
+
+Form Fields:
+
+Name
+
+Mobile Number
+
+Password
+
+Confirm Password
+
+Route: /admin/create_admin (GET/POST)
+
+On POST:
+
+Add new record to AdminUser table
+
+Must check mobile number is unique
+
+Role should be hardcoded as 'admin' (no manager support)
+
+3. 📍 Map-Based Zone Creation
+Update admin/zones.html to support map view
+
+Use Google Maps JavaScript API or Leaflet.js
+
+Centered on Hosur (12.7400, 77.8253)
+
+Map UI allows:
+
+Click to place zone center
+
+Input: zone_name, radius_km
+
+Button: Create Zone
+
+Existing zones are shown as circles
+
+Backend already supports:
+
+GET /admin/api/zones
+
+POST /admin/api/zones
+
+4. 🔔 Firebase Push Notification Integration
+Add Firebase client code to admin/base.html:
+
+Load firebase-app, firebase-messaging
+
+Register service worker firebase-messaging-sw.js
+
+Ask permission on load
+
+Get FCM token and send it to backend:
+
+POST /admin/api/save_firebase_token
+
+Save token under current AdminUser
+
+Use Firebase Admin SDK in backend (already added) to push to this token when needed
+
+5. 🌀 Reduce Polling Delay
+Update JS in:
+
+admin/bookings.html
+
+admin/ongoing.html
+
+admin/live_map.html
+
+Change all polling intervals to 3 seconds:
+
+js
+Copy
+Edit
+setInterval(fetchData, 3000);
+🔒 Security Reminder
+Passwords should be stored hashed using Werkzeug
+
+Firebase keys are assumed to be set in .env
+
+Do not alter:
+
+rides.html, fare_config.html, login.html, base.html except links

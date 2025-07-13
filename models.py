@@ -58,6 +58,10 @@ class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
+    name = db.Column(db.String(100), nullable=True)
+    mobile_number = db.Column(db.String(10), unique=True, nullable=True)
+    role = db.Column(db.String(20), default='admin')  # admin only for now
+    firebase_token = db.Column(db.Text, nullable=True)  # FCM token
     created_at = db.Column(db.DateTime, default=get_ist_time)
     
     def __repr__(self):

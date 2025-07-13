@@ -119,6 +119,11 @@
                             </form>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.change_password') }}">
+                                <i class="bi bi-key"></i> Change Password
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link text-danger" href="{{ url_for('admin.logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Logout
                             </a>
@@ -148,6 +153,57 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"></script>
+    
+    <script>
+        // Firebase configuration (add your config here)
+        const firebaseConfig = {
+            // Your Firebase config would go here
+            // For now, we'll skip initialization if not configured
+        };
+        
+        // Initialize Firebase if config is provided
+        if (firebaseConfig.apiKey) {
+            firebase.initializeApp(firebaseConfig);
+            
+            // Initialize Firebase Messaging
+            const messaging = firebase.messaging();
+            
+            // Request permission for notifications
+            messaging.requestPermission().then(function() {
+                console.log('Notification permission granted.');
+                
+                // Get registration token
+                messaging.getToken().then(function(currentToken) {
+                    if (currentToken) {
+                        console.log('FCM Token:', currentToken);
+                        
+                        // Send token to server
+                        fetch('/admin/api/save_firebase_token', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ token: currentToken })
+                        }).then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                console.log('Token saved to server');
+                            }
+                        });
+                    } else {
+                        console.log('No registration token available.');
+                    }
+                });
+            }).catch(function(err) {
+                console.log('Unable to get permission to notify.', err);
+            });
+        }
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

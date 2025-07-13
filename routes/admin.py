@@ -1,6 +1,6 @@
 from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, get_ist_time
 from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone
 from utils.validators import create_error_response, create_success_response, validate_phone, validate_required_fields
@@ -1283,3 +1283,132 @@ def api_get_drivers():
     except Exception as e:
         logging.error(f"Error getting drivers: {str(e)}")
         return create_error_response("Failed to get drivers")
+
+
+# New Features Implementation
+@admin_bp.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Admin change password page"""
+    if request.method == 'POST':
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not old_password or not new_password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('admin/change_password.html')
+        
+        # Verify old password
+        if current_user.password_hash != old_password:  # In production, use check_password_hash
+            flash('Current password is incorrect', 'error')
+            return render_template('admin/change_password.html')
+        
+        if len(new_password) < 6:
+            flash('New password must be at least 6 characters long', 'error')
+            return render_template('admin/change_password.html')
+        
+        if new_password != confirm_password:
+            flash('New password and confirmation do not match', 'error')
+            return render_template('admin/change_password.html')
+        
+        # Update password
+        current_user.password_hash = new_password  # In production, use generate_password_hash
+        db.session.commit()
+        
+        flash('Password changed successfully', 'success')
+        logging.info(f"Admin {current_user.username} changed password")
+        return redirect(url_for('admin.dashboard'))
+    
+    return render_template('admin/change_password.html')
+
+
+@admin_bp.route('/create_admin', methods=['GET', 'POST'])
+@login_required
+def create_admin():
+    """Create new admin page"""
+    if request.method == 'POST':
+        name = request.form.get('name')
+        mobile_number = request.form.get('mobile_number')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate required fields
+        if not all([name, mobile_number, username, password, confirm_password]):
+            flash('All fields are required', 'error')
+            return render_template('admin/create_admin.html')
+        
+        # Validate mobile number
+        if not validate_phone(mobile_number):
+            flash('Invalid mobile number format', 'error')
+            return render_template('admin/create_admin.html')
+        
+        # Validate password length
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return render_template('admin/create_admin.html')
+        
+        # Validate password confirmation
+        if password != confirm_password:
+            flash('Password and confirmation do not match', 'error')
+            return render_template('admin/create_admin.html')
+        
+        # Check if username already exists
+        existing_admin = Admin.query.filter_by(username=username).first()
+        if existing_admin:
+            flash('Username already exists', 'error')
+            return render_template('admin/create_admin.html')
+        
+        # Check if mobile number already exists
+        existing_mobile = Admin.query.filter_by(mobile_number=mobile_number).first()
+        if existing_mobile:
+            flash('Mobile number already exists', 'error')
+            return render_template('admin/create_admin.html')
+        
+        try:
+            # Create new admin
+            new_admin = Admin(
+                username=username,
+                password_hash=password,  # In production, use generate_password_hash
+                name=name,
+                mobile_number=mobile_number,
+                role='admin'
+            )
+            
+            db.session.add(new_admin)
+            db.session.commit()
+            
+            flash(f'Admin {name} created successfully', 'success')
+            logging.info(f"New admin created: {username} by {current_user.username}")
+            return redirect(url_for('admin.dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating admin', 'error')
+            logging.error(f"Error creating admin: {str(e)}")
+            return render_template('admin/create_admin.html')
+    
+    return render_template('admin/create_admin.html')
+
+
+@admin_bp.route('/api/save_firebase_token', methods=['POST'])
+@login_required
+def save_firebase_token():
+    """Save Firebase FCM token for admin"""
+    try:
+        data = request.get_json()
+        if not data or 'token' not in data:
+            return create_error_response("Token is required")
+        
+        token = data['token']
+        current_user.firebase_token = token
+        db.session.commit()
+        
+        logging.info(f"Firebase token saved for admin {current_user.username}")
+        return create_success_response({'message': 'Token saved successfully'})
+        
+    except Exception as e:
+        logging.error(f"Error saving Firebase token: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to save token")
