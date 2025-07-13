@@ -920,6 +920,8 @@ def api_create_zone():
         # Enhanced zone fields
         number_of_rings = int(data.get('number_of_rings', 3))
         ring_radius_km = float(data.get('ring_radius_km', 2.0))
+        ring_radius_meters = int(data.get('ring_radius_meters', 1000))
+        ring_wait_time_seconds = int(data.get('ring_wait_time_seconds', 15))
         expansion_delay_sec = int(data.get('expansion_delay_sec', 15))
         radius_km = float(data.get('radius_km', 5.0))
         priority_order = int(data.get('priority_order', 1))
@@ -944,6 +946,12 @@ def api_create_zone():
         if not (5 <= expansion_delay_sec <= 60):
             return create_error_response("Expansion delay must be between 5 and 60 seconds")
         
+        if not (100 <= ring_radius_meters <= 5000):
+            return create_error_response("Ring radius must be between 100 and 5000 meters")
+        
+        if not (5 <= ring_wait_time_seconds <= 60):
+            return create_error_response("Ring wait time must be between 5 and 60 seconds")
+        
         # Check if zone name already exists
         existing_zone = Zone.query.filter_by(zone_name=zone_name).first()
         if existing_zone:
@@ -957,6 +965,8 @@ def api_create_zone():
             polygon_coordinates=polygon_coordinates,
             number_of_rings=number_of_rings,
             ring_radius_km=ring_radius_km,
+            ring_radius_meters=ring_radius_meters,
+            ring_wait_time_seconds=ring_wait_time_seconds,
             expansion_delay_sec=expansion_delay_sec,
             radius_km=radius_km,
             priority_order=priority_order,
@@ -1172,6 +1182,13 @@ def api_update_zone(zone_id):
         zone.zone_name = data.get('zone_name', zone.zone_name)
         zone.center_lat = data.get('center_lat', zone.center_lat)
         zone.center_lng = data.get('center_lng', zone.center_lng)
+        zone.polygon_coordinates = data.get('polygon_coordinates', zone.polygon_coordinates)
+        zone.number_of_rings = data.get('number_of_rings', zone.number_of_rings)
+        zone.ring_radius_km = data.get('ring_radius_km', zone.ring_radius_km)
+        zone.ring_radius_meters = data.get('ring_radius_meters', zone.ring_radius_meters)
+        zone.ring_wait_time_seconds = data.get('ring_wait_time_seconds', zone.ring_wait_time_seconds)
+        zone.expansion_delay_sec = data.get('expansion_delay_sec', zone.expansion_delay_sec)
+        zone.priority_order = data.get('priority_order', zone.priority_order)
         zone.radius_km = data.get('radius_km', zone.radius_km)
         zone.is_active = data.get('is_active', zone.is_active)
         zone.updated_at = get_ist_time()

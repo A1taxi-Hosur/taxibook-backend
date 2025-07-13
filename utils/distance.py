@@ -68,3 +68,25 @@ def filter_drivers_by_proximity(drivers, pickup_lat, pickup_lng, max_distance_km
     eligible_drivers.sort(key=lambda x: x[1])
     
     return eligible_drivers
+
+
+def get_polygon_centroid(polygon_points):
+    """
+    Calculate the centroid of a polygon given its coordinates
+    
+    Args:
+        polygon_points: List of [lat, lng] pairs
+        
+    Returns:
+        Dict with 'lat' and 'lng' keys for centroid
+    """
+    if not polygon_points:
+        return {'lat': 0, 'lng': 0}
+    
+    lat_sum = sum(p[0] for p in polygon_points)
+    lng_sum = sum(p[1] for p in polygon_points)
+    
+    return {
+        "lat": lat_sum / len(polygon_points),
+        "lng": lng_sum / len(polygon_points)
+    }

@@ -432,7 +432,9 @@ class Zone(db.Model):
     # Concentric ring dispatch settings
     number_of_rings = db.Column(db.Integer, nullable=False, default=3)  # 1-5 rings
     ring_radius_km = db.Column(db.Float, nullable=False, default=2.0)  # Radius per ring
+    ring_radius_meters = db.Column(db.Integer, nullable=False, default=1000)  # Ring radius in meters
     expansion_delay_sec = db.Column(db.Integer, nullable=False, default=15)  # Delay between rings
+    ring_wait_time_seconds = db.Column(db.Integer, nullable=False, default=15)  # Wait time per ring
     
     # Legacy radius support for backward compatibility
     radius_km = db.Column(db.Float, nullable=False, default=5.0)
@@ -460,7 +462,9 @@ class Zone(db.Model):
             'center_lng': self.center_lng,
             'number_of_rings': self.number_of_rings,
             'ring_radius_km': self.ring_radius_km,
+            'ring_radius_meters': self.ring_radius_meters,
             'expansion_delay_sec': self.expansion_delay_sec,
+            'ring_wait_time_seconds': self.ring_wait_time_seconds,
             'radius_km': self.radius_km,
             'priority_order': self.priority_order,
             'is_active': self.is_active,
@@ -499,6 +503,46 @@ class Zone(db.Model):
             p1x, p1y = p2x, p2y
         
         return inside
+    
+    def get_polygon_centroid(self):
+        """Calculate the centroid of the polygon coordinates"""
+        if not self.polygon_coordinates:
+            return {'lat': self.center_lat, 'lng': self.center_lng}
+        
+        from utils.distance import get_polygon_centroid
+        return get_polygon_centroid(self.polygon_coordinates)
+    
+    def get_ring_drivers(self, ring_number, pickup_lat, pickup_lng):
+        """Get available drivers within a specific ring around pickup location"""
+        from utils.distance import haversine_distance
+        
+        # Use polygon centroid as center for ring calculations
+        centroid = self.get_polygon_centroid()
+        ring_radius_km = (self.ring_radius_meters * ring_number) / 1000.0
+        
+        # Get all online drivers in this zone
+        drivers = Driver.query.filter_by(
+            zone_id=self.id,
+            is_online=True
+        ).all()
+        
+        # Filter drivers within ring radius from pickup location
+        ring_drivers = []
+        for driver in drivers:
+            if driver.current_lat and driver.current_lng:
+                distance = haversine_distance(
+                    pickup_lat, pickup_lng,
+                    driver.current_lat, driver.current_lng
+                )
+                if distance <= ring_radius_km:
+                    ring_drivers.append({
+                        'driver': driver,
+                        'distance': distance
+                    })
+        
+        # Sort by distance
+        ring_drivers.sort(key=lambda x: x['distance'])
+        return ring_drivers
     
     def get_ring_radius(self, ring_number):
         """Get radius for a specific ring (1-based indexing)"""

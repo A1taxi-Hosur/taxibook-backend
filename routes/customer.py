@@ -204,14 +204,14 @@ def book_ride():
         db.session.add(ride)
         db.session.commit()
         
-        # For immediate rides, start dispatch process
+        # For immediate rides, start enhanced dispatch process
         if not scheduled_date_obj and not scheduled_time_obj:
             try:
-                # Initialize dispatch engine
-                dispatch_engine = RideDispatchEngine(ride.id)
-                dispatch_result = dispatch_engine.start_dispatch()
+                # Initialize enhanced dispatch engine
+                from utils.enhanced_dispatch_engine import dispatch_ride_with_enhanced_system
+                dispatch_result = dispatch_ride_with_enhanced_system(ride.id)
                 
-                if dispatch_result.get('success'):
+                if dispatch_result.get('success') and dispatch_result.get('driver_assigned'):
                     # Driver assigned successfully
                     logging.info(f"Driver assigned automatically for ride {ride.id}")
                     return create_success_response({
@@ -226,12 +226,13 @@ def book_ride():
                         'status': 'assigned',
                         'driver_assigned': True,
                         'dispatch_info': {
-                            'ring': dispatch_result.get('ring'),
-                            'distance_to_driver': dispatch_result.get('distance')
+                            'ring': dispatch_result.get('ring_number'),
+                            'distance_to_driver': dispatch_result.get('distance_to_driver'),
+                            'zone_name': dispatch_result.get('zone_name')
                         }
                     }, "Ride booked and driver assigned successfully")
                 
-                elif dispatch_result.get('requires_customer_approval'):
+                elif dispatch_result.get('requires_zone_expansion'):
                     # Zone expansion required
                     return create_success_response({
                         'ride_id': ride.id,
@@ -247,7 +248,8 @@ def book_ride():
                         'expansion_info': {
                             'extra_fare': dispatch_result.get('extra_fare'),
                             'expansion_zone': dispatch_result.get('expansion_zone'),
-                            'expansion_distance': dispatch_result.get('expansion_distance')
+                            'driver_info': dispatch_result.get('driver_info'),
+                            'message': dispatch_result.get('message')
                         }
                     }, "Ride booked. Zone expansion required for driver assignment.")
                 
@@ -264,7 +266,8 @@ def book_ride():
                         'ride_category': ride_category,
                         'final_fare': fare_amount,
                         'status': 'new',
-                        'requires_manual_assignment': True
+                        'requires_manual_assignment': True,
+                        'error_message': dispatch_result.get('message', 'No drivers available')
                     }, "Ride booked. No drivers available for automatic assignment.")
                 
             except Exception as dispatch_error:
@@ -328,25 +331,30 @@ def approve_zone_expansion():
             return create_error_response("Ride not found")
         
         if approved:
-            # Customer approved expansion - continue with dispatch
+            # Customer approved expansion - continue with enhanced dispatch
             try:
-                dispatch_engine = RideDispatchEngine(ride_id)
+                driver_id = data.get('driver_id')
+                zone_id = data.get('zone_id')
                 extra_fare = data.get('extra_fare', 0)
                 
-                dispatch_result = dispatch_engine.continue_with_expansion(extra_fare)
+                if not driver_id or not zone_id:
+                    return create_error_response("Driver ID and Zone ID are required for zone expansion")
                 
-                if dispatch_result.get('success'):
+                from utils.enhanced_dispatch_engine import approve_zone_expansion_for_ride
+                result = approve_zone_expansion_for_ride(ride_id, driver_id, zone_id, extra_fare)
+                
+                if result.get('success'):
                     return create_success_response({
                         'ride_id': ride_id,
                         'status': 'assigned',
                         'driver_assigned': True,
-                        'final_fare': dispatch_result.get('final_fare'),
-                        'extra_fare': extra_fare,
-                        'expansion_zone': dispatch_result.get('expansion_zone')
+                        'driver_id': result.get('driver_id'),
+                        'final_fare': result.get('final_fare'),
+                        'extra_fare': result.get('extra_fare')
                     }, "Zone expansion approved and driver assigned")
                 
                 else:
-                    return create_error_response("No drivers available even after zone expansion")
+                    return create_error_response(result.get('error', 'Failed to approve zone expansion'))
                 
             except Exception as dispatch_error:
                 logging.error(f"Zone expansion dispatch error: {str(dispatch_error)}")

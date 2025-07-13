@@ -1,0 +1,111 @@
+You are working inside the existing Flask + SQLAlchemy backend from TaxiBookIndia (3).zip with a working Admin UI using Jinja2 templates and Leaflet.js.
+
+Your task is to enhance the system with:
+
+✅ 1. Concentric Ring Configuration (per Polygon Zone)
+🔸 Models (models.py)
+Modify the existing Zone model:
+
+python
+Copy
+Edit
+class Zone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    zone_name = db.Column(db.String(100), nullable=False)
+    polygon_points = db.Column(db.Text, nullable=False)  # Stored as JSON string
+    number_of_rings = db.Column(db.Integer, default=3)
+    ring_radius_meters = db.Column(db.Integer, default=1000)
+    ring_wait_time_seconds = db.Column(db.Integer, default=15)
+✅ 2. Admin UI Updates (templates/admin/zones.html)
+🔸 Add new controls in the form (next to polygon drawing tools):
+Number of Rings (input: number)
+
+Ring Radius (in meters)
+
+Wait Time per Ring (in seconds)
+
+🔸 Update Leaflet zone save logic to:
+Include the new values
+
+Send to /admin/api/zones via fetch POST or PUT
+
+✅ 3. Backend Logic – Zone Ring Expansion (Ride Dispatch)
+🔸 Ride Booking Logic (routes/customer.py)
+Enhance the ride assignment logic to:
+
+When ride is booked:
+
+Find the polygon zone where pickup_location belongs
+
+If none → reject with “Out of service area”
+
+If zone found:
+
+Use the number_of_rings, ring_radius_meters, and ring_wait_time_seconds for that zone
+
+Notify only drivers in:
+
+Ring 1 (center = polygon centroid, radius = r1)
+
+If no response in t1, expand to Ring 2 → Ring 3...
+
+After last ring, expand to neighboring zones (based on admin logic or zone priority)
+
+Then, global fallback
+
+✅ 4. Extra Fare for Out-of-Zone Rides
+🔸 Fare Calculation Logic
+As soon as no driver found inside pickup zone, fallback is triggered.
+
+Extra fare must be added:
+
+Calculate distance between pickup zone center and fallback driver’s zone center
+
+Multiply by fixed rate (e.g., ₹10/km) → extra_fare
+
+Total fare = base_fare + distance_fare + extra_fare
+
+🔸 Prompt to Customer
+Show message:
+“No driver found in your area. An extra fare of ₹X is applicable to bring a driver from another zone. Proceed?”
+
+If approved, proceed with assignment
+
+If rejected, cancel ride
+
+✅ 5. Backend API Updates
+🔸 GET /admin/api/zones
+Return new fields: number_of_rings, ring_radius_meters, ring_wait_time_seconds
+
+🔸 PUT /admin/api/zones/<zone_id>
+Allow updating ring settings
+
+✅ 6. Optional – Utilities
+Add helper to calculate polygon centroid:
+
+python
+Copy
+Edit
+def get_polygon_centroid(polygon_points):
+    # Expects list of {'lat': ..., 'lng': ...}
+    lat_sum = sum(p['lat'] for p in polygon_points)
+    lng_sum = sum(p['lng'] for p in polygon_points)
+    return {
+        "lat": lat_sum / len(polygon_points),
+        "lng": lng_sum / len(polygon_points)
+    }
+🚫 DO NOT:
+Break or modify existing zone saving code
+
+Change Zone.id or polygon structure
+
+Modify login/auth flows
+
+✅ Once Complete:
+All zones can have custom expansion settings
+
+Ride dispatch respects rings and fallback stages
+
+Extra fare is dynamic (not fixed ₹50)
+
+Admin UI lets you manage everything visually

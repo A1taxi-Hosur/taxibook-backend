@@ -73,19 +73,25 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="numberOfRings" class="form-label">Number of Rings</label>
                                 <input type="number" class="form-control" id="numberOfRings" name="number_of_rings" min="1" max="5" value="3" required>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="mb-3">
-                                <label for="ringRadiusKm" class="form-label">Ring Radius (km)</label>
-                                <input type="number" class="form-control" id="ringRadiusKm" name="ring_radius_km" step="0.1" min="0.1" max="10" value="2.0" required>
+                                <label for="ringRadiusMeters" class="form-label">Ring Radius (meters)</label>
+                                <input type="number" class="form-control" id="ringRadiusMeters" name="ring_radius_meters" min="100" max="5000" value="1000" required>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="ringWaitTime" class="form-label">Ring Wait Time (sec)</label>
+                                <input type="number" class="form-control" id="ringWaitTime" name="ring_wait_time_seconds" min="5" max="60" value="15" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="expansionDelay" class="form-label">Expansion Delay (sec)</label>
                                 <input type="number" class="form-control" id="expansionDelay" name="expansion_delay_sec" min="5" max="60" value="15" required>
@@ -414,6 +420,8 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
     // Add enhanced zone fields
     data.number_of_rings = parseInt(formData.get('number_of_rings')) || 3;
     data.ring_radius_km = parseFloat(formData.get('ring_radius_km')) || 2.0;
+    data.ring_radius_meters = parseInt(formData.get('ring_radius_meters')) || 1000;
+    data.ring_wait_time_seconds = parseInt(formData.get('ring_wait_time_seconds')) || 15;
     data.expansion_delay_sec = parseInt(formData.get('expansion_delay_sec')) || 15;
     data.priority_order = parseInt(formData.get('priority_order')) || 1;
     
