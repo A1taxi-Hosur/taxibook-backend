@@ -1,0 +1,95 @@
+This is an enhancement to an existing Flask backend for a taxi service called **A1 Taxi Hosur Dev**. The base project already includes:
+
+- A working Admin UI using Flask templates and static folders
+- Login/authentication
+- Booking logic and ride models
+- Driver and customer support
+- Admin dashboards
+
+⚠️ DO NOT delete or overwrite existing folders like `templates/`, `static/`, or `app.py`.  
+Only extend the backend by adding models, routes, and logic for the following enhancements.
+
+✅ New Features to Add:
+
+1. ✅ **Ride Categories:**
+- Add support for 3 new ride categories: `airport`, `rental`, `outstation`
+- Store ride category as a string field in the booking model
+- Car types allowed: `sedan`, `suv`, `hatchback`
+- Airport rides must only allow `sedan` or `suv`
+
+2. ✅ **Fare Freeze Logic:**
+- Add `final_fare` to the booking model
+- This value should be calculated at time of booking and stored
+- All future views (customer and driver) should use this stored value
+
+3. ✅ **Fare Matrix Model (special_fare_config):**
+Create a new table called `special_fare_config` with:
+- id (auto)
+- ride_category (airport, rental, outstation)
+- ride_type (sedan, suv, etc.)
+- base_fare (float)
+- per_km (optional)
+- hourly (optional)
+- flat_rate (optional)
+- is_active (bool)
+
+Admin should be able to view/update this matrix via a route like `/admin/fare_config`
+
+4. ✅ **Scheduled Ride Support:**
+- Allow customer to select `scheduled_date` and `scheduled_time`
+- Add logic so that:
+  - Scheduled rides appear in “Bookings” tab
+  - 30 minutes before ride time, the ride status changes to “active”
+  - After ride completes, move to “history”
+
+5. ✅ **Admin Assignment System:**
+- Admin assigns drivers manually to Airport, Rental, Outstation, and Scheduled rides
+- Add route: `POST /admin/assign_driver`
+- After assignment:
+  - Update booking with `assigned_time`
+  - Send driver details to customer (via existing notification logic)
+
+6. ✅ **Zoning System (Dispatch Logic Only):**
+Create a new table `zone`:
+- id, zone_name, center_lat, center_lng, radius_km
+
+Add logic to:
+- Assign drivers to a zone based on GPS at login/availability toggle
+- If no zone match → mark driver as out_of_zone (inactive)
+- Bookings should dispatch only to drivers inside customer’s pickup zone
+
+7. ✅ **Expanding Dispatch Fallback (Surge Trigger):**
+- If no drivers in zone accept in 15s:
+  - Expand to neighboring zones
+  - Then to expanding radius: 7km → 10km → 15km
+  - Require customer consent via message: “Expand search with possible fare increase?”
+
+8. ✅ **Booking Tab Structure (Status Based):**
+Booking model should support:
+- status: `new`, `assigned`, `active`, `completed`
+- Use this to separate rides into tabs:
+  - `Bookings` = new + assigned
+  - `Ongoing` = active
+  - `History` = completed
+
+✅ API Enhancements:
+
+- POST /admin/create_fare_config
+- GET /admin/fare_config
+- POST /zones/create
+- GET /zones/all
+- POST /driver/update_location
+- GET /driver/get_zone_status
+- GET /bookings/customer/{id}
+- GET /bookings/admin/all
+
+🧪 Format Rules:
+- All APIs in `snake_case`
+- Date format: DD/MM/YYYY
+- Time: 24-hour HH:MM
+- Mobile numbers: 10-digit Indian only (no +91)
+
+🛡️ Critical:
+- Do not touch existing working routes or UI logic
+- Only add models, migrations, and routes needed for the new features
+- Do not remove OTP logic manually — it’s already removed by the user

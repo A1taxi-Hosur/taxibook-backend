@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, get_ist_time
-from models import Driver, Ride, RideRejection, RideLocation
+from models import Driver, Ride, RideRejection, RideLocation, Zone
 from utils.validators import validate_phone, validate_required_fields, create_error_response, create_success_response
 from utils.maps import get_distance_to_pickup
 from werkzeug.security import check_password_hash
@@ -755,3 +755,40 @@ def update_current_location():
         logging.error(f"Error updating driver current location: {str(e)}")
         db.session.rollback()
         return create_error_response("Internal server error")
+
+
+@driver_bp.route('/get_zone_status', methods=['GET'])
+def get_zone_status():
+    """Get driver's current zone status"""
+    try:
+        phone = request.args.get('phone')
+        if not phone:
+            return create_error_response("Phone number is required")
+        
+        # Validate phone number
+        valid, phone_or_error = validate_phone(phone)
+        if not valid:
+            return create_error_response(phone_or_error)
+        
+        phone = phone_or_error
+        
+        # Find driver
+        driver = Driver.query.filter_by(phone=phone).first()
+        if not driver:
+            return create_error_response("Driver not found")
+        
+        zone_info = {
+            'driver_id': driver.id,
+            'current_lat': driver.current_lat,
+            'current_lng': driver.current_lng,
+            'zone_id': driver.zone_id,
+            'zone_name': driver.zone.zone_name if driver.zone else None,
+            'out_of_zone': driver.out_of_zone,
+            'location_updated_at': driver.location_updated_at.isoformat() if driver.location_updated_at else None
+        }
+        
+        return create_success_response(zone_info, "Zone status retrieved")
+        
+    except Exception as e:
+        logging.error(f"Error getting zone status: {str(e)}")
+        return create_error_response("Error retrieving zone status")

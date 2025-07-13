@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, get_ist_time
-from models import Customer, Ride, RideLocation, FareConfig, Driver
+from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
 from utils.distance import haversine_distance, filter_drivers_by_proximity
 import logging
+from datetime import datetime, date, time
 
 customer_bp = Blueprint('customer', __name__)
 
@@ -126,24 +127,64 @@ def book_ride():
         if not success:
             return create_error_response(error_msg)
         
-        # Calculate fare using database configuration
-        fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
-        if not fare_success:
-            return create_error_response(fare_error)
+        # Get optional ride category and schedule details
+        ride_category = data.get('ride_category', 'regular').lower()
+        scheduled_date = data.get('scheduled_date')
+        scheduled_time = data.get('scheduled_time')
+        hours = data.get('hours')  # For rental rides
+        
+        # Validate ride category
+        if ride_category not in ['regular', 'airport', 'rental', 'outstation']:
+            return create_error_response("Invalid ride category")
+        
+        # Validate vehicle type for airport rides
+        if ride_category == 'airport' and ride_type == 'hatchback':
+            return create_error_response("Airport rides only allow sedan or suv")
+        
+        # Calculate fare based on ride category
+        if ride_category == 'regular':
+            # Regular ride using standard fare config
+            fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
+            if not fare_success:
+                return create_error_response(fare_error)
+        else:
+            # Special ride using special fare config
+            fare_success, fare_amount, fare_error = SpecialFareConfig.calculate_special_fare(
+                ride_category, ride_type, distance_km, hours
+            )
+            if not fare_success:
+                return create_error_response(fare_error)
         
         # Check if we have pickup coordinates for proximity dispatch
         if pickup_lat is None or pickup_lng is None:
             return create_error_response("Pickup coordinates are required for ride booking")
         
-        # Find eligible drivers within 5km radius
-        online_drivers = Driver.query.filter_by(is_online=True, car_type=ride_type).all()
-        eligible_drivers = filter_drivers_by_proximity(
-            online_drivers, pickup_lat, pickup_lng, max_distance_km=5.0
-        )
+        # For regular rides, find eligible drivers within 5km radius
+        if ride_category == 'regular':
+            online_drivers = Driver.query.filter_by(is_online=True, car_type=ride_type).all()
+            eligible_drivers = filter_drivers_by_proximity(
+                online_drivers, pickup_lat, pickup_lng, max_distance_km=5.0
+            )
+            
+            # Check if any drivers are available within range
+            if not eligible_drivers:
+                return create_error_response("No drivers available within 5km of pickup location")
         
-        # Check if any drivers are available within range
-        if not eligible_drivers:
-            return create_error_response("No drivers available within 5km of pickup location")
+        # Parse scheduled datetime if provided
+        scheduled_date_obj = None
+        scheduled_time_obj = None
+        if scheduled_date and scheduled_time:
+            try:
+                # Parse date (DD/MM/YYYY format)
+                day, month, year = scheduled_date.split('/')
+                scheduled_date_obj = date(int(year), int(month), int(day))
+                
+                # Parse time (HH:MM format)
+                hour, minute = scheduled_time.split(':')
+                scheduled_time_obj = time(int(hour), int(minute))
+                
+            except ValueError:
+                return create_error_response("Invalid date/time format. Use DD/MM/YYYY for date and HH:MM for time")
         
         # Create new ride
         ride = Ride(
@@ -157,8 +198,12 @@ def book_ride():
             drop_lng=drop_lng,
             distance_km=distance_km,
             fare_amount=fare_amount,
+            final_fare=fare_amount,  # Freeze fare at booking time
             ride_type=ride_type,
-            status='pending'
+            ride_category=ride_category,
+            scheduled_date=scheduled_date_obj,
+            scheduled_time=scheduled_time_obj,
+            status='new'
         )
         
         db.session.add(ride)
@@ -172,7 +217,9 @@ def book_ride():
             'distance_km': distance_km,
             'fare_amount': fare_amount,
             'ride_type': ride_type,
-            'status': 'pending'
+            'ride_category': ride_category,
+            'final_fare': fare_amount,
+            'status': 'new'
         }, "Ride booked successfully")
         
     except Exception as e:
@@ -391,6 +438,46 @@ def get_driver_location(ride_id):
     except Exception as e:
         logging.error(f"Error getting driver location: {str(e)}")
         return jsonify({'error': 'Error retrieving location'}), 500
+
+
+@customer_bp.route('/bookings/<int:customer_id>', methods=['GET'])
+def get_customer_bookings(customer_id):
+    """Get bookings for a specific customer categorized by status"""
+    try:
+        # Find customer
+        customer = Customer.query.get(customer_id)
+        if not customer:
+            return create_error_response("Customer not found", 404)
+        
+        # Get all customer rides
+        rides = Ride.query.filter_by(customer_id=customer_id).order_by(Ride.created_at.desc()).all()
+        
+        # Categorize rides based on status
+        bookings = []
+        ongoing = []
+        history = []
+        
+        for ride in rides:
+            ride_data = ride.to_dict()
+            
+            # Tab categorization based on status
+            if ride.status in ['new', 'assigned']:
+                bookings.append(ride_data)
+            elif ride.status == 'active':
+                ongoing.append(ride_data)
+            elif ride.status == 'completed':
+                history.append(ride_data)
+        
+        return create_success_response({
+            'customer_id': customer_id,
+            'bookings': bookings,      # new + assigned
+            'ongoing': ongoing,        # active
+            'history': history         # completed
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting customer bookings: {str(e)}")
+        return create_error_response("Error retrieving bookings")
 
 
 @customer_bp.route('/logout', methods=['POST'])

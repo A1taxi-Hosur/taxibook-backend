@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from app import db, get_ist_time
-from models import Admin, Customer, Driver, Ride, FareConfig
+from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone
 from utils.validators import create_error_response, create_success_response, validate_phone, validate_required_fields
 import logging
 import random
@@ -49,6 +49,36 @@ def login():
             flash('Invalid username or password', 'error')
     
     return render_template('admin/login.html')
+
+@admin_bp.route('/api/login', methods=['POST'])
+def api_login():
+    """Admin API login endpoint for JSON requests"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return create_error_response("Username and password are required")
+        
+        admin = Admin.query.filter_by(username=username).first()
+        if admin and admin.password_hash == password:
+            login_user(admin)
+            logging.info(f"Admin logged in via API: {admin.username}")
+            return create_success_response({
+                'admin_id': admin.id,
+                'username': admin.username,
+                'logged_in': True
+            }, "Admin login successful")
+        else:
+            return create_error_response("Invalid username or password")
+    
+    except Exception as e:
+        logging.error(f"Error in admin API login: {str(e)}")
+        return create_error_response("Internal server error")
 
 @admin_bp.route('/logout')
 @login_required
@@ -321,9 +351,14 @@ def cancel_ride_admin(ride_id):
 def create_driver():
     """Admin API to create a new driver account"""
     try:
-        # Get data from form (not JSON)
-        name = request.form.get('name')
-        phone = request.form.get('phone')
+        # Support both form data and JSON
+        if request.is_json:
+            data = request.get_json()
+            name = data.get('name')
+            phone = data.get('phone')
+        else:
+            name = request.form.get('name')
+            phone = request.form.get('phone')
         
         # Basic validation - only name and phone are required
         if not name or not phone:
@@ -349,8 +384,12 @@ def create_driver():
         
         # Validate car year if provided
         car_year = None
-        car_year_str = request.form.get('car_year')
-        if car_year_str and car_year_str.strip():
+        if request.is_json:
+            car_year_str = data.get('car_year')
+        else:
+            car_year_str = request.form.get('car_year')
+            
+        if car_year_str and str(car_year_str).strip():
             try:
                 car_year = int(car_year_str)
                 if car_year < 1990 or car_year > 2025:
@@ -359,23 +398,42 @@ def create_driver():
                 return create_error_response("Invalid car year", 400)
         
         # Create new driver
-        new_driver = Driver(
-            name=name,
-            phone=phone,
-            username=username,
-            password_hash=password_hash,
-            car_make=request.form.get('car_make') or None,
-            car_model=request.form.get('car_model') or None,
-            car_year=car_year,
-            license_number=request.form.get('license_number') or None,
-            car_number=request.form.get('car_number') or None,
-            car_type=request.form.get('car_type') or None,
-            aadhaar_url=request.form.get('aadhaar_url') or None,
-            license_url=request.form.get('license_url') or None,
-            rcbook_url=request.form.get('rcbook_url') or None,
-            profile_photo_url=request.form.get('profile_photo_url') or None,
-            is_online=True  # Default to online
-        )
+        if request.is_json:
+            new_driver = Driver(
+                name=name,
+                phone=phone,
+                username=username,
+                password_hash=password_hash,
+                car_make=data.get('car_make') or None,
+                car_model=data.get('car_model') or None,
+                car_year=car_year,
+                license_number=data.get('license_number') or None,
+                car_number=data.get('car_number') or None,
+                car_type=data.get('car_type') or None,
+                aadhaar_url=data.get('aadhaar_url') or None,
+                license_url=data.get('license_url') or None,
+                rcbook_url=data.get('rcbook_url') or None,
+                profile_photo_url=data.get('profile_photo_url') or None,
+                is_online=True  # Default to online
+            )
+        else:
+            new_driver = Driver(
+                name=name,
+                phone=phone,
+                username=username,
+                password_hash=password_hash,
+                car_make=request.form.get('car_make') or None,
+                car_model=request.form.get('car_model') or None,
+                car_year=car_year,
+                license_number=request.form.get('license_number') or None,
+                car_number=request.form.get('car_number') or None,
+                car_type=request.form.get('car_type') or None,
+                aadhaar_url=request.form.get('aadhaar_url') or None,
+                license_url=request.form.get('license_url') or None,
+                rcbook_url=request.form.get('rcbook_url') or None,
+                profile_photo_url=request.form.get('profile_photo_url') or None,
+                is_online=True  # Default to online
+            )
         
         db.session.add(new_driver)
         db.session.commit()
@@ -383,12 +441,13 @@ def create_driver():
         logging.info(f"Admin created new driver: {new_driver.name} ({username})")
         
         # WARNING: Plain password returned for admin testing only - remove before production
-        return jsonify({
-            "status": "success",
-            "message": "Driver created successfully",
+        return create_success_response({
+            "driver_id": new_driver.id,
+            "name": new_driver.name,
+            "phone": new_driver.phone,
             "username": username,
             "password": password  # Plain password for admin testing only
-        })
+        }, "Driver created successfully")
         
     except ValueError as e:
         logging.error(f"Validation error in create_driver: {str(e)}")
@@ -678,3 +737,249 @@ def api_update_surge_multiplier():
         logging.error(f"Error updating surge multiplier: {str(e)}")
         db.session.rollback()
         return create_error_response("Failed to update surge multiplier")
+
+
+@admin_bp.route('/assign_driver', methods=['POST'])
+@login_required
+def assign_driver():
+    """Admin manual assignment of drivers to rides"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['ride_id', 'driver_id'])
+        if not valid:
+            return create_error_response(error)
+        
+        ride_id = data['ride_id']
+        driver_id = data['driver_id']
+        
+        # Find ride and driver
+        ride = Ride.query.get(ride_id)
+        if not ride:
+            return create_error_response('Ride not found', 404)
+        
+        driver = Driver.query.get(driver_id)
+        if not driver:
+            return create_error_response('Driver not found', 404)
+        
+        # Check if ride can be assigned
+        if ride.status != 'new':
+            return create_error_response('Ride cannot be assigned in current status', 400)
+        
+        # Check if driver is available
+        if not driver.is_online:
+            return create_error_response('Driver is not online', 400)
+        
+        # Check if driver has active rides
+        active_rides = Ride.query.filter_by(driver_id=driver_id).filter(
+            Ride.status.in_(['assigned', 'active'])
+        ).count()
+        
+        if active_rides > 0:
+            return create_error_response('Driver already has active rides', 400)
+        
+        # Assign driver to ride
+        ride.driver_id = driver_id
+        ride.status = 'assigned'
+        ride.assigned_time = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Admin assigned driver {driver.name} to ride {ride_id}")
+        
+        return create_success_response({
+            'ride_id': ride_id,
+            'driver_id': driver_id,
+            'driver_name': driver.name,
+            'status': 'assigned'
+        }, f'Driver {driver.name} assigned to ride successfully')
+        
+    except Exception as e:
+        logging.error(f"Error assigning driver: {str(e)}")
+        db.session.rollback()
+        return create_error_response('Error assigning driver', 500)
+
+
+@admin_bp.route('/api/special_fare_config', methods=['GET'])
+@login_required
+def api_get_special_fare_config():
+    """API endpoint to get all special fare configurations"""
+    try:
+        configs = SpecialFareConfig.query.all()
+        return create_success_response({
+            'special_fare_configs': [config.to_dict() for config in configs]
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting special fare configurations: {str(e)}")
+        return create_error_response("Failed to get special fare configurations")
+
+
+@admin_bp.route('/api/special_fare_config', methods=['POST'])
+@login_required
+def api_create_special_fare_config():
+    """API endpoint to create or update special fare configuration"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['ride_category', 'ride_type', 'base_fare'])
+        if not valid:
+            return create_error_response(error)
+        
+        ride_category = data['ride_category'].lower()
+        ride_type = data['ride_type'].lower()
+        base_fare = float(data['base_fare'])
+        
+        # Validate values
+        if base_fare < 0:
+            return create_error_response("Base fare must be positive")
+        
+        if ride_category not in ['airport', 'rental', 'outstation']:
+            return create_error_response("Invalid ride category")
+        
+        if ride_type not in ['hatchback', 'sedan', 'suv']:
+            return create_error_response("Invalid ride type")
+        
+        # Airport rides only allow sedan/suv
+        if ride_category == 'airport' and ride_type == 'hatchback':
+            return create_error_response("Airport rides only allow sedan or suv")
+        
+        # Find existing configuration or create new one
+        config = SpecialFareConfig.query.filter_by(
+            ride_category=ride_category,
+            ride_type=ride_type
+        ).first()
+        
+        if not config:
+            config = SpecialFareConfig(
+                ride_category=ride_category,
+                ride_type=ride_type
+            )
+            db.session.add(config)
+        
+        # Update configuration
+        config.base_fare = base_fare
+        config.per_km = data.get('per_km') 
+        config.hourly = data.get('hourly')
+        config.flat_rate = data.get('flat_rate')
+        config.is_active = data.get('is_active', True)
+        config.updated_at = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"Special fare configuration updated: {ride_category} - {ride_type}")
+        return create_success_response(config.to_dict(), f"Special fare configuration updated for {ride_category} - {ride_type}")
+        
+    except ValueError:
+        return create_error_response("Invalid numeric values")
+    except Exception as e:
+        logging.error(f"Error creating/updating special fare configuration: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update special fare configuration")
+
+
+@admin_bp.route('/api/zones', methods=['GET'])
+@login_required
+def api_get_zones():
+    """API endpoint to get all zones"""
+    try:
+        zones = Zone.query.all()
+        return create_success_response({
+            'zones': [zone.to_dict() for zone in zones]
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting zones: {str(e)}")
+        return create_error_response("Failed to get zones")
+
+
+@admin_bp.route('/api/zones', methods=['POST'])
+@login_required
+def api_create_zone():
+    """API endpoint to create a new zone"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['zone_name', 'center_lat', 'center_lng', 'radius_km'])
+        if not valid:
+            return create_error_response(error)
+        
+        zone_name = data['zone_name']
+        center_lat = float(data['center_lat'])
+        center_lng = float(data['center_lng'])
+        radius_km = float(data['radius_km'])
+        
+        # Validate values
+        if not (-90 <= center_lat <= 90):
+            return create_error_response("Invalid latitude")
+        
+        if not (-180 <= center_lng <= 180):
+            return create_error_response("Invalid longitude")
+        
+        if radius_km <= 0 or radius_km > 50:
+            return create_error_response("Radius must be between 0 and 50 km")
+        
+        # Check if zone name already exists
+        existing_zone = Zone.query.filter_by(zone_name=zone_name).first()
+        if existing_zone:
+            return create_error_response("Zone with this name already exists")
+        
+        # Create new zone
+        new_zone = Zone(
+            zone_name=zone_name,
+            center_lat=center_lat,
+            center_lng=center_lng,
+            radius_km=radius_km,
+            is_active=data.get('is_active', True)
+        )
+        
+        db.session.add(new_zone)
+        db.session.commit()
+        
+        logging.info(f"New zone created: {zone_name}")
+        return create_success_response(new_zone.to_dict(), f"Zone '{zone_name}' created successfully")
+        
+    except ValueError:
+        return create_error_response("Invalid numeric values")
+    except Exception as e:
+        logging.error(f"Error creating zone: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to create zone")
+
+
+@admin_bp.route('/api/bookings', methods=['GET'])
+@login_required
+def api_get_all_bookings():
+    """API endpoint to get all bookings for admin"""
+    try:
+        # Get all rides ordered by creation date (newest first)
+        rides = Ride.query.order_by(Ride.created_at.desc()).all()
+        
+        # Convert to dictionaries
+        bookings = []
+        for ride in rides:
+            ride_dict = ride.to_dict()
+            # Add customer and driver names for admin view
+            if ride.customer:
+                ride_dict['customer_name'] = ride.customer.name
+            if ride.driver:
+                ride_dict['driver_name'] = ride.driver.name
+            bookings.append(ride_dict)
+        
+        return create_success_response({
+            'bookings': bookings,
+            'total_count': len(bookings)
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting all bookings: {str(e)}")
+        return create_error_response("Failed to get bookings")

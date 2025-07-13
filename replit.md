@@ -150,6 +150,7 @@ Changelog:
 - July 08, 2025. Finalized fare calculation system with standardized API responses - ride estimate returns exact format specified (success, distance_km, estimates) and booking system ensures fare consistency between estimate and booking stages (Version 1.9.5)
 - July 08, 2025. Implemented proximity-based driver dispatch system with 5km radius filtering - added driver current location tracking (current_lat, current_lng, location_updated_at), haversine distance calculation utility, and booking validation to ensure only nearby drivers receive ride requests (Version 2.0)
 - July 13, 2025. Updated Google Maps API key configuration - replaced old API key with new Firebase-generated browser key (AIzaSyDw7eAaQOKVOrurvnqTyR6yK3tDdXnjsFk) in .env file, verified all Google Maps integrations are working correctly (Version 2.0.1)
+- July 13, 2025. Implemented comprehensive backend enhancements including special fare configurations, zone management, scheduled rides, and enhanced ride tracking - added SpecialFareConfig and Zone models, admin API endpoints, enhanced customer booking with ride categories (regular/airport/rental/outstation), final fare freezing system, driver zone assignment, and comprehensive API testing (Version 2.1)
 ```
 
 ## User Preferences

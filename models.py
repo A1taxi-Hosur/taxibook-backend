@@ -2,6 +2,7 @@ from app import db, get_ist_time
 from flask_login import UserMixin
 from datetime import datetime
 from sqlalchemy import func
+import logging
 
 class Customer(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,6 +44,10 @@ class Driver(UserMixin, db.Model):
     current_lng = db.Column(db.Float, nullable=True)
     location_updated_at = db.Column(db.DateTime, nullable=True)
     
+    # Zone assignment
+    zone_id = db.Column(db.Integer, db.ForeignKey('zone.id'), nullable=True)
+    out_of_zone = db.Column(db.Boolean, default=False)
+    
     # Relationship with rides
     rides = db.relationship('Ride', backref='driver', lazy=True)
     
@@ -79,12 +84,23 @@ class Ride(db.Model):
     # Fare and distance
     distance_km = db.Column(db.Float, nullable=True)
     fare_amount = db.Column(db.Float, nullable=False)
+    final_fare = db.Column(db.Float, nullable=True)  # Frozen fare at booking time
     
     # Ride type (vehicle preference)
     ride_type = db.Column(db.String(20), nullable=True)  # hatchback, sedan, suv
     
+    # Ride category
+    ride_category = db.Column(db.String(20), default='regular')  # regular, airport, rental, outstation
+    
     # Status tracking
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, arrived, started, completed, cancelled
+    status = db.Column(db.String(20), default='new')  # new, assigned, active, completed, cancelled
+    
+    # Scheduled ride support
+    scheduled_date = db.Column(db.Date, nullable=True)
+    scheduled_time = db.Column(db.Time, nullable=True)
+    
+    # Admin assignment
+    assigned_time = db.Column(db.DateTime, nullable=True)
     
     # OTP for ride start confirmation
     start_otp = db.Column(db.String(6), nullable=True)
@@ -274,3 +290,178 @@ class FareConfig(db.Model):
                 db.session.add(config)
         
         db.session.commit()
+
+
+class SpecialFareConfig(db.Model):
+    """Special fare configuration for airport, rental, and outstation rides"""
+    __tablename__ = 'special_fare_config'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ride_category = db.Column(db.String(20), nullable=False)  # airport, rental, outstation
+    ride_type = db.Column(db.String(20), nullable=False)  # sedan, suv, hatchback
+    base_fare = db.Column(db.Float, nullable=False, default=50.0)
+    per_km = db.Column(db.Float, nullable=True)  # Per km rate
+    hourly = db.Column(db.Float, nullable=True)  # Hourly rate for rentals
+    flat_rate = db.Column(db.Float, nullable=True)  # Flat rate for certain routes
+    is_active = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    updated_at = db.Column(db.DateTime, default=get_ist_time, onupdate=get_ist_time)
+    
+    def __repr__(self):
+        return f'<SpecialFareConfig {self.ride_category} - {self.ride_type}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ride_category': self.ride_category,
+            'ride_type': self.ride_type,
+            'base_fare': self.base_fare,
+            'per_km': self.per_km,
+            'hourly': self.hourly,
+            'flat_rate': self.flat_rate,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @staticmethod
+    def calculate_special_fare(ride_category, ride_type, distance_km=None, hours=None):
+        """Calculate fare for special ride categories"""
+        config = SpecialFareConfig.query.filter_by(
+            ride_category=ride_category,
+            ride_type=ride_type,
+            is_active=True
+        ).first()
+        
+        if not config:
+            return False, None, f"No fare configuration found for {ride_category} - {ride_type}"
+        
+        fare_amount = config.base_fare
+        
+        # Apply flat rate if available
+        if config.flat_rate:
+            fare_amount = config.flat_rate
+        else:
+            # Add per-km cost if applicable
+            if config.per_km and distance_km:
+                fare_amount += (config.per_km * distance_km)
+            
+            # Add hourly cost if applicable
+            if config.hourly and hours:
+                fare_amount += (config.hourly * hours)
+        
+        return True, round(fare_amount, 2), None
+    
+    @staticmethod
+    def initialize_default_special_fares():
+        """Initialize default special fare configurations"""
+        try:
+            existing_configs = SpecialFareConfig.query.all()
+            if existing_configs:
+                logging.info("Special fare configurations already exist, skipping initialization")
+                return
+            
+            # Default special fare configurations
+            default_configs = [
+                # Airport rides (sedan/suv only)
+                {'ride_category': 'airport', 'ride_type': 'sedan', 'base_fare': 100.0, 'per_km': 15.0, 'is_active': True},
+                {'ride_category': 'airport', 'ride_type': 'suv', 'base_fare': 150.0, 'per_km': 18.0, 'is_active': True},
+                
+                # Rental rides (all types)
+                {'ride_category': 'rental', 'ride_type': 'sedan', 'base_fare': 200.0, 'hourly': 100.0, 'is_active': True},
+                {'ride_category': 'rental', 'ride_type': 'suv', 'base_fare': 300.0, 'hourly': 150.0, 'is_active': True},
+                {'ride_category': 'rental', 'ride_type': 'hatchback', 'base_fare': 150.0, 'hourly': 80.0, 'is_active': True},
+                
+                # Outstation rides (all types)
+                {'ride_category': 'outstation', 'ride_type': 'sedan', 'base_fare': 300.0, 'per_km': 12.0, 'is_active': True},
+                {'ride_category': 'outstation', 'ride_type': 'suv', 'base_fare': 400.0, 'per_km': 15.0, 'is_active': True},
+                {'ride_category': 'outstation', 'ride_type': 'hatchback', 'base_fare': 250.0, 'per_km': 10.0, 'is_active': True},
+            ]
+            
+            for config_data in default_configs:
+                config = SpecialFareConfig(**config_data)
+                db.session.add(config)
+            
+            db.session.commit()
+            logging.info("Default special fare configurations initialized")
+            
+        except Exception as e:
+            logging.error(f"Error initializing default special fares: {str(e)}")
+            db.session.rollback()
+
+
+class Zone(db.Model):
+    """Zone model for dispatch logic"""
+    __tablename__ = 'zone'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    zone_name = db.Column(db.String(100), nullable=False, unique=True)
+    center_lat = db.Column(db.Float, nullable=False)
+    center_lng = db.Column(db.Float, nullable=False)
+    radius_km = db.Column(db.Float, nullable=False, default=5.0)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    updated_at = db.Column(db.DateTime, default=get_ist_time, onupdate=get_ist_time)
+    
+    # Relationship with drivers
+    drivers = db.relationship('Driver', backref='zone', lazy=True)
+    
+    def __repr__(self):
+        return f'<Zone {self.zone_name}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'zone_name': self.zone_name,
+            'center_lat': self.center_lat,
+            'center_lng': self.center_lng,
+            'radius_km': self.radius_km,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @staticmethod
+    def find_zone_for_location(lat, lng):
+        """Find zone for given coordinates"""
+        from utils.distance import haversine_distance
+        
+        zones = Zone.query.filter_by(is_active=True).all()
+        
+        for zone in zones:
+            distance = haversine_distance(lat, lng, zone.center_lat, zone.center_lng)
+            if distance <= zone.radius_km:
+                return zone
+        
+        return None
+    
+    @staticmethod
+    def initialize_default_zones():
+        """Initialize default zones"""
+        try:
+            existing_zones = Zone.query.all()
+            if existing_zones:
+                logging.info("Zones already exist, skipping initialization")
+                return
+            
+            # Default zones for major areas
+            default_zones = [
+                {'zone_name': 'Chennai Central', 'center_lat': 13.0827, 'center_lng': 80.2707, 'radius_km': 5.0},
+                {'zone_name': 'Anna Nagar', 'center_lat': 13.0850, 'center_lng': 80.2101, 'radius_km': 4.0},
+                {'zone_name': 'T.Nagar', 'center_lat': 13.0435, 'center_lng': 80.2339, 'radius_km': 3.0},
+                {'zone_name': 'Velachery', 'center_lat': 12.9755, 'center_lng': 80.2201, 'radius_km': 4.0},
+                {'zone_name': 'Airport', 'center_lat': 12.9941, 'center_lng': 80.1709, 'radius_km': 8.0},
+            ]
+            
+            for zone_data in default_zones:
+                zone = Zone(**zone_data)
+                db.session.add(zone)
+            
+            db.session.commit()
+            logging.info("Default zones initialized")
+            
+        except Exception as e:
+            logging.error(f"Error initializing default zones: {str(e)}")
+            db.session.rollback()
