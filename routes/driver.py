@@ -741,6 +741,9 @@ def update_current_location():
         driver.current_lng = longitude
         driver.location_updated_at = get_ist_time()
         
+        # Update zone assignment based on new location
+        driver.update_zone_assignment()
+        
         db.session.commit()
         
         logging.info(f"Driver current location updated: {driver.name} at ({latitude}, {longitude})")
@@ -748,7 +751,9 @@ def update_current_location():
             'driver_id': driver.id,
             'latitude': latitude,
             'longitude': longitude,
-            'updated_at': driver.location_updated_at.isoformat()
+            'updated_at': driver.location_updated_at.isoformat(),
+            'zone': driver.zone.zone_name if driver.zone else None,
+            'out_of_zone': driver.out_of_zone
         }, "Current location updated successfully")
         
     except Exception as e:

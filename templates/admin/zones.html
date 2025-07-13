@@ -72,9 +72,41 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="radiusKm" class="form-label">Radius (km)</label>
-                        <input type="number" class="form-control" id="radiusKm" name="radius_km" step="0.1" min="0.1" max="50" required>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="numberOfRings" class="form-label">Number of Rings</label>
+                                <input type="number" class="form-control" id="numberOfRings" name="number_of_rings" min="1" max="5" value="3" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="ringRadiusKm" class="form-label">Ring Radius (km)</label>
+                                <input type="number" class="form-control" id="ringRadiusKm" name="ring_radius_km" step="0.1" min="0.1" max="10" value="2.0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="expansionDelay" class="form-label">Expansion Delay (sec)</label>
+                                <input type="number" class="form-control" id="expansionDelay" name="expansion_delay_sec" min="5" max="60" value="15" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="radiusKm" class="form-label">Legacy Radius (km)</label>
+                                <input type="number" class="form-control" id="radiusKm" name="radius_km" step="0.1" min="0.1" max="50" value="5.0" required>
+                                <small class="form-text text-muted">Used for backward compatibility</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="priorityOrder" class="form-label">Priority Order</label>
+                                <input type="number" class="form-control" id="priorityOrder" name="priority_order" min="1" max="100" value="1" required>
+                                <small class="form-text text-muted">Lower number = higher priority</small>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
@@ -86,13 +118,30 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Zone Map</label>
-                        <div id="modalMap" style="height: 300px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                        <div id="modalMap" style="height: 350px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
                             <p class="text-muted">Loading map...</p>
                         </div>
                         <div class="mt-2">
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> Click on the map to set center coordinates automatically.
-                            </small>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i> Click on the map to set center coordinates. Use drawing tools to create polygon zones.
+                                    </small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary" id="drawCircleBtn">
+                                            <i class="bi bi-circle"></i> Circle
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="drawPolygonBtn">
+                                            <i class="bi bi-polygon"></i> Polygon
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" id="clearShapesBtn">
+                                            <i class="bi bi-trash"></i> Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

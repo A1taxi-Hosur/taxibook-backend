@@ -5,6 +5,7 @@ from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFare
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
 from utils.distance import haversine_distance, filter_drivers_by_proximity
+from utils.ride_dispatch_engine import RideDispatchEngine
 import logging
 from datetime import datetime, date, time
 
@@ -159,17 +160,6 @@ def book_ride():
         if pickup_lat is None or pickup_lng is None:
             return create_error_response("Pickup coordinates are required for ride booking")
         
-        # For regular rides, find eligible drivers within 5km radius
-        if ride_category == 'regular':
-            online_drivers = Driver.query.filter_by(is_online=True, car_type=ride_type).all()
-            eligible_drivers = filter_drivers_by_proximity(
-                online_drivers, pickup_lat, pickup_lng, max_distance_km=5.0
-            )
-            
-            # Check if any drivers are available within range
-            if not eligible_drivers:
-                return create_error_response("No drivers available within 5km of pickup location")
-        
         # Parse scheduled datetime if provided
         scheduled_date_obj = None
         scheduled_time_obj = None
@@ -185,6 +175,10 @@ def book_ride():
                 
             except ValueError:
                 return create_error_response("Invalid date/time format. Use DD/MM/YYYY for date and HH:MM for time")
+        
+        # Generate OTP for ride start
+        import random
+        start_otp = str(random.randint(100000, 999999))
         
         # Create new ride
         ride = Ride(
@@ -203,27 +197,174 @@ def book_ride():
             ride_category=ride_category,
             scheduled_date=scheduled_date_obj,
             scheduled_time=scheduled_time_obj,
+            start_otp=start_otp,
             status='new'
         )
         
         db.session.add(ride)
         db.session.commit()
         
-        logging.info(f"Ride booked: {ride.id} for customer {customer.name} - {ride_type}")
-        return create_success_response({
-            'ride_id': ride.id,
-            'pickup_address': pickup_address,
-            'drop_address': drop_address,
-            'distance_km': distance_km,
-            'fare_amount': fare_amount,
-            'ride_type': ride_type,
-            'ride_category': ride_category,
-            'final_fare': fare_amount,
-            'status': 'new'
-        }, "Ride booked successfully")
+        # For immediate rides, start dispatch process
+        if not scheduled_date_obj and not scheduled_time_obj:
+            try:
+                # Initialize dispatch engine
+                dispatch_engine = RideDispatchEngine(ride.id)
+                dispatch_result = dispatch_engine.start_dispatch()
+                
+                if dispatch_result.get('success'):
+                    # Driver assigned successfully
+                    logging.info(f"Driver assigned automatically for ride {ride.id}")
+                    return create_success_response({
+                        'ride_id': ride.id,
+                        'pickup_address': pickup_address,
+                        'drop_address': drop_address,
+                        'distance_km': distance_km,
+                        'fare_amount': fare_amount,
+                        'ride_type': ride_type,
+                        'ride_category': ride_category,
+                        'final_fare': fare_amount,
+                        'status': 'assigned',
+                        'driver_assigned': True,
+                        'dispatch_info': {
+                            'ring': dispatch_result.get('ring'),
+                            'distance_to_driver': dispatch_result.get('distance')
+                        }
+                    }, "Ride booked and driver assigned successfully")
+                
+                elif dispatch_result.get('requires_customer_approval'):
+                    # Zone expansion required
+                    return create_success_response({
+                        'ride_id': ride.id,
+                        'pickup_address': pickup_address,
+                        'drop_address': drop_address,
+                        'distance_km': distance_km,
+                        'fare_amount': fare_amount,
+                        'ride_type': ride_type,
+                        'ride_category': ride_category,
+                        'final_fare': fare_amount,
+                        'status': 'new',
+                        'requires_zone_expansion': True,
+                        'expansion_info': {
+                            'extra_fare': dispatch_result.get('extra_fare'),
+                            'expansion_zone': dispatch_result.get('expansion_zone'),
+                            'expansion_distance': dispatch_result.get('expansion_distance')
+                        }
+                    }, "Ride booked. Zone expansion required for driver assignment.")
+                
+                else:
+                    # No drivers available - manual assignment needed
+                    logging.info(f"No drivers available for ride {ride.id} - manual assignment required")
+                    return create_success_response({
+                        'ride_id': ride.id,
+                        'pickup_address': pickup_address,
+                        'drop_address': drop_address,
+                        'distance_km': distance_km,
+                        'fare_amount': fare_amount,
+                        'ride_type': ride_type,
+                        'ride_category': ride_category,
+                        'final_fare': fare_amount,
+                        'status': 'new',
+                        'requires_manual_assignment': True
+                    }, "Ride booked. No drivers available for automatic assignment.")
+                
+            except Exception as dispatch_error:
+                logging.error(f"Dispatch error for ride {ride.id}: {str(dispatch_error)}")
+                # Continue with manual assignment
+                return create_success_response({
+                    'ride_id': ride.id,
+                    'pickup_address': pickup_address,
+                    'drop_address': drop_address,
+                    'distance_km': distance_km,
+                    'fare_amount': fare_amount,
+                    'ride_type': ride_type,
+                    'ride_category': ride_category,
+                    'final_fare': fare_amount,
+                    'status': 'new',
+                    'requires_manual_assignment': True
+                }, "Ride booked. Dispatch system error - manual assignment required.")
+        
+        else:
+            # Scheduled ride - no immediate dispatch
+            logging.info(f"Scheduled ride booked: {ride.id} for customer {customer.name} - {ride_type}")
+            return create_success_response({
+                'ride_id': ride.id,
+                'pickup_address': pickup_address,
+                'drop_address': drop_address,
+                'distance_km': distance_km,
+                'fare_amount': fare_amount,
+                'ride_type': ride_type,
+                'ride_category': ride_category,
+                'final_fare': fare_amount,
+                'status': 'new',
+                'scheduled': True,
+                'scheduled_date': scheduled_date,
+                'scheduled_time': scheduled_time
+            }, "Scheduled ride booked successfully")
         
     except Exception as e:
         logging.error(f"Error in book_ride: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Internal server error")
+
+@customer_bp.route('/approve_zone_expansion', methods=['POST'])
+def approve_zone_expansion():
+    """Customer approval for zone expansion with extra fare"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['ride_id', 'approved'])
+        if not valid:
+            return create_error_response(error)
+        
+        ride_id = data['ride_id']
+        approved = data['approved']
+        
+        # Find the ride
+        ride = Ride.query.filter_by(id=ride_id).first()
+        if not ride:
+            return create_error_response("Ride not found")
+        
+        if approved:
+            # Customer approved expansion - continue with dispatch
+            try:
+                dispatch_engine = RideDispatchEngine(ride_id)
+                extra_fare = data.get('extra_fare', 0)
+                
+                dispatch_result = dispatch_engine.continue_with_expansion(extra_fare)
+                
+                if dispatch_result.get('success'):
+                    return create_success_response({
+                        'ride_id': ride_id,
+                        'status': 'assigned',
+                        'driver_assigned': True,
+                        'final_fare': dispatch_result.get('final_fare'),
+                        'extra_fare': extra_fare,
+                        'expansion_zone': dispatch_result.get('expansion_zone')
+                    }, "Zone expansion approved and driver assigned")
+                
+                else:
+                    return create_error_response("No drivers available even after zone expansion")
+                
+            except Exception as dispatch_error:
+                logging.error(f"Zone expansion dispatch error: {str(dispatch_error)}")
+                return create_error_response("Failed to assign driver after zone expansion")
+        
+        else:
+            # Customer declined expansion - cancel ride
+            ride.status = 'cancelled'
+            ride.cancelled_at = get_ist_time()
+            db.session.commit()
+            
+            return create_success_response({
+                'ride_id': ride_id,
+                'status': 'cancelled'
+            }, "Zone expansion declined. Ride cancelled.")
+        
+    except Exception as e:
+        logging.error(f"Error in approve_zone_expansion: {str(e)}")
         db.session.rollback()
         return create_error_response("Internal server error")
 

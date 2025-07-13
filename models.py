@@ -53,6 +53,20 @@ class Driver(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<Driver {self.name}>'
+    
+    def update_zone_assignment(self):
+        """Update driver's zone assignment based on current location"""
+        if self.current_lat is not None and self.current_lng is not None:
+            zone = Zone.find_zone_for_location(self.current_lat, self.current_lng)
+            if zone:
+                self.zone_id = zone.id
+                self.out_of_zone = False
+            else:
+                self.zone_id = None
+                self.out_of_zone = True
+        else:
+            self.zone_id = None
+            self.out_of_zone = True
 
 class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -89,6 +103,7 @@ class Ride(db.Model):
     distance_km = db.Column(db.Float, nullable=True)
     fare_amount = db.Column(db.Float, nullable=False)
     final_fare = db.Column(db.Float, nullable=True)  # Frozen fare at booking time
+    extra_fare = db.Column(db.Float, nullable=True)  # Zone expansion fee
     
     # Ride type (vehicle preference)
     ride_type = db.Column(db.String(20), nullable=True)  # hatchback, sedan, suv
@@ -105,6 +120,11 @@ class Ride(db.Model):
     
     # Admin assignment
     assigned_time = db.Column(db.DateTime, nullable=True)
+    
+    # Enhanced dispatch tracking
+    dispatch_zone_id = db.Column(db.Integer, db.ForeignKey('zone.id'), nullable=True)  # Initial zone
+    dispatched_ring = db.Column(db.Integer, nullable=True)  # Ring number where driver was found
+    zone_expansion_approved = db.Column(db.Boolean, default=False)  # Customer approval for expansion
     
     # OTP for ride start confirmation
     start_otp = db.Column(db.String(6), nullable=True)
@@ -396,14 +416,30 @@ class SpecialFareConfig(db.Model):
 
 
 class Zone(db.Model):
-    """Zone model for dispatch logic"""
+    """Enhanced Zone model with polygon support and concentric ring dispatch"""
     __tablename__ = 'zone'
     
     id = db.Column(db.Integer, primary_key=True)
     zone_name = db.Column(db.String(100), nullable=False, unique=True)
+    
+    # Polygon support
+    polygon_coordinates = db.Column(db.JSON, nullable=True)  # List of [lat, lng] pairs
+    
+    # Center coordinates (auto-calculated from polygon or manually set)
     center_lat = db.Column(db.Float, nullable=False)
     center_lng = db.Column(db.Float, nullable=False)
+    
+    # Concentric ring dispatch settings
+    number_of_rings = db.Column(db.Integer, nullable=False, default=3)  # 1-5 rings
+    ring_radius_km = db.Column(db.Float, nullable=False, default=2.0)  # Radius per ring
+    expansion_delay_sec = db.Column(db.Integer, nullable=False, default=15)  # Delay between rings
+    
+    # Legacy radius support for backward compatibility
     radius_km = db.Column(db.Float, nullable=False, default=5.0)
+    
+    # Zone priority for expansion logic
+    priority_order = db.Column(db.Integer, nullable=False, default=1)  # Lower = higher priority
+    
     is_active = db.Column(db.Boolean, default=True)
     
     created_at = db.Column(db.DateTime, default=get_ist_time)
@@ -419,27 +455,118 @@ class Zone(db.Model):
         return {
             'id': self.id,
             'zone_name': self.zone_name,
+            'polygon_coordinates': self.polygon_coordinates,
             'center_lat': self.center_lat,
             'center_lng': self.center_lng,
+            'number_of_rings': self.number_of_rings,
+            'ring_radius_km': self.ring_radius_km,
+            'expansion_delay_sec': self.expansion_delay_sec,
             'radius_km': self.radius_km,
+            'priority_order': self.priority_order,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
-    @staticmethod
-    def find_zone_for_location(lat, lng):
-        """Find zone for given coordinates"""
+    def is_point_in_zone(self, lat, lng):
+        """Check if a point is inside the zone (polygon or circle)"""
+        if self.polygon_coordinates:
+            return self._is_point_in_polygon(lat, lng, self.polygon_coordinates)
+        else:
+            # Fallback to circular zone
+            from utils.distance import haversine_distance
+            distance = haversine_distance(lat, lng, self.center_lat, self.center_lng)
+            return distance <= self.radius_km
+    
+    def _is_point_in_polygon(self, lat, lng, polygon):
+        """Ray casting algorithm to check if point is inside polygon"""
+        x, y = lng, lat
+        n = len(polygon)
+        inside = False
+        
+        p1x, p1y = polygon[0][1], polygon[0][0]  # polygon format is [lat, lng]
+        
+        for i in range(1, n + 1):
+            p2x, p2y = polygon[i % n][1], polygon[i % n][0]
+            
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        
+        return inside
+    
+    def get_ring_radius(self, ring_number):
+        """Get radius for a specific ring (1-based indexing)"""
+        return self.ring_radius_km * ring_number
+    
+    def get_drivers_in_ring(self, ring_number, pickup_lat, pickup_lng):
+        """Get available drivers within a specific ring"""
         from utils.distance import haversine_distance
         
-        zones = Zone.query.filter_by(is_active=True).all()
+        ring_radius = self.get_ring_radius(ring_number)
+        available_drivers = []
+        
+        for driver in self.drivers:
+            if (driver.is_online and 
+                driver.current_lat is not None and 
+                driver.current_lng is not None):
+                
+                distance = haversine_distance(
+                    pickup_lat, pickup_lng, 
+                    driver.current_lat, driver.current_lng
+                )
+                
+                if distance <= ring_radius:
+                    available_drivers.append({
+                        'driver': driver,
+                        'distance': distance
+                    })
+        
+        # Sort by distance
+        available_drivers.sort(key=lambda x: x['distance'])
+        return available_drivers
+    
+    @staticmethod
+    def find_zone_for_location(lat, lng):
+        """Find zone for given coordinates using polygon or circular matching"""
+        zones = Zone.query.filter_by(is_active=True).order_by(Zone.priority_order).all()
         
         for zone in zones:
-            distance = haversine_distance(lat, lng, zone.center_lat, zone.center_lng)
-            if distance <= zone.radius_km:
+            if zone.is_point_in_zone(lat, lng):
                 return zone
         
         return None
+    
+    @staticmethod
+    def get_next_zones_for_expansion(current_zone, pickup_lat, pickup_lng):
+        """Get next zones for expansion ordered by priority and distance"""
+        from utils.distance import haversine_distance
+        
+        other_zones = Zone.query.filter(
+            Zone.is_active == True,
+            Zone.id != current_zone.id
+        ).order_by(Zone.priority_order).all()
+        
+        # Calculate distances and sort
+        zone_distances = []
+        for zone in other_zones:
+            distance = haversine_distance(
+                pickup_lat, pickup_lng,
+                zone.center_lat, zone.center_lng
+            )
+            zone_distances.append({
+                'zone': zone,
+                'distance': distance
+            })
+        
+        # Sort by priority first, then by distance
+        zone_distances.sort(key=lambda x: (x['zone'].priority_order, x['distance']))
+        return zone_distances
     
     @staticmethod
     def initialize_default_zones():

@@ -1,0 +1,130 @@
+📁 BACKEND (Flask + SQLAlchemy)
+Create new model: Zone
+
+Fields:
+
+id (PK)
+
+name (string)
+
+polygon_coordinates (JSON) — list of [lat, lng] pairs
+
+center_lat (float)
+
+center_lng (float)
+
+number_of_rings (int)
+
+ring_radius_km (float) → applies per ring
+
+expansion_delay_sec (int)
+
+Support creation/edit/delete via /admin/api/zones (JSON POST/PUT/DELETE)
+
+When drivers update location, match them to zones by checking if GPS is inside polygon.
+
+Update Driver Model
+
+Add:
+
+zone_id (FK to Zone)
+
+is_out_of_zone (bool)
+
+When driver updates location:
+
+Check if inside a known zone
+
+If yes, update zone_id
+
+If not, mark as out_of_zone = True
+
+Update Ride Dispatch Logic
+
+When a ride is booked:
+
+Match pickup location to the current Zone
+
+Try drivers in concentric rings within that zone (based on center_lat/lng, radius steps, and delay)
+
+If no one accepts in all rings:
+
+Expand search to next zone (as per admin's defined order)
+
+When leaving current zone, calculate:
+
+extra_fare = base_rate_per_km × distance_from_pickup_to_next_zone_center
+
+Store in ride.extra_fare
+
+Return message: “Drivers not found nearby. Approve ₹X.XX extra to search wider?”
+
+Wait for customer confirmation before continuing
+
+Update Ride Model
+
+Add:
+
+extra_fare (float)
+
+final_fare (float) → total after applying extra fare
+
+dispatch_zone_id (FK to Zone initially searched)
+
+dispatched_ring (int) → ring number where driver was found
+
+🧭 ADMIN PANEL (Jinja2 UI)
+Add new tab in admin/base.html: Zones
+
+File: admin/zones.html
+Shows table of all zones
+
+Add/Edit/Delete Zone modals
+
+Map view to:
+
+Draw polygon using Leaflet.js or Google Maps JS
+
+Auto-calculate center_lat, center_lng
+
+Admin can input:
+
+Number of concentric rings (1–5)
+
+Radius per ring (e.g., 3 km)
+
+Expansion delay per ring (e.g., 15 seconds)
+
+Save to /admin/api/zones
+
+📡 DRIVER LOCATION API
+Update /driver/update_location to:
+
+Recalculate zone_id
+
+Update is_out_of_zone
+
+Include zone in backend live map (/admin/api/live_driver_locations)
+
+💸 FARE DISPLAY
+In /customer/ride_status and /customer/ride_details:
+
+If extra_fare exists, show line item:
+
+“Zone Expansion Fee: ₹X.XX”
+
+In frontend booking flow:
+
+When expanding beyond original zone, show confirmation modal
+
+Proceed only if customer approves
+
+✅ NOTES
+All distances must use Haversine formula
+
+Zone assignment is automatic via polygon containment
+
+Existing fare matrix logic must stay intact — only modify dispatch logic
+
+Store all expansion logic in ride_dispatch_engine.py if needed
+

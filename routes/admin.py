@@ -909,14 +909,21 @@ def api_create_zone():
             return create_error_response("Invalid JSON data")
         
         # Validate required fields
-        valid, error = validate_required_fields(data, ['zone_name', 'center_lat', 'center_lng', 'radius_km'])
+        valid, error = validate_required_fields(data, ['zone_name', 'center_lat', 'center_lng'])
         if not valid:
             return create_error_response(error)
         
         zone_name = data['zone_name']
         center_lat = float(data['center_lat'])
         center_lng = float(data['center_lng'])
-        radius_km = float(data['radius_km'])
+        
+        # Enhanced zone fields
+        number_of_rings = int(data.get('number_of_rings', 3))
+        ring_radius_km = float(data.get('ring_radius_km', 2.0))
+        expansion_delay_sec = int(data.get('expansion_delay_sec', 15))
+        radius_km = float(data.get('radius_km', 5.0))
+        priority_order = int(data.get('priority_order', 1))
+        polygon_coordinates = data.get('polygon_coordinates')
         
         # Validate values
         if not (-90 <= center_lat <= 90):
@@ -928,6 +935,15 @@ def api_create_zone():
         if radius_km <= 0 or radius_km > 50:
             return create_error_response("Radius must be between 0 and 50 km")
         
+        if not (1 <= number_of_rings <= 5):
+            return create_error_response("Number of rings must be between 1 and 5")
+        
+        if ring_radius_km <= 0 or ring_radius_km > 10:
+            return create_error_response("Ring radius must be between 0 and 10 km")
+        
+        if not (5 <= expansion_delay_sec <= 60):
+            return create_error_response("Expansion delay must be between 5 and 60 seconds")
+        
         # Check if zone name already exists
         existing_zone = Zone.query.filter_by(zone_name=zone_name).first()
         if existing_zone:
@@ -938,7 +954,12 @@ def api_create_zone():
             zone_name=zone_name,
             center_lat=center_lat,
             center_lng=center_lng,
+            polygon_coordinates=polygon_coordinates,
+            number_of_rings=number_of_rings,
+            ring_radius_km=ring_radius_km,
+            expansion_delay_sec=expansion_delay_sec,
             radius_km=radius_km,
+            priority_order=priority_order,
             is_active=data.get('is_active', True)
         )
         
