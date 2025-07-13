@@ -1,0 +1,122 @@
+Create a production-grade Flask backend for an Indian taxi app called **A1 Taxi Hosur Dev** with the following features:
+
+✅ Technologies:
+- Flask (Python)
+- SQLAlchemy ORM
+- Flask-CORS
+- Python Dotenv
+- JWT Auth (for customers and drivers)
+- SQLite for dev; Railway deployment ready
+- APIs must follow strict snake_case and Indian formatting (e.g., INR ₹, DD/MM/YYYY, 24-hr time)
+
+✅ Folder Structure:
+backend/
+├── app.py
+├── config.py
+├── models/
+│   ├── __init__.py
+│   ├── user.py
+│   ├── driver_profile.py
+│   ├── booking.py
+│   ├── fare_matrix.py
+│   ├── zone.py
+├── routes/
+│   ├── __init__.py
+│   ├── auth.py
+│   ├── customer.py
+│   ├── driver.py
+│   ├── admin.py
+│   ├── booking.py
+│   ├── zone.py
+│   ├── fare.py
+├── utils/
+│   ├── __init__.py
+│   ├── geo.py
+│   ├── auth.py
+├── requirements.txt
+├── .env (uses os.environ.get)
+
+✅ Data Models:
+
+1. 🧑 user.py
+- id, role (admin/customer/driver), name, mobile_number, password, status
+
+2. 🚖 driver_profile.py
+- user_id (FK), car_type (sedan/suv/hatchback), car_number, license_number, company_name, current_lat, current_lng, zone_id (FK), is_available
+
+3. 📦 booking.py
+- id, customer_id, driver_id, ride_category (rental/outstation/airport), car_type, pickup_address, drop_address, booking_time, scheduled_date, scheduled_time, assigned_time, status (new/assigned/active/completed), final_fare
+
+4. 📊 fare_matrix.py
+- id, ride_category, ride_type, base_fare, per_km, hourly, flat_rate, is_active
+
+5. 🗺️ zone.py
+- id, zone_name, center_lat, center_lng, radius_km
+
+✅ Core Logic:
+
+1. ✅ **New Ride Types**:
+- Airport, Rentals, Outstation supported
+- Only Airport restricts to Sedan/SUV
+- All go to Admin for manual driver assignment
+
+2. ✅ **Scheduling**:
+- Customer picks date and time
+- Admin assigns driver manually
+- Ride becomes active 30 minutes before start time
+- Customer can track from then
+
+3. ✅ **Fare Freeze**:
+- At booking time, system calculates fare based on fare_matrix
+- Store `final_fare` in the booking and reuse for driver/customer view
+
+4. ✅ **Fare Matrix (Admin-Controlled)**:
+- 4 categories: Regular, Rentals, Outstation, Airport
+- Each supports different ride types (Sedan/SUV)
+- Stored in `fare_matrix` table
+
+5. ✅ **Zoning**:
+- Admin can create/edit zones (name, center_lat, center_lng, radius_km)
+- On driver login or availability change:
+  - Check if location falls within a zone
+  - Assign nearest zone_id
+  - If no zone matches, mark driver as out_of_zone (inactive)
+
+6. ✅ **Dispatch Logic**:
+- Booking checks if pickup is inside a defined zone
+- Notify only drivers in that zone
+- If no accept in 15s:
+  - Expand to neighboring zones
+  - Then fallback: 7km → 10km → 15km circle
+  - Prompt customer for surge approval (UI-controlled)
+- If pickup is outside all zones: reject with “We are not operating in this area”
+
+7. ✅ **Admin Assignment**:
+- Admin assigns driver from dashboard
+- Driver doesn’t need to be online
+- Assigned ride sends driver name, car type, etc. to customer
+
+8. ✅ **Tab Flow**:
+- Bookings tab = All new/scheduled rides
+- Ongoing tab = Rides within 30 mins or in progress
+- History tab = Completed rides
+
+✅ APIs (examples):
+- POST /auth/login
+- POST /bookings/create
+- POST /admin/assign_driver
+- GET /fare_matrix
+- GET /zones/all
+- GET /bookings/customer/{id}
+- GET /bookings/admin_all
+- POST /zones/create
+- POST /driver/update_location
+
+✅ Other Rules:
+- Use mobile_number format: 10-digit Indian only, `^[6-9]\d{9}$`
+- Time format = 24hr → HH:MM | Date = DD/MM/YYYY
+- Currency stored as float, displayed as ₹
+- Do not include OTP functionality
+- Do not include local mock data or hardcoded rides
+
+The app must fully support Admin, Customer, and Driver frontends. Build real models and APIs only — no placeholders or UI.
