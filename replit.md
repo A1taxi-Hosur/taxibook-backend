@@ -2,9 +2,7 @@
 
 ## Overview
 
-**A1 Taxi Hosur Dev** is a production-grade Flask backend for an Indian taxi booking platform. The system features a modular architecture with JWT authentication, zone-based dispatch, configurable fare matrix, and comprehensive REST API endpoints. It supports multi-role authentication (admin/customer/driver) with Indian formatting standards (₹ currency, DD/MM/YYYY dates, 24-hour time).
-
-**Legacy TaxiBook**: The original monolithic taxi booking system is preserved alongside the new modular backend for reference and comparison.
+TaxiBook is a comprehensive taxi booking platform designed for the Indian market. This backend system provides APIs for customer bookings, driver management, and admin operations, along with a complete admin dashboard interface. The system handles the entire ride lifecycle from booking to completion with real-time status tracking.
 
 ## System Architecture
 
@@ -152,7 +150,6 @@ Changelog:
 - July 08, 2025. Finalized fare calculation system with standardized API responses - ride estimate returns exact format specified (success, distance_km, estimates) and booking system ensures fare consistency between estimate and booking stages (Version 1.9.5)
 - July 08, 2025. Implemented proximity-based driver dispatch system with 5km radius filtering - added driver current location tracking (current_lat, current_lng, location_updated_at), haversine distance calculation utility, and booking validation to ensure only nearby drivers receive ride requests (Version 2.0)
 - July 13, 2025. Updated Google Maps API key configuration - replaced old API key with new Firebase-generated browser key (AIzaSyDw7eAaQOKVOrurvnqTyR6yK3tDdXnjsFk) in .env file, verified all Google Maps integrations are working correctly (Version 2.0.1)
-- July 13, 2025. **MAJOR ARCHITECTURE CHANGE**: Created new production-grade Flask backend "A1 Taxi Hosur Dev" with modular architecture - implemented complete user management (admin/customer/driver), JWT authentication, zone-based dispatch, configurable fare matrix, driver profiles, booking system, and comprehensive REST API endpoints following Indian formatting standards (Version 3.0.0)
 ```
 
 ## User Preferences
