@@ -213,11 +213,18 @@ def clear_logs():
         # Get count of all rides before deletion
         total_rides = Ride.query.count()
         
-        # Delete all rides
+        # Import related models that might have foreign key constraints
+        from models import RideLocation, RideRejection
+        
+        # Delete related records first to avoid foreign key constraint violations
+        RideLocation.query.delete()
+        RideRejection.query.delete()
+        
+        # Now delete all rides
         Ride.query.delete()
         db.session.commit()
         
-        logging.info(f"Cleared {total_rides} rides")
+        logging.info(f"Cleared {total_rides} rides and related records")
         flash(f'Cleared {total_rides} rides successfully', 'success')
         
     except Exception as e:
