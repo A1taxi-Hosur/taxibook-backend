@@ -204,6 +204,25 @@ def book_ride():
         db.session.add(ride)
         db.session.commit()
         
+        # Check if it's a scheduled ride (for airport, rental, or outstation)
+        if ride_category != 'regular' and scheduled_date_obj and scheduled_time_obj:
+            logging.info(f"Scheduled ride – skipping auto dispatch for ride {ride.id}")
+            
+            return create_success_response({
+                "ride_id": ride.id,
+                "pickup_address": pickup_address,
+                "drop_address": drop_address,
+                "distance_km": distance_km,
+                "fare_amount": fare_amount,
+                "ride_type": ride_type,
+                "ride_category": ride_category,
+                "final_fare": fare_amount,
+                "scheduled": True,
+                "scheduled_date": scheduled_date,
+                "scheduled_time": scheduled_time,
+                "status": "new"
+            }, "Scheduled ride booked successfully.")
+        
         # For immediate rides, notify matching drivers in zone
         if not scheduled_date_obj and not scheduled_time_obj:
             try:
