@@ -134,15 +134,6 @@ def book_ride():
         scheduled_time = data.get('scheduled_time')
         hours = data.get('hours')  # For rental rides
         
-        # Auto-detect airport rides based on address keywords
-        airport_keywords = ['airport', 'Airport', 'AIRPORT', 'Kempegowda', 'Chennai Airport', 'BLR', 'MAA']
-        if ride_category == 'regular':
-            for keyword in airport_keywords:
-                if keyword in pickup_address or keyword in drop_address:
-                    ride_category = 'airport'
-                    logging.info(f"Auto-detected airport ride based on address: {pickup_address} -> {drop_address}")
-                    break
-        
         # Validate ride category
         if ride_category not in ['regular', 'airport', 'rental', 'outstation']:
             return create_error_response("Invalid ride category")
@@ -214,9 +205,8 @@ def book_ride():
         db.session.commit()
         
         # Check if it's a scheduled ride (for airport, rental, or outstation)
-        # Airport rides should be scheduled by default even without specific schedule
-        if ride_category != 'regular' and (scheduled_date_obj and scheduled_time_obj or ride_category == 'airport'):
-            logging.info(f"Scheduled ride – skipping auto dispatch for ride {ride.id} (category: {ride_category})")
+        if ride_category != 'regular' and scheduled_date_obj and scheduled_time_obj:
+            logging.info(f"Scheduled ride – skipping auto dispatch for ride {ride.id}")
             
             return create_success_response({
                 "ride_id": ride.id,
@@ -228,8 +218,8 @@ def book_ride():
                 "ride_category": ride_category,
                 "final_fare": fare_amount,
                 "scheduled": True,
-                "scheduled_date": scheduled_date if scheduled_date else "Manual assignment",
-                "scheduled_time": scheduled_time if scheduled_time else "Manual assignment",
+                "scheduled_date": scheduled_date,
+                "scheduled_time": scheduled_time,
                 "status": "new"
             }, "Scheduled ride booked successfully.")
         
