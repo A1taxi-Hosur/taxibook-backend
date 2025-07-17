@@ -776,22 +776,17 @@ def assign_driver():
         if ride.status != 'new':
             return create_error_response('Ride cannot be assigned in current status', 400)
         
-        # Check if driver is available
-        if not driver.is_online:
-            return create_error_response('Driver is not online', 400)
-        
-        # Check if driver has active rides
-        active_rides = Ride.query.filter_by(driver_id=driver_id).filter(
-            Ride.status.in_(['assigned', 'active'])
-        ).count()
-        
-        if active_rides > 0:
-            return create_error_response('Driver already has active rides', 400)
+        # For manual admin assignment, skip availability checks - admin can assign to any driver
+        # Generate OTP for ride start confirmation
+        import random
+        if not ride.start_otp:
+            ride.start_otp = str(random.randint(100000, 999999))
         
         # Assign driver to ride
         ride.driver_id = driver_id
-        ride.status = 'assigned'
+        ride.status = 'accepted'  # Change to accepted to match driver workflow
         ride.assigned_time = get_ist_time()
+        ride.accepted_at = get_ist_time()
         
         db.session.commit()
         
@@ -1304,6 +1299,8 @@ def api_get_drivers():
         
         query = Driver.query
         
+        # For manual assignment, show all drivers regardless of availability
+        # Admin can assign to any driver
         if available_only:
             query = query.filter_by(is_online=True)
         
@@ -1311,6 +1308,11 @@ def api_get_drivers():
         
         driver_list = []
         for driver in drivers:
+            # Get current active rides count for this driver
+            active_rides = Ride.query.filter_by(driver_id=driver.id).filter(
+                Ride.status.in_(['accepted', 'arrived', 'started'])
+            ).count()
+            
             driver_data = {
                 'id': driver.id,
                 'name': driver.name,
@@ -1318,7 +1320,9 @@ def api_get_drivers():
                 'car_type': driver.car_type,
                 'car_number': driver.car_number,
                 'is_online': driver.is_online,
-                'zone': driver.zone.zone_name if driver.zone else None
+                'zone': driver.zone.zone_name if driver.zone else None,
+                'active_rides': active_rides,
+                'availability_status': 'Online' if driver.is_online else 'Offline'
             }
             driver_list.append(driver_data)
         

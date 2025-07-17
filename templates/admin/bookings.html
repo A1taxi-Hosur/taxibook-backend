@@ -220,13 +220,13 @@ function loadAvailableDrivers() {
         </div>
     `;
     
-    fetch('/admin/api/drivers?available=true')
+    fetch('/admin/api/drivers')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 displayDriverList(data.data.drivers);
             } else {
-                driverList.innerHTML = '<div class="alert alert-warning">No available drivers found</div>';
+                driverList.innerHTML = '<div class="alert alert-warning">No drivers found</div>';
             }
         })
         .catch(error => {
@@ -239,21 +239,30 @@ function displayDriverList(drivers) {
     const driverList = document.getElementById('driver-list');
     
     if (drivers.length === 0) {
-        driverList.innerHTML = '<div class="alert alert-warning">No available drivers found</div>';
+        driverList.innerHTML = '<div class="alert alert-warning">No drivers found</div>';
         return;
     }
     
     let html = '<div class="list-group">';
     drivers.forEach(driver => {
+        const statusBadge = driver.is_online ? 
+            '<span class="badge bg-success">Online</span>' : 
+            '<span class="badge bg-secondary">Offline</span>';
+        
+        const activeRidesBadge = driver.active_rides > 0 ? 
+            `<span class="badge bg-warning">${driver.active_rides} Active</span>` : 
+            '<span class="badge bg-light text-dark">Available</span>';
+        
         html += `
             <div class="list-group-item list-group-item-action driver-item" onclick="selectDriver(${driver.id})">
                 <div class="d-flex w-100 justify-content-between">
-                    <h6 class="mb-1">${driver.name}</h6>
+                    <h6 class="mb-1">${driver.name} ${statusBadge}</h6>
                     <small class="text-muted">${driver.phone}</small>
                 </div>
                 <p class="mb-1">
                     <span class="badge bg-info">${driver.car_type || 'Unknown'}</span>
                     ${driver.car_number ? `<span class="badge bg-secondary">${driver.car_number}</span>` : ''}
+                    ${activeRidesBadge}
                 </p>
                 <small class="text-muted">
                     ${driver.zone ? `Zone: ${driver.zone}` : 'No zone assigned'}
