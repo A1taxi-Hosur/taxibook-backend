@@ -204,27 +204,47 @@ def book_ride():
         db.session.add(ride)
         db.session.commit()
         
-        # Check if it's a scheduled ride (for airport, rental, or outstation)
-        if ride_category != 'regular' and scheduled_date_obj and scheduled_time_obj:
-            logging.info(f"Scheduled ride – skipping auto dispatch for ride {ride.id}")
+        # Check if it's a special ride category that requires admin assignment
+        if ride_category != 'regular':
+            # All non-regular rides (airport, rental, outstation) require admin assignment
+            if scheduled_date_obj and scheduled_time_obj:
+                logging.info(f"Scheduled {ride_category} ride – skipping auto dispatch for ride {ride.id}")
+                message = f"Scheduled {ride_category} ride booked successfully."
+                response_data = {
+                    "ride_id": ride.id,
+                    "pickup_address": pickup_address,
+                    "drop_address": drop_address,
+                    "distance_km": distance_km,
+                    "fare_amount": fare_amount,
+                    "ride_type": ride_type,
+                    "ride_category": ride_category,
+                    "final_fare": fare_amount,
+                    "scheduled": True,
+                    "scheduled_date": scheduled_date,
+                    "scheduled_time": scheduled_time,
+                    "status": "new"
+                }
+            else:
+                logging.info(f"Immediate {ride_category} ride – skipping auto dispatch for ride {ride.id}")
+                message = f"{ride_category.title()} ride booked successfully. Admin will assign driver."
+                response_data = {
+                    "ride_id": ride.id,
+                    "pickup_address": pickup_address,
+                    "drop_address": drop_address,
+                    "distance_km": distance_km,
+                    "fare_amount": fare_amount,
+                    "ride_type": ride_type,
+                    "ride_category": ride_category,
+                    "final_fare": fare_amount,
+                    "scheduled": False,
+                    "requires_admin_assignment": True,
+                    "status": "new"
+                }
             
-            return create_success_response({
-                "ride_id": ride.id,
-                "pickup_address": pickup_address,
-                "drop_address": drop_address,
-                "distance_km": distance_km,
-                "fare_amount": fare_amount,
-                "ride_type": ride_type,
-                "ride_category": ride_category,
-                "final_fare": fare_amount,
-                "scheduled": True,
-                "scheduled_date": scheduled_date,
-                "scheduled_time": scheduled_time,
-                "status": "new"
-            }, "Scheduled ride booked successfully.")
+            return create_success_response(response_data, message)
         
-        # For immediate rides, notify matching drivers in zone
-        if not scheduled_date_obj and not scheduled_time_obj:
+        # For regular rides only, notify matching drivers in zone
+        if ride_category == 'regular' and not scheduled_date_obj and not scheduled_time_obj:
             try:
                 # Find matching drivers in pickup zone
                 from utils.driver_notification_system import notify_matching_drivers_in_zone
