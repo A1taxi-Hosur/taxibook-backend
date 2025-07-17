@@ -204,36 +204,16 @@ def book_ride():
         db.session.add(ride)
         db.session.commit()
         
-        # For immediate rides, start enhanced dispatch process
+        # For immediate rides, notify matching drivers in zone
         if not scheduled_date_obj and not scheduled_time_obj:
             try:
-                # Initialize enhanced dispatch engine
-                from utils.enhanced_dispatch_engine import dispatch_ride_with_enhanced_system
-                dispatch_result = dispatch_ride_with_enhanced_system(ride.id)
+                # Find matching drivers in pickup zone
+                from utils.driver_notification_system import notify_matching_drivers_in_zone
+                notification_result = notify_matching_drivers_in_zone(ride.id, pickup_lat, pickup_lng, ride_type)
                 
-                if dispatch_result.get('success') and dispatch_result.get('driver_assigned'):
-                    # Driver assigned successfully
-                    logging.info(f"Driver assigned automatically for ride {ride.id}")
-                    return create_success_response({
-                        'ride_id': ride.id,
-                        'pickup_address': pickup_address,
-                        'drop_address': drop_address,
-                        'distance_km': distance_km,
-                        'fare_amount': fare_amount,
-                        'ride_type': ride_type,
-                        'ride_category': ride_category,
-                        'final_fare': fare_amount,
-                        'status': 'assigned',
-                        'driver_assigned': True,
-                        'dispatch_info': {
-                            'ring': dispatch_result.get('ring_number'),
-                            'distance_to_driver': dispatch_result.get('distance_to_driver'),
-                            'zone_name': dispatch_result.get('zone_name')
-                        }
-                    }, "Ride booked and driver assigned successfully")
-                
-                elif dispatch_result.get('requires_zone_expansion'):
-                    # Zone expansion required
+                if notification_result.get('success'):
+                    # Drivers notified successfully
+                    logging.info(f"Matching drivers notified for ride {ride.id}")
                     return create_success_response({
                         'ride_id': ride.id,
                         'pickup_address': pickup_address,
@@ -244,18 +224,17 @@ def book_ride():
                         'ride_category': ride_category,
                         'final_fare': fare_amount,
                         'status': 'new',
-                        'requires_zone_expansion': True,
-                        'expansion_info': {
-                            'extra_fare': dispatch_result.get('extra_fare'),
-                            'expansion_zone': dispatch_result.get('expansion_zone'),
-                            'driver_info': dispatch_result.get('driver_info'),
-                            'message': dispatch_result.get('message')
+                        'drivers_notified': True,
+                        'notification_info': {
+                            'drivers_count': notification_result.get('drivers_count'),
+                            'zone_name': notification_result.get('zone_name'),
+                            'message': notification_result.get('message')
                         }
-                    }, "Ride booked. Zone expansion required for driver assignment.")
+                    }, "Ride booked successfully. Matching drivers have been notified.")
                 
                 else:
-                    # No drivers available - manual assignment needed
-                    logging.info(f"No drivers available for ride {ride.id} - manual assignment required")
+                    # No matching drivers found in zone
+                    logging.info(f"No matching drivers found in zone for ride {ride.id}")
                     return create_success_response({
                         'ride_id': ride.id,
                         'pickup_address': pickup_address,
@@ -266,13 +245,13 @@ def book_ride():
                         'ride_category': ride_category,
                         'final_fare': fare_amount,
                         'status': 'new',
-                        'requires_manual_assignment': True,
-                        'error_message': dispatch_result.get('message', 'No drivers available')
-                    }, "Ride booked. No drivers available for automatic assignment.")
+                        'drivers_notified': False,
+                        'error_message': notification_result.get('message', 'No matching drivers available in zone')
+                    }, "Ride booked. No matching drivers available in your area.")
                 
-            except Exception as dispatch_error:
-                logging.error(f"Dispatch error for ride {ride.id}: {str(dispatch_error)}")
-                # Continue with manual assignment
+            except Exception as notification_error:
+                logging.error(f"Driver notification error for ride {ride.id}: {str(notification_error)}")
+                # Continue with ride booking even if notification fails
                 return create_success_response({
                     'ride_id': ride.id,
                     'pickup_address': pickup_address,
