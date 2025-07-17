@@ -293,42 +293,7 @@ def api_recent_rides():
         logging.error(f"Error in api_recent_rides: {str(e)}")
         return jsonify({'error': 'Error loading recent rides'}), 500
 
-@admin_bp.route('/api/drivers')
-@login_required
-def api_drivers():
-    """API endpoint for drivers data"""
-    try:
-        # Get all drivers
-        drivers = Driver.query.order_by(Driver.created_at.desc()).all()
-        
-        drivers_data = []
-        for driver in drivers:
-            driver_data = {
-                'id': driver.id,
-                'name': driver.name,
-                'phone': driver.phone,
-                'username': driver.username,
-                'is_online': driver.is_online,
-                'car_make': driver.car_make,
-                'car_model': driver.car_model,
-                'car_year': driver.car_year,
-                'car_number': driver.car_number,
-                'car_type': driver.car_type,
-                'license_number': driver.license_number,
-                'profile_photo_url': driver.profile_photo_url,
-                'aadhaar_url': driver.aadhaar_url,
-                'license_url': driver.license_url,
-                'rcbook_url': driver.rcbook_url,
-                'total_rides': len(driver.rides),
-                'created_at': driver.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            }
-            drivers_data.append(driver_data)
-        
-        return jsonify({'drivers': drivers_data})
-        
-    except Exception as e:
-        logging.error(f"Error in api_drivers: {str(e)}")
-        return jsonify({'error': 'Error loading drivers'}), 500
+# Removed duplicate api_drivers route - using api_get_drivers instead
 
 @admin_bp.route('/api/rides/<int:ride_id>/cancel', methods=['POST'])
 @login_required
@@ -1295,6 +1260,7 @@ def api_delete_special_fare(fare_id):
 def api_get_drivers():
     """API endpoint to get drivers with filters"""
     try:
+        logging.info(f"API drivers request from user: {current_user.is_authenticated}")
         available_only = request.args.get('available', 'false').lower() == 'true'
         
         query = Driver.query
@@ -1305,6 +1271,7 @@ def api_get_drivers():
             query = query.filter_by(is_online=True)
         
         drivers = query.all()
+        logging.info(f"Found {len(drivers)} drivers in database")
         
         driver_list = []
         for driver in drivers:
@@ -1326,6 +1293,7 @@ def api_get_drivers():
             }
             driver_list.append(driver_data)
         
+        logging.info(f"Returning {len(driver_list)} drivers to frontend")
         return create_success_response({
             'drivers': driver_list,
             'total_count': len(driver_list)
