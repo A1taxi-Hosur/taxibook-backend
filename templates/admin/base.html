@@ -107,6 +107,12 @@
                                 <i class="bi bi-map"></i> Live Map
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'admin.promo_codes_page' %}active{% endif %}" 
+                               href="{{ url_for('admin.promo_codes_page') }}">
+                                <i class="bi bi-percent"></i> Promo Codes
+                            </a>
+                        </li>
                         <li class="nav-item mt-3">
                             <hr class="text-muted">
                         </li>
