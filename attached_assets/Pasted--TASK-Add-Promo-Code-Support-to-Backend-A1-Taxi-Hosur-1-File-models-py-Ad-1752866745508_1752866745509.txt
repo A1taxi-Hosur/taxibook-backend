@@ -1,0 +1,92 @@
+🎯 TASK: Add Promo Code Support to Backend (A1 Taxi Hosur)
+
+---
+
+✅ 1. 📁 File: `models.py`  
+Add this new model at the bottom, after your existing models:
+
+```python
+class PromoCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    discount_type = db.Column(db.String(10), nullable=False)  # 'flat' or 'percent'
+    discount_value = db.Column(db.Float, nullable=False)
+    max_uses = db.Column(db.Integer, default=1)
+    expiry_date = db.Column(db.DateTime)
+    min_fare = db.Column(db.Float, default=0.0)
+    ride_type = db.Column(db.String(30), nullable=True)  # Optional filter
+    active = db.Column(db.Boolean, default=True)
+
+    def is_valid(self, ride_type, current_fare):
+        from datetime import datetime
+        now = datetime.now()
+        if not self.active or (self.expiry_date and self.expiry_date < now):
+            return False
+        if self.ride_type and self.ride_type != ride_type:
+            return False
+        if current_fare < self.min_fare:
+            return False
+        return True
+
+    def calculate_discount(self, fare):
+        if self.discount_type == 'flat':
+            return min(self.discount_value, fare)
+        elif self.discount_type == 'percent':
+            return fare * (self.discount_value / 100)
+        return 0.0
+```
+
+---
+
+✅ 2. 📁 File: `routes/customer.py`  
+In the `book_ride()` function, after fare is calculated (i.e., after `fare_amount = ...`), insert:
+
+```python
+promo_code_str = data.get('promo_code')
+promo_discount = 0.0
+
+if promo_code_str:
+    promo = PromoCode.query.filter_by(code=promo_code_str.upper()).first()
+    if promo and promo.is_valid(ride_type, fare_amount):
+        promo_discount = promo.calculate_discount(fare_amount)
+        fare_amount -= promo_discount
+        logging.info(f"Applied promo {promo.code}: discount ₹{promo_discount}")
+    else:
+        logging.info("Invalid or inapplicable promo code")
+```
+
+---
+
+✅ 3. Update the final response JSON to include:
+
+```python
+"fare_amount": fare_amount,
+"promo_code": promo_code_str,
+"discount_applied": promo_discount
+```
+
+---
+
+💾 After saving changes, make sure to:
+- Run database migration to add `PromoCode` table
+- Add some sample promo codes via admin/db shell
+
+Example:
+```python
+from models import db, PromoCode
+from datetime import datetime, timedelta
+
+promo = PromoCode(
+    code="WELCOME50",
+    discount_type="flat",
+    discount_value=50,
+    expiry_date=datetime.now() + timedelta(days=30),
+    active=True
+)
+db.session.add(promo)
+db.session.commit()
+```
+
+---
+
+🎉 Backend is now ready to support promo codes — next step will be frontend UI.

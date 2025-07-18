@@ -105,6 +105,10 @@ class Ride(db.Model):
     final_fare = db.Column(db.Float, nullable=True)  # Frozen fare at booking time
     extra_fare = db.Column(db.Float, nullable=True)  # Zone expansion fee
     
+    # Promo code support
+    promo_code = db.Column(db.String(20), nullable=True)  # Applied promo code
+    discount_applied = db.Column(db.Float, nullable=True)  # Discount amount applied
+    
     # Ride type (vehicle preference)
     ride_type = db.Column(db.String(20), nullable=True)  # hatchback, sedan, suv
     
@@ -154,7 +158,11 @@ class Ride(db.Model):
             'drop_lng': self.drop_lng,
             'distance_km': self.distance_km,
             'fare_amount': self.fare_amount,
+            'final_fare': self.final_fare,
+            'promo_code': self.promo_code,
+            'discount_applied': self.discount_applied,
             'ride_type': self.ride_type,
+            'ride_category': self.ride_category,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'accepted_at': self.accepted_at.isoformat() if self.accepted_at else None,
@@ -639,4 +647,153 @@ class Zone(db.Model):
             
         except Exception as e:
             logging.error(f"Error initializing default zones: {str(e)}")
+            db.session.rollback()
+
+
+class PromoCode(db.Model):
+    """Promo code model for discount management"""
+    __tablename__ = 'promo_code'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    discount_type = db.Column(db.String(10), nullable=False)  # 'flat' or 'percent'
+    discount_value = db.Column(db.Float, nullable=False)
+    max_uses = db.Column(db.Integer, default=1)
+    current_uses = db.Column(db.Integer, default=0)
+    expiry_date = db.Column(db.DateTime, nullable=True)
+    min_fare = db.Column(db.Float, default=0.0)
+    ride_type = db.Column(db.String(30), nullable=True)  # Optional filter (hatchback, sedan, suv)
+    ride_category = db.Column(db.String(30), nullable=True)  # Optional filter (regular, airport, rental, outstation)
+    active = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    updated_at = db.Column(db.DateTime, default=get_ist_time, onupdate=get_ist_time)
+    
+    def __repr__(self):
+        return f'<PromoCode {self.code}>'
+    
+    def is_valid(self, ride_type=None, ride_category=None, current_fare=0.0):
+        """Check if promo code is valid for given ride parameters"""
+        from datetime import datetime
+        
+        # Check if promo code is active
+        if not self.active:
+            return False, "Promo code is not active"
+        
+        # Check expiry date
+        if self.expiry_date and self.expiry_date < datetime.now():
+            return False, "Promo code has expired"
+        
+        # Check usage limits
+        if self.current_uses >= self.max_uses:
+            return False, "Promo code usage limit reached"
+        
+        # Check minimum fare requirement
+        if current_fare < self.min_fare:
+            return False, f"Minimum fare of ₹{self.min_fare} required"
+        
+        # Check ride type filter
+        if self.ride_type and ride_type and self.ride_type != ride_type:
+            return False, f"Promo code valid only for {self.ride_type} rides"
+        
+        # Check ride category filter
+        if self.ride_category and ride_category and self.ride_category != ride_category:
+            return False, f"Promo code valid only for {self.ride_category} rides"
+        
+        return True, "Valid promo code"
+    
+    def calculate_discount(self, fare):
+        """Calculate discount amount based on fare and promo code settings"""
+        if self.discount_type == 'flat':
+            return min(self.discount_value, fare)
+        elif self.discount_type == 'percent':
+            return fare * (self.discount_value / 100)
+        return 0.0
+    
+    def apply_promo(self, fare):
+        """Apply promo code and update usage count"""
+        discount = self.calculate_discount(fare)
+        self.current_uses += 1
+        db.session.commit()
+        return discount
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'code': self.code,
+            'discount_type': self.discount_type,
+            'discount_value': self.discount_value,
+            'max_uses': self.max_uses,
+            'current_uses': self.current_uses,
+            'expiry_date': self.expiry_date.isoformat() if self.expiry_date else None,
+            'min_fare': self.min_fare,
+            'ride_type': self.ride_type,
+            'ride_category': self.ride_category,
+            'active': self.active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @staticmethod
+    def initialize_default_promo_codes():
+        """Initialize default promo codes"""
+        try:
+            existing_promos = PromoCode.query.all()
+            if existing_promos:
+                logging.info("Promo codes already exist, skipping initialization")
+                return
+            
+            from datetime import datetime, timedelta
+            
+            # Default promo codes
+            default_promos = [
+                {
+                    'code': 'WELCOME50',
+                    'discount_type': 'flat',
+                    'discount_value': 50.0,
+                    'max_uses': 100,
+                    'expiry_date': datetime.now() + timedelta(days=30),
+                    'min_fare': 100.0,
+                    'active': True
+                },
+                {
+                    'code': 'FIRST10',
+                    'discount_type': 'percent',
+                    'discount_value': 10.0,
+                    'max_uses': 500,
+                    'expiry_date': datetime.now() + timedelta(days=60),
+                    'min_fare': 50.0,
+                    'active': True
+                },
+                {
+                    'code': 'SEDAN20',
+                    'discount_type': 'flat',
+                    'discount_value': 20.0,
+                    'max_uses': 200,
+                    'expiry_date': datetime.now() + timedelta(days=15),
+                    'min_fare': 80.0,
+                    'ride_type': 'sedan',
+                    'active': True
+                },
+                {
+                    'code': 'AIRPORT15',
+                    'discount_type': 'percent',
+                    'discount_value': 15.0,
+                    'max_uses': 50,
+                    'expiry_date': datetime.now() + timedelta(days=45),
+                    'min_fare': 200.0,
+                    'ride_category': 'airport',
+                    'active': True
+                }
+            ]
+            
+            for promo_data in default_promos:
+                promo = PromoCode(**promo_data)
+                db.session.add(promo)
+            
+            db.session.commit()
+            logging.info("Default promo codes initialized")
+            
+        except Exception as e:
+            logging.error(f"Error initializing default promo codes: {str(e)}")
             db.session.rollback()

@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, get_ist_time
-from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone
+from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone, PromoCode
 from utils.validators import create_error_response, create_success_response, validate_phone, validate_required_fields
 import logging
 import random
@@ -1431,3 +1431,178 @@ def save_firebase_token():
         logging.error(f"Error saving Firebase token: {str(e)}")
         db.session.rollback()
         return create_error_response("Failed to save token")
+
+# ==================== PROMO CODE MANAGEMENT ====================
+
+@admin_bp.route('/api/promo_codes', methods=['GET'])
+@login_required
+def api_promo_codes():
+    """Get all promo codes for admin"""
+    try:
+        promo_codes = PromoCode.query.order_by(PromoCode.created_at.desc()).all()
+        
+        promo_data = []
+        for promo in promo_codes:
+            promo_dict = promo.to_dict()
+            # Add usage percentage
+            usage_percentage = (promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0
+            promo_dict['usage_percentage'] = round(usage_percentage, 1)
+            promo_data.append(promo_dict)
+        
+        return create_success_response(promo_data)
+        
+    except Exception as e:
+        logging.error(f"Error getting promo codes: {str(e)}")
+        return create_error_response("Failed to retrieve promo codes")
+
+@admin_bp.route('/api/promo_codes', methods=['POST'])
+@login_required
+def create_promo_code():
+    """Create a new promo code"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        required_fields = ['code', 'discount_type', 'discount_value', 'max_uses']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return create_error_response(f"Field '{field}' is required")
+        
+        # Validate discount type
+        if data['discount_type'] not in ['flat', 'percent']:
+            return create_error_response("Discount type must be 'flat' or 'percent'")
+        
+        # Validate discount value
+        if data['discount_value'] <= 0:
+            return create_error_response("Discount value must be greater than 0")
+        
+        # Validate max uses
+        if data['max_uses'] <= 0:
+            return create_error_response("Max uses must be greater than 0")
+        
+        # Check if code already exists
+        code = data['code'].upper().strip()
+        existing_promo = PromoCode.query.filter_by(code=code).first()
+        if existing_promo:
+            return create_error_response("Promo code already exists")
+        
+        # Parse expiry date if provided
+        expiry_date = None
+        if data.get('expiry_date'):
+            try:
+                expiry_date = datetime.strptime(data['expiry_date'], '%Y-%m-%d')
+            except ValueError:
+                return create_error_response("Invalid expiry date format. Use YYYY-MM-DD")
+        
+        # Create new promo code
+        promo_code = PromoCode(
+            code=code,
+            discount_type=data['discount_type'],
+            discount_value=float(data['discount_value']),
+            max_uses=int(data['max_uses']),
+            expiry_date=expiry_date,
+            min_fare=float(data.get('min_fare', 0)),
+            ride_type=data.get('ride_type'),
+            ride_category=data.get('ride_category'),
+            active=data.get('active', True)
+        )
+        
+        db.session.add(promo_code)
+        db.session.commit()
+        
+        logging.info(f"New promo code created: {code} by admin {current_user.username}")
+        return create_success_response(promo_code.to_dict(), "Promo code created successfully")
+        
+    except Exception as e:
+        logging.error(f"Error creating promo code: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to create promo code")
+
+@admin_bp.route('/api/promo_codes/<int:promo_id>', methods=['PUT'])
+@login_required
+def update_promo_code(promo_id):
+    """Update an existing promo code"""
+    try:
+        promo = PromoCode.query.get(promo_id)
+        if not promo:
+            return create_error_response("Promo code not found")
+        
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Update fields if provided
+        if 'discount_type' in data:
+            if data['discount_type'] not in ['flat', 'percent']:
+                return create_error_response("Discount type must be 'flat' or 'percent'")
+            promo.discount_type = data['discount_type']
+        
+        if 'discount_value' in data:
+            if data['discount_value'] <= 0:
+                return create_error_response("Discount value must be greater than 0")
+            promo.discount_value = float(data['discount_value'])
+        
+        if 'max_uses' in data:
+            if data['max_uses'] <= 0:
+                return create_error_response("Max uses must be greater than 0")
+            promo.max_uses = int(data['max_uses'])
+        
+        if 'expiry_date' in data:
+            if data['expiry_date']:
+                try:
+                    promo.expiry_date = datetime.strptime(data['expiry_date'], '%Y-%m-%d')
+                except ValueError:
+                    return create_error_response("Invalid expiry date format. Use YYYY-MM-DD")
+            else:
+                promo.expiry_date = None
+        
+        if 'min_fare' in data:
+            promo.min_fare = float(data['min_fare'])
+        
+        if 'ride_type' in data:
+            promo.ride_type = data['ride_type']
+        
+        if 'ride_category' in data:
+            promo.ride_category = data['ride_category']
+        
+        if 'active' in data:
+            promo.active = bool(data['active'])
+        
+        db.session.commit()
+        
+        logging.info(f"Promo code updated: {promo.code} by admin {current_user.username}")
+        return create_success_response(promo.to_dict(), "Promo code updated successfully")
+        
+    except Exception as e:
+        logging.error(f"Error updating promo code: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update promo code")
+
+@admin_bp.route('/api/promo_codes/<int:promo_id>', methods=['DELETE'])
+@login_required
+def delete_promo_code(promo_id):
+    """Delete a promo code"""
+    try:
+        promo = PromoCode.query.get(promo_id)
+        if not promo:
+            return create_error_response("Promo code not found")
+        
+        promo_code = promo.code
+        db.session.delete(promo)
+        db.session.commit()
+        
+        logging.info(f"Promo code deleted: {promo_code} by admin {current_user.username}")
+        return create_success_response({'message': 'Promo code deleted successfully'})
+        
+    except Exception as e:
+        logging.error(f"Error deleting promo code: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to delete promo code")
+
+@admin_bp.route('/promo_codes', methods=['GET'])
+@login_required
+def promo_codes_page():
+    """Promo codes management page"""
+    return render_template('admin/promo_codes.html')

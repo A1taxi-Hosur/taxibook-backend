@@ -156,6 +156,28 @@ def book_ride():
             if not fare_success:
                 return create_error_response(fare_error)
         
+        # Apply promo code if provided
+        promo_code_str = data.get('promo_code', '').strip().upper()
+        discount_applied = 0.0
+        
+        if promo_code_str:
+            from models import PromoCode
+            promo = PromoCode.query.filter_by(code=promo_code_str).first()
+            if promo:
+                is_valid, validation_message = promo.is_valid(ride_type, ride_category, fare_amount)
+                if is_valid:
+                    discount_applied = promo.calculate_discount(fare_amount)
+                    fare_amount = max(0, fare_amount - discount_applied)
+                    # Increment usage counter
+                    promo.current_uses += 1
+                    logging.info(f"Applied promo {promo.code}: discount ₹{discount_applied:.2f}")
+                else:
+                    logging.info(f"Invalid promo code {promo_code_str}: {validation_message}")
+                    return create_error_response(validation_message)
+            else:
+                logging.info(f"Promo code {promo_code_str} not found")
+                return create_error_response("Invalid promo code")
+        
         # Check if we have pickup coordinates for proximity dispatch
         if pickup_lat is None or pickup_lng is None:
             return create_error_response("Pickup coordinates are required for ride booking")
@@ -193,6 +215,8 @@ def book_ride():
             distance_km=distance_km,
             fare_amount=fare_amount,
             final_fare=fare_amount,  # Freeze fare at booking time
+            promo_code=promo_code_str if promo_code_str else None,
+            discount_applied=discount_applied,
             ride_type=ride_type,
             ride_category=ride_category,
             scheduled_date=scheduled_date_obj,
@@ -219,6 +243,8 @@ def book_ride():
                     "ride_type": ride_type,
                     "ride_category": ride_category,
                     "final_fare": fare_amount,
+                    "promo_code": promo_code_str if promo_code_str else None,
+                    "discount_applied": discount_applied,
                     "scheduled": True,
                     "scheduled_date": scheduled_date,
                     "scheduled_time": scheduled_time,
@@ -236,6 +262,8 @@ def book_ride():
                     "ride_type": ride_type,
                     "ride_category": ride_category,
                     "final_fare": fare_amount,
+                    "promo_code": promo_code_str if promo_code_str else None,
+                    "discount_applied": discount_applied,
                     "scheduled": False,
                     "requires_admin_assignment": True,
                     "status": "new"
@@ -262,6 +290,8 @@ def book_ride():
                         'ride_type': ride_type,
                         'ride_category': ride_category,
                         'final_fare': fare_amount,
+                        'promo_code': promo_code_str if promo_code_str else None,
+                        'discount_applied': discount_applied,
                         'status': 'new',
                         'drivers_notified': True,
                         'notification_info': {
@@ -283,6 +313,8 @@ def book_ride():
                         'ride_type': ride_type,
                         'ride_category': ride_category,
                         'final_fare': fare_amount,
+                        'promo_code': promo_code_str if promo_code_str else None,
+                        'discount_applied': discount_applied,
                         'status': 'new',
                         'drivers_notified': False,
                         'error_message': notification_result.get('message', 'No matching drivers available in zone')
@@ -300,6 +332,8 @@ def book_ride():
                     'ride_type': ride_type,
                     'ride_category': ride_category,
                     'final_fare': fare_amount,
+                    'promo_code': promo_code_str if promo_code_str else None,
+                    'discount_applied': discount_applied,
                     'status': 'new',
                     'requires_manual_assignment': True
                 }, "Ride booked. Dispatch system error - manual assignment required.")
@@ -316,6 +350,8 @@ def book_ride():
                 'ride_type': ride_type,
                 'ride_category': ride_category,
                 'final_fare': fare_amount,
+                'promo_code': promo_code_str if promo_code_str else None,
+                'discount_applied': discount_applied,
                 'status': 'new',
                 'scheduled': True,
                 'scheduled_date': scheduled_date,
@@ -325,6 +361,57 @@ def book_ride():
     except Exception as e:
         logging.error(f"Error in book_ride: {str(e)}")
         db.session.rollback()
+        return create_error_response("Internal server error")
+
+@customer_bp.route('/validate_promo', methods=['POST'])
+def validate_promo():
+    """Validate promo code for given ride parameters"""
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        # Validate required fields
+        valid, error = validate_required_fields(data, ['promo_code', 'fare_amount'])
+        if not valid:
+            return create_error_response(error)
+        
+        promo_code_str = data['promo_code'].strip().upper()
+        fare_amount = data['fare_amount']
+        ride_type = data.get('ride_type')
+        ride_category = data.get('ride_category', 'regular')
+        
+        # Validate fare amount
+        if fare_amount <= 0:
+            return create_error_response("Invalid fare amount")
+        
+        # Find promo code
+        from models import PromoCode
+        promo = PromoCode.query.filter_by(code=promo_code_str).first()
+        if not promo:
+            return create_error_response("Invalid promo code")
+        
+        # Validate promo code
+        is_valid, validation_message = promo.is_valid(ride_type, ride_category, fare_amount)
+        if not is_valid:
+            return create_error_response(validation_message)
+        
+        # Calculate discount
+        discount_amount = promo.calculate_discount(fare_amount)
+        final_fare = max(0, fare_amount - discount_amount)
+        
+        return create_success_response({
+            'promo_code': promo_code_str,
+            'discount_type': promo.discount_type,
+            'discount_value': promo.discount_value,
+            'discount_amount': discount_amount,
+            'original_fare': fare_amount,
+            'final_fare': final_fare,
+            'valid': True
+        }, "Promo code is valid")
+        
+    except Exception as e:
+        logging.error(f"Error in validate_promo: {str(e)}")
         return create_error_response("Internal server error")
 
 @customer_bp.route('/approve_zone_expansion', methods=['POST'])
@@ -542,24 +629,66 @@ def ride_estimate():
         estimates = {}
         ride_types = ['hatchback', 'sedan', 'suv']
         
+        # Check if promo code is provided
+        promo_code_str = data.get('promo_code', '').strip().upper()
+        promo_discount_info = None
+        
+        if promo_code_str:
+            from models import PromoCode
+            promo = PromoCode.query.filter_by(code=promo_code_str).first()
+            if promo:
+                promo_discount_info = {
+                    'promo_code': promo_code_str,
+                    'discount_type': promo.discount_type,
+                    'discount_value': promo.discount_value,
+                    'min_fare': promo.min_fare,
+                    'valid_ride_types': promo.ride_type,
+                    'valid_ride_categories': promo.ride_category
+                }
+        
         for ride_type in ride_types:
             # Calculate fare using database configuration
             fare_success, fare_amount, fare_error = FareConfig.calculate_fare(ride_type, distance_km)
             if fare_success:
-                estimates[ride_type] = round(fare_amount, 2)
+                original_fare = round(fare_amount, 2)
+                final_fare = original_fare
+                discount_applied = 0.0
+                
+                # Apply promo code if provided and valid
+                if promo_discount_info and promo:
+                    ride_category = data.get('ride_category', 'regular')
+                    is_valid, validation_message = promo.is_valid(ride_type, ride_category, fare_amount)
+                    if is_valid:
+                        discount_applied = promo.calculate_discount(fare_amount)
+                        final_fare = max(0, fare_amount - discount_applied)
+                
+                estimates[ride_type] = {
+                    'original_fare': original_fare,
+                    'final_fare': round(final_fare, 2),
+                    'discount_applied': round(discount_applied, 2)
+                }
             else:
                 # Fallback if fare calculation fails
-                estimates[ride_type] = 0
+                estimates[ride_type] = {
+                    'original_fare': 0,
+                    'final_fare': 0,
+                    'discount_applied': 0
+                }
                 logging.error(f"Fare calculation failed for {ride_type}: {fare_error}")
         
         logging.info(f"Fare estimates calculated for {distance_km:.2f}km: {estimates}")
         
-        # Return response in the exact format specified
-        return jsonify({
+        # Return response with promo code information
+        response_data = {
             'success': True,
             'distance_km': round(distance_km, 2),
             'estimates': estimates
-        })
+        }
+        
+        if promo_discount_info:
+            response_data['promo_code_info'] = promo_discount_info
+        
+        return jsonify(response_data)
         
     except Exception as e:
         logging.error(f"Error in ride_estimate: {str(e)}")

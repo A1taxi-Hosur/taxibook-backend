@@ -93,6 +93,15 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
         logging.info("Default admin user created: admin/admin123")
+    
+    # Initialize default data
+    try:
+        models.FareConfig.initialize_default_fares()
+        models.SpecialFareConfig.initialize_default_special_fares()
+        models.Zone.initialize_default_zones()
+        models.PromoCode.initialize_default_promo_codes()
+    except Exception as e:
+        logging.error(f"Error initializing default data: {e}")
 
 # Root route - Login-aware landing page
 @app.route('/')
