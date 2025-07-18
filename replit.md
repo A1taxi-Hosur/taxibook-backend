@@ -1,8 +1,8 @@
-# TaxiBook Backend - System Architecture
+# A1 Call Taxi Backend - System Architecture
 
 ## Overview
 
-TaxiBook is a comprehensive taxi booking platform designed for the Indian market. This backend system provides APIs for customer bookings, driver management, and admin operations, along with a complete admin dashboard interface. The system handles the entire ride lifecycle from booking to completion with real-time status tracking.
+A1 Call Taxi is a comprehensive taxi booking platform designed for the Indian market. This backend system provides APIs for customer bookings, driver management, and admin operations, along with a complete admin dashboard interface. The system handles the entire ride lifecycle from booking to completion with real-time status tracking.
 
 ## System Architecture
 
@@ -22,7 +22,7 @@ TaxiBook is a comprehensive taxi booking platform designed for the Indian market
 
 ### Project Structure
 ```
-TaxiBook/
+A1CallTaxi/
 ├── app.py                    # Main Flask application setup
 ├── main.py                   # Application entry point
 ├── models.py                 # Database models (Customer, Driver, Ride, etc.)
@@ -31,6 +31,7 @@ TaxiBook/
 │   ├── customer.py          # Customer booking and ride management
 │   ├── driver.py            # Driver authentication and ride handling
 │   └── mobile.py            # Mobile app read-only APIs
+├── static/                   # Static assets (CSS, JS, images, logo.png)
 ├── templates/admin/          # Bootstrap-based admin UI templates
 ├── utils/                    # Utility functions
 │   ├── maps.py              # Google Maps API integration
@@ -159,6 +160,7 @@ Changelog:
 - July 17, 2025. Disabled auto-assignment system and implemented driver notification system with choice-based acceptance - replaced automatic ride assignment with driver notification system that filters by car type, zone, and proximity, created utils/driver_notification_system.py for matching driver logic, modified customer booking to notify drivers instead of auto-assigning, implemented complete accept/reject workflow where drivers can choose rides, tested successful flow with 2 drivers notified and manual acceptance process working perfectly (Version 2.7)
 - July 17, 2025. Enhanced scheduled ride handling and fixed outstation ride notifications - updated book_ride() function to properly handle scheduled rides by skipping driver notification for all non-regular ride categories (airport, rental, outstation), implemented separate logic for scheduled vs immediate special rides, fixed outstation rides to require admin assignment instead of triggering driver notifications, added proper response messages for different ride categories (Version 2.8)
 - July 18, 2025. Implemented comprehensive promo code support system - added PromoCode model with discount types (flat/percent), usage limits, validity dates, and ride filtering options, integrated promo code validation and application into both regular and special fare calculation methods, created customer API endpoints for promo validation and ride estimates with promo codes, updated all ride booking responses to include promo code and discount information, added complete admin API endpoints for promo code management (create, read, update, delete), implemented automatic usage tracking and validation logic, created comprehensive test suite validating all promo code functionality including ride-specific and category-specific restrictions (Version 2.9)
+- July 18, 2025. Implemented A1 Call Taxi branding and admin promo code management interface - integrated company logo throughout admin interface including login page and dashboard sidebar, updated all page titles and documentation to reflect A1 Call Taxi branding, created comprehensive promo codes management page with full CRUD operations, real-time usage statistics, form validation, and secure admin authentication, added promo codes navigation link to admin sidebar for easy access to promotional campaign management (Version 2.10)
 ```
 
 ## User Preferences
