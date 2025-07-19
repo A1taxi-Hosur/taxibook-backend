@@ -723,7 +723,7 @@ function deleteDriver() {
 
 // Refresh drivers table function
 function refreshDriversTable() {
-    fetch('{{ url_for("admin.api_drivers") }}', {
+    fetch('{{ url_for("admin.api_get_drivers") }}', {
         credentials: 'include'
     })
     .then(response => {
