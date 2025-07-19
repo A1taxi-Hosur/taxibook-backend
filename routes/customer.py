@@ -873,3 +873,130 @@ def record_ad_click(ad_id):
     except Exception as e:
         logging.error(f"Error recording advertisement click: {str(e)}")
         return create_error_response("Failed to record click")
+
+
+# ==================== PROMO CODE API ====================
+
+@customer_bp.route('/promo_codes/available', methods=['GET'])
+def get_available_promo_codes():
+    """Get list of available promo codes for customer app display"""
+    try:
+        # Get optional filters from query parameters
+        ride_type = request.args.get('ride_type')
+        ride_category = request.args.get('ride_category')
+        min_fare = request.args.get('min_fare', type=float)
+        
+        # Get active promo codes
+        query = PromoCode.query.filter_by(active=True)
+        
+        # Filter by expiry date
+        current_time = get_ist_time()
+        query = query.filter(
+            (PromoCode.expiry_date.is_(None)) | 
+            (PromoCode.expiry_date > current_time)
+        )
+        
+        # Filter by usage limits
+        query = query.filter(PromoCode.current_uses < PromoCode.max_uses)
+        
+        # Apply filters if provided
+        if ride_type:
+            query = query.filter(
+                (PromoCode.ride_type == ride_type) | 
+                (PromoCode.ride_type.is_(None))
+            )
+        
+        if ride_category:
+            query = query.filter(
+                (PromoCode.ride_category == ride_category) | 
+                (PromoCode.ride_category.is_(None))
+            )
+        
+        if min_fare:
+            query = query.filter(PromoCode.min_fare <= min_fare)
+        
+        # Order by best discount first (flat discounts first, then percentage)
+        promo_codes = query.order_by(
+            PromoCode.discount_type.desc(),  # 'percent' comes before 'flat' alphabetically, so desc() puts flat first
+            PromoCode.discount_value.desc()
+        ).all()
+        
+        # Convert to customer-friendly format
+        available_promos = []
+        for promo in promo_codes:
+            promo_data = {
+                'code': promo.code,
+                'discount_type': promo.discount_type,
+                'discount_value': promo.discount_value,
+                'min_fare': promo.min_fare,
+                'expiry_date': promo.expiry_date.isoformat() if promo.expiry_date else None,
+                'ride_type': promo.ride_type,
+                'ride_category': promo.ride_category,
+                'usage_remaining': promo.max_uses - promo.current_uses,
+                'max_uses': promo.max_uses,
+                'is_limited': promo.max_uses > 0,
+                'display_text': format_promo_display_text(promo),
+                'savings_text': format_savings_text(promo, min_fare),
+                'terms': format_promo_terms(promo)
+            }
+            available_promos.append(promo_data)
+        
+        return create_success_response({
+            'promo_codes': available_promos,
+            'total_available': len(available_promos),
+            'filters_applied': {
+                'ride_type': ride_type,
+                'ride_category': ride_category,
+                'min_fare': min_fare
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting available promo codes: {str(e)}")
+        return create_error_response("Failed to retrieve promo codes")
+
+def format_promo_display_text(promo):
+    """Format promo code for display in customer app"""
+    if promo.discount_type == 'flat':
+        return f"₹{int(promo.discount_value)} OFF"
+    else:
+        return f"{int(promo.discount_value)}% OFF"
+
+def format_savings_text(promo, estimated_fare=None):
+    """Calculate and format potential savings text"""
+    if not estimated_fare or estimated_fare < promo.min_fare:
+        if promo.discount_type == 'flat':
+            return f"Save ₹{int(promo.discount_value)} on rides above ₹{int(promo.min_fare)}"
+        else:
+            return f"Save {int(promo.discount_value)}% on rides above ₹{int(promo.min_fare)}"
+    
+    # Calculate actual savings for the estimated fare
+    if promo.discount_type == 'flat':
+        savings = promo.discount_value
+        return f"You'll save ₹{int(savings)} on this ride"
+    else:
+        savings = estimated_fare * (promo.discount_value / 100)
+        return f"You'll save ₹{int(savings)} ({int(promo.discount_value)}% off)"
+
+def format_promo_terms(promo):
+    """Format terms and conditions for promo code"""
+    terms = []
+    
+    if promo.min_fare > 0:
+        terms.append(f"Minimum fare: ₹{int(promo.min_fare)}")
+    
+    if promo.ride_type:
+        terms.append(f"Valid for: {promo.ride_type.title()} rides only")
+    
+    if promo.ride_category:
+        terms.append(f"Category: {promo.ride_category.title()} rides")
+    
+    if promo.expiry_date:
+        expiry_str = promo.expiry_date.strftime("%d %b %Y")
+        terms.append(f"Valid till: {expiry_str}")
+    
+    usage_remaining = promo.max_uses - promo.current_uses
+    if promo.max_uses > 0:
+        terms.append(f"Uses remaining: {usage_remaining}")
+    
+    return terms
