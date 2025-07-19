@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, get_ist_time
-from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone
+from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone, Advertisement, PromoCode
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
 from utils.distance import haversine_distance, filter_drivers_by_proximity
@@ -785,3 +785,91 @@ def logout():
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
         return create_error_response("Internal server error")
+
+
+# ==================== ADVERTISEMENT API ====================
+
+@customer_bp.route('/advertisements', methods=['GET'])
+def get_advertisements():
+    """Get active advertisements for slideshow display"""
+    try:
+        # Get optional filters from query parameters
+        location = request.args.get('location')
+        ride_type = request.args.get('ride_type')
+        customer_type = request.args.get('customer_type')
+        
+        # Get active advertisements using the model method
+        ads = Advertisement.get_active_ads_for_slideshow(
+            location=location,
+            ride_type=ride_type,
+            customer_type=customer_type
+        )
+        
+        # Convert to dictionary format with media URLs
+        ads_data = []
+        for ad in ads:
+            ad_dict = ad.to_dict()
+            # Add full media URL for customer app
+            if ad.media_filename:
+                ad_dict['media_url'] = f"/static/ads/{ad.media_filename}"
+            ads_data.append(ad_dict)
+        
+        # Calculate total slideshow duration
+        total_duration = sum(ad.display_duration for ad in ads)
+        
+        return create_success_response({
+            'advertisements': ads_data,
+            'total_ads': len(ads_data),
+            'total_duration_seconds': total_duration,
+            'slideshow_config': {
+                'auto_advance': True,
+                'loop': True,
+                'show_controls': False
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting advertisements: {str(e)}")
+        return create_error_response("Failed to retrieve advertisements")
+
+@customer_bp.route('/advertisements/<int:ad_id>/impression', methods=['POST'])
+def record_ad_impression(ad_id):
+    """Record an advertisement impression (view)"""
+    try:
+        ad = Advertisement.query.get(ad_id)
+        if not ad:
+            return create_error_response("Advertisement not found")
+        
+        ad.increment_impressions()
+        
+        return create_success_response({
+            'ad_id': ad_id,
+            'impressions': ad.impressions,
+            'message': 'Impression recorded'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error recording advertisement impression: {str(e)}")
+        return create_error_response("Failed to record impression")
+
+@customer_bp.route('/advertisements/<int:ad_id>/click', methods=['POST'])
+def record_ad_click(ad_id):
+    """Record an advertisement click"""
+    try:
+        ad = Advertisement.query.get(ad_id)
+        if not ad:
+            return create_error_response("Advertisement not found")
+        
+        ad.increment_clicks()
+        
+        return create_success_response({
+            'ad_id': ad_id,
+            'clicks': ad.clicks,
+            'impressions': ad.impressions,
+            'ctr': round((ad.clicks / ad.impressions * 100), 2) if ad.impressions > 0 else 0,
+            'message': 'Click recorded'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error recording advertisement click: {str(e)}")
+        return create_error_response("Failed to record click")

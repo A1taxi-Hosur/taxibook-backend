@@ -114,6 +114,12 @@
                                 <i class="bi bi-percent"></i> Promo Codes
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'admin.advertisements_page' %}active{% endif %}" 
+                               href="{{ url_for('admin.advertisements_page') }}">
+                                <i class="bi bi-megaphone"></i> Advertisements
+                            </a>
+                        </li>
                         <li class="nav-item mt-3">
                             <hr class="text-muted">
                         </li>

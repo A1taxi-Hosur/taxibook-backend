@@ -797,3 +797,135 @@ class PromoCode(db.Model):
         except Exception as e:
             logging.error(f"Error initializing default promo codes: {str(e)}")
             db.session.rollback()
+
+
+class Advertisement(db.Model):
+    """Advertisement model for managing promotional media and slideshows"""
+    __tablename__ = 'advertisement'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    media_type = db.Column(db.String(20), nullable=False)  # 'image', 'video'
+    media_filename = db.Column(db.String(255), nullable=False)
+    media_url = db.Column(db.String(500), nullable=True)  # External URL if needed
+    
+    # Slideshow timing controls
+    display_duration = db.Column(db.Integer, default=5)  # Duration in seconds
+    display_order = db.Column(db.Integer, default=1)     # Order in slideshow
+    
+    # Targeting options
+    target_location = db.Column(db.String(100), nullable=True)  # Specific location/zone
+    target_ride_type = db.Column(db.String(30), nullable=True)  # hatchback, sedan, suv
+    target_customer_type = db.Column(db.String(30), nullable=True)  # new, regular, premium
+    
+    # Scheduling
+    start_date = db.Column(db.DateTime, nullable=True)
+    end_date = db.Column(db.DateTime, nullable=True)
+    active_hours_start = db.Column(db.Time, nullable=True)  # Daily active hours
+    active_hours_end = db.Column(db.Time, nullable=True)
+    
+    # Status and analytics
+    is_active = db.Column(db.Boolean, default=True)
+    impressions = db.Column(db.Integer, default=0)
+    clicks = db.Column(db.Integer, default=0)
+    
+    created_at = db.Column(db.DateTime, default=get_ist_time)
+    updated_at = db.Column(db.DateTime, default=get_ist_time, onupdate=get_ist_time)
+    created_by = db.Column(db.Integer, db.ForeignKey('admin.id'), nullable=True)
+    
+    def __repr__(self):
+        return f'<Advertisement {self.title}>'
+    
+    def to_dict(self):
+        """Convert advertisement to dictionary"""
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'media_type': self.media_type,
+            'media_filename': self.media_filename,
+            'media_url': self.media_url,
+            'display_duration': self.display_duration,
+            'display_order': self.display_order,
+            'target_location': self.target_location,
+            'target_ride_type': self.target_ride_type,
+            'target_customer_type': self.target_customer_type,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'active_hours_start': self.active_hours_start.strftime('%H:%M') if self.active_hours_start else None,
+            'active_hours_end': self.active_hours_end.strftime('%H:%M') if self.active_hours_end else None,
+            'is_active': self.is_active,
+            'impressions': self.impressions,
+            'clicks': self.clicks,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    def is_currently_active(self):
+        """Check if advertisement should be displayed now"""
+        from datetime import datetime
+        now = get_ist_time()
+        
+        # Check if ad is globally active
+        if not self.is_active:
+            return False
+        
+        # Check date range
+        if self.start_date and now < self.start_date:
+            return False
+        if self.end_date and now > self.end_date:
+            return False
+        
+        # Check time range (daily)
+        if self.active_hours_start and self.active_hours_end:
+            current_time = now.time()
+            if not (self.active_hours_start <= current_time <= self.active_hours_end):
+                return False
+        
+        return True
+    
+    def increment_impressions(self):
+        """Increment impression counter"""
+        self.impressions += 1
+        db.session.commit()
+    
+    def increment_clicks(self):
+        """Increment click counter"""
+        self.clicks += 1
+        db.session.commit()
+    
+    @staticmethod
+    def get_active_ads_for_slideshow(location=None, ride_type=None, customer_type=None):
+        """Get active advertisements for slideshow display"""
+        query = Advertisement.query.filter_by(is_active=True)
+        
+        # Filter by targeting options
+        if location:
+            query = query.filter(
+                (Advertisement.target_location == location) | 
+                (Advertisement.target_location.is_(None))
+            )
+        
+        if ride_type:
+            query = query.filter(
+                (Advertisement.target_ride_type == ride_type) | 
+                (Advertisement.target_ride_type.is_(None))
+            )
+        
+        if customer_type:
+            query = query.filter(
+                (Advertisement.target_customer_type == customer_type) | 
+                (Advertisement.target_customer_type.is_(None))
+            )
+        
+        # Order by display order
+        ads = query.order_by(Advertisement.display_order, Advertisement.created_at).all()
+        
+        # Filter by current time and date
+        active_ads = []
+        for ad in ads:
+            if ad.is_currently_active():
+                active_ads.append(ad)
+        
+        return active_ads

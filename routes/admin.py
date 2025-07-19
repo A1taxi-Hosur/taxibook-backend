@@ -2,11 +2,13 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, get_ist_time
-from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone, PromoCode
+from models import Admin, Customer, Driver, Ride, FareConfig, SpecialFareConfig, Zone, PromoCode, Advertisement
 from utils.validators import create_error_response, create_success_response, validate_phone, validate_required_fields
 import logging
 import random
 import string
+import os
+from datetime import datetime
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
@@ -1606,3 +1608,245 @@ def delete_promo_code(promo_id):
 def promo_codes_page():
     """Promo codes management page"""
     return render_template('admin/promo_codes.html')
+
+# ==================== ADVERTISEMENT MANAGEMENT ====================
+
+@admin_bp.route('/api/advertisements', methods=['GET'])
+@login_required
+def api_advertisements():
+    """Get all advertisements for admin"""
+    try:
+        ads = Advertisement.query.order_by(Advertisement.display_order, Advertisement.created_at.desc()).all()
+        
+        ads_data = []
+        for ad in ads:
+            ad_dict = ad.to_dict()
+            # Add calculated fields
+            if ad.media_filename:
+                ad_dict['media_file_url'] = f"/static/ads/{ad.media_filename}"
+            ads_data.append(ad_dict)
+        
+        return create_success_response(ads_data)
+        
+    except Exception as e:
+        logging.error(f"Error getting advertisements: {str(e)}")
+        return create_error_response("Failed to retrieve advertisements")
+
+@admin_bp.route('/api/advertisements', methods=['POST'])
+@login_required
+def create_advertisement():
+    """Create a new advertisement"""
+    try:
+        # Handle file upload
+        if 'media_file' not in request.files:
+            return create_error_response("No media file provided")
+        
+        media_file = request.files['media_file']
+        if media_file.filename == '':
+            return create_error_response("No file selected")
+        
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi'}
+        file_extension = media_file.filename.rsplit('.', 1)[1].lower()
+        if file_extension not in allowed_extensions:
+            return create_error_response("Invalid file type. Allowed: PNG, JPG, JPEG, GIF, MP4, MOV, AVI")
+        
+        # Generate unique filename
+        import uuid
+        unique_filename = f"{uuid.uuid4()}_{media_file.filename}"
+        file_path = os.path.join('static/ads', unique_filename)
+        
+        # Save file
+        media_file.save(file_path)
+        
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description', '')
+        media_type = 'image' if file_extension in {'png', 'jpg', 'jpeg', 'gif'} else 'video'
+        
+        if not title:
+            return create_error_response("Title is required")
+        
+        # Parse optional fields
+        display_duration = int(request.form.get('display_duration', 5))
+        display_order = int(request.form.get('display_order', 1))
+        target_location = request.form.get('target_location') or None
+        target_ride_type = request.form.get('target_ride_type') or None
+        target_customer_type = request.form.get('target_customer_type') or None
+        
+        # Parse dates and times
+        start_date = None
+        end_date = None
+        active_hours_start = None
+        active_hours_end = None
+        
+        if request.form.get('start_date'):
+            start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
+        if request.form.get('end_date'):
+            end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
+        if request.form.get('active_hours_start'):
+            active_hours_start = datetime.strptime(request.form.get('active_hours_start'), '%H:%M').time()
+        if request.form.get('active_hours_end'):
+            active_hours_end = datetime.strptime(request.form.get('active_hours_end'), '%H:%M').time()
+        
+        # Create advertisement
+        ad = Advertisement(
+            title=title,
+            description=description,
+            media_type=media_type,
+            media_filename=unique_filename,
+            display_duration=display_duration,
+            display_order=display_order,
+            target_location=target_location,
+            target_ride_type=target_ride_type,
+            target_customer_type=target_customer_type,
+            start_date=start_date,
+            end_date=end_date,
+            active_hours_start=active_hours_start,
+            active_hours_end=active_hours_end,
+            is_active=request.form.get('is_active') == 'true',
+            created_by=current_user.id
+        )
+        
+        db.session.add(ad)
+        db.session.commit()
+        
+        logging.info(f"New advertisement created: {title} by admin {current_user.username}")
+        return create_success_response(ad.to_dict(), "Advertisement created successfully")
+        
+    except Exception as e:
+        logging.error(f"Error creating advertisement: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to create advertisement")
+
+@admin_bp.route('/api/advertisements/<int:ad_id>', methods=['PUT'])
+@login_required
+def update_advertisement(ad_id):
+    """Update an existing advertisement"""
+    try:
+        ad = Advertisement.query.get(ad_id)
+        if not ad:
+            return create_error_response("Advertisement not found")
+        
+        # Handle form data (not JSON for file uploads)
+        if request.form.get('title'):
+            ad.title = request.form.get('title')
+        if request.form.get('description') is not None:
+            ad.description = request.form.get('description')
+        if request.form.get('display_duration'):
+            ad.display_duration = int(request.form.get('display_duration'))
+        if request.form.get('display_order'):
+            ad.display_order = int(request.form.get('display_order'))
+        if request.form.get('target_location') is not None:
+            ad.target_location = request.form.get('target_location') or None
+        if request.form.get('target_ride_type') is not None:
+            ad.target_ride_type = request.form.get('target_ride_type') or None
+        if request.form.get('target_customer_type') is not None:
+            ad.target_customer_type = request.form.get('target_customer_type') or None
+        
+        # Handle date and time updates
+        if request.form.get('start_date'):
+            ad.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d')
+        if request.form.get('end_date'):
+            ad.end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d')
+        if request.form.get('active_hours_start'):
+            ad.active_hours_start = datetime.strptime(request.form.get('active_hours_start'), '%H:%M').time()
+        if request.form.get('active_hours_end'):
+            ad.active_hours_end = datetime.strptime(request.form.get('active_hours_end'), '%H:%M').time()
+        
+        if request.form.get('is_active') is not None:
+            ad.is_active = request.form.get('is_active') == 'true'
+        
+        # Handle new media file upload
+        if 'media_file' in request.files and request.files['media_file'].filename != '':
+            media_file = request.files['media_file']
+            
+            # Validate file type
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi'}
+            file_extension = media_file.filename.rsplit('.', 1)[1].lower()
+            if file_extension not in allowed_extensions:
+                return create_error_response("Invalid file type")
+            
+            # Delete old file
+            old_file_path = os.path.join('static/ads', ad.media_filename)
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+            
+            # Save new file
+            import uuid
+            unique_filename = f"{uuid.uuid4()}_{media_file.filename}"
+            file_path = os.path.join('static/ads', unique_filename)
+            media_file.save(file_path)
+            
+            ad.media_filename = unique_filename
+            ad.media_type = 'image' if file_extension in {'png', 'jpg', 'jpeg', 'gif'} else 'video'
+        
+        db.session.commit()
+        
+        logging.info(f"Advertisement updated: {ad.title} by admin {current_user.username}")
+        return create_success_response(ad.to_dict(), "Advertisement updated successfully")
+        
+    except Exception as e:
+        logging.error(f"Error updating advertisement: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to update advertisement")
+
+@admin_bp.route('/api/advertisements/<int:ad_id>', methods=['DELETE'])
+@login_required
+def delete_advertisement(ad_id):
+    """Delete an advertisement"""
+    try:
+        ad = Advertisement.query.get(ad_id)
+        if not ad:
+            return create_error_response("Advertisement not found")
+        
+        # Delete media file
+        file_path = os.path.join('static/ads', ad.media_filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        ad_title = ad.title
+        db.session.delete(ad)
+        db.session.commit()
+        
+        logging.info(f"Advertisement deleted: {ad_title} by admin {current_user.username}")
+        return create_success_response({'message': 'Advertisement deleted successfully'})
+        
+    except Exception as e:
+        logging.error(f"Error deleting advertisement: {str(e)}")
+        db.session.rollback()
+        return create_error_response("Failed to delete advertisement")
+
+@admin_bp.route('/api/advertisements/<int:ad_id>/analytics', methods=['POST'])
+@login_required
+def update_ad_analytics(ad_id):
+    """Update advertisement analytics (impressions/clicks)"""
+    try:
+        ad = Advertisement.query.get(ad_id)
+        if not ad:
+            return create_error_response("Advertisement not found")
+        
+        data = request.get_json()
+        action = data.get('action')
+        
+        if action == 'impression':
+            ad.increment_impressions()
+        elif action == 'click':
+            ad.increment_clicks()
+        else:
+            return create_error_response("Invalid action. Use 'impression' or 'click'")
+        
+        return create_success_response({
+            'impressions': ad.impressions,
+            'clicks': ad.clicks
+        })
+        
+    except Exception as e:
+        logging.error(f"Error updating advertisement analytics: {str(e)}")
+        return create_error_response("Failed to update analytics")
+
+@admin_bp.route('/advertisements', methods=['GET'])
+@login_required
+def advertisements_page():
+    """Advertisements management page"""
+    return render_template('admin/advertisements.html')

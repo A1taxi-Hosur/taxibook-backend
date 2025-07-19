@@ -1,0 +1,434 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Advertisements - A1 Call Taxi Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-megaphone me-2"></i>Advertisement Management
+                </h2>
+                <button class="btn btn-primary" onclick="showCreateModal()">
+                    <i class="fas fa-plus me-2"></i>Add Advertisement
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advertisements Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-bottom">
+                    <h5 class="mb-0">Current Advertisements</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Preview</th>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Duration</th>
+                                    <th>Order</th>
+                                    <th>Target</th>
+                                    <th>Schedule</th>
+                                    <th>Analytics</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="advertisementsTableBody">
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Advertisement Modal -->
+<div class="modal fade" id="adModal" tabindex="-1" aria-labelledby="adModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adModalLabel">Add Advertisement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="adForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="adTitle" class="form-label">Title *</label>
+                            <input type="text" class="form-control" id="adTitle" name="title" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="adDisplayOrder" class="form-label">Display Order</label>
+                            <input type="number" class="form-control" id="adDisplayOrder" name="display_order" value="1" min="1">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="adDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <!-- Media Upload -->
+                    <div class="mb-3">
+                        <label for="adMediaFile" class="form-label">Media File *</label>
+                        <input type="file" class="form-control" id="adMediaFile" name="media_file" accept="image/*,video/*" required>
+                        <div class="form-text">Supported formats: PNG, JPG, JPEG, GIF, MP4, MOV, AVI</div>
+                        <div id="currentMediaPreview" class="mt-2" style="display: none;">
+                            <small class="text-muted">Current media:</small>
+                            <div id="mediaPreviewContainer"></div>
+                        </div>
+                    </div>
+
+                    <!-- Timing Controls -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="adDisplayDuration" class="form-label">Display Duration (seconds)</label>
+                            <input type="number" class="form-control" id="adDisplayDuration" name="display_duration" value="5" min="1" max="60">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="adIsActive" name="is_active" checked>
+                                <label class="form-check-label" for="adIsActive">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Targeting Options -->
+                    <h6 class="border-bottom pb-2 mb-3">Targeting Options</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="adTargetLocation" class="form-label">Target Location</label>
+                            <input type="text" class="form-control" id="adTargetLocation" name="target_location" placeholder="e.g., Chennai Central">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="adTargetRideType" class="form-label">Target Ride Type</label>
+                            <select class="form-select" id="adTargetRideType" name="target_ride_type">
+                                <option value="">All Types</option>
+                                <option value="hatchback">Hatchback</option>
+                                <option value="sedan">Sedan</option>
+                                <option value="suv">SUV</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="adTargetCustomerType" class="form-label">Target Customer</label>
+                            <select class="form-select" id="adTargetCustomerType" name="target_customer_type">
+                                <option value="">All Customers</option>
+                                <option value="new">New Customers</option>
+                                <option value="regular">Regular Customers</option>
+                                <option value="premium">Premium Customers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Scheduling -->
+                    <h6 class="border-bottom pb-2 mb-3">Scheduling</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="adStartDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="adStartDate" name="start_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="adEndDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="adEndDate" name="end_date">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="adActiveHoursStart" class="form-label">Active Hours Start</label>
+                            <input type="time" class="form-control" id="adActiveHoursStart" name="active_hours_start">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="adActiveHoursEnd" class="form-label">Active Hours End</label>
+                            <input type="time" class="form-control" id="adActiveHoursEnd" name="active_hours_end">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="adSubmitBtn">Add Advertisement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Advertisement Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let advertisements = [];
+let editingAdId = null;
+
+// Load advertisements on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAdvertisements();
+});
+
+function loadAdvertisements() {
+    fetch('/admin/api/advertisements')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                advertisements = data.data;
+                renderAdvertisementsTable();
+            } else {
+                console.error('Failed to load advertisements:', data.message);
+                showAlert('Failed to load advertisements', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading advertisements:', error);
+            showAlert('Error loading advertisements', 'danger');
+        });
+}
+
+function renderAdvertisementsTable() {
+    const tbody = document.getElementById('advertisementsTableBody');
+    
+    if (advertisements.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center py-4 text-muted">
+                    <i class="fas fa-megaphone fa-2x mb-2"></i><br>
+                    No advertisements found. Add your first advertisement to get started.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = advertisements.map(ad => `
+        <tr>
+            <td>
+                <div style="width: 80px; height: 60px; overflow: hidden; border-radius: 4px;">
+                    ${ad.media_type === 'image' ? 
+                        `<img src="${ad.media_file_url}" alt="${ad.title}" style="width: 100%; height: 100%; object-fit: cover;" onclick="showPreview('${ad.media_file_url}', '${ad.media_type}', '${ad.title}')">` :
+                        `<video style="width: 100%; height: 100%; object-fit: cover;" onclick="showPreview('${ad.media_file_url}', '${ad.media_type}', '${ad.title}')">
+                            <source src="${ad.media_file_url}" type="video/mp4">
+                        </video>`
+                    }
+                </div>
+            </td>
+            <td>
+                <strong>${ad.title}</strong>
+                ${ad.description ? `<br><small class="text-muted">${ad.description.substring(0, 50)}${ad.description.length > 50 ? '...' : ''}</small>` : ''}
+            </td>
+            <td>
+                <span class="badge ${ad.media_type === 'image' ? 'bg-info' : 'bg-warning'} text-dark">
+                    <i class="fas ${ad.media_type === 'image' ? 'fa-image' : 'fa-video'} me-1"></i>
+                    ${ad.media_type.toUpperCase()}
+                </span>
+            </td>
+            <td>${ad.display_duration}s</td>
+            <td>
+                <span class="badge bg-secondary">#${ad.display_order}</span>
+            </td>
+            <td>
+                <small>
+                    ${ad.target_location ? `<div><i class="fas fa-map-marker-alt"></i> ${ad.target_location}</div>` : ''}
+                    ${ad.target_ride_type ? `<div><i class="fas fa-car"></i> ${ad.target_ride_type}</div>` : ''}
+                    ${ad.target_customer_type ? `<div><i class="fas fa-user"></i> ${ad.target_customer_type}</div>` : ''}
+                    ${!ad.target_location && !ad.target_ride_type && !ad.target_customer_type ? '<span class="text-muted">All</span>' : ''}
+                </small>
+            </td>
+            <td>
+                <small>
+                    ${ad.start_date || ad.end_date ? `
+                        <div><i class="fas fa-calendar"></i> ${ad.start_date ? new Date(ad.start_date).toLocaleDateString() : '∞'} - ${ad.end_date ? new Date(ad.end_date).toLocaleDateString() : '∞'}</div>
+                    ` : ''}
+                    ${ad.active_hours_start || ad.active_hours_end ? `
+                        <div><i class="fas fa-clock"></i> ${ad.active_hours_start || '00:00'} - ${ad.active_hours_end || '23:59'}</div>
+                    ` : ''}
+                    ${!ad.start_date && !ad.end_date && !ad.active_hours_start && !ad.active_hours_end ? '<span class="text-muted">Always</span>' : ''}
+                </small>
+            </td>
+            <td>
+                <small>
+                    <div><i class="fas fa-eye"></i> ${ad.impressions} views</div>
+                    <div><i class="fas fa-mouse-pointer"></i> ${ad.clicks} clicks</div>
+                </small>
+            </td>
+            <td>
+                <span class="badge ${ad.is_active ? 'bg-success' : 'bg-secondary'}">
+                    ${ad.is_active ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="editAdvertisement(${ad.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteAdvertisement(${ad.id}, '${ad.title}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() {
+    editingAdId = null;
+    document.getElementById('adModalLabel').textContent = 'Add Advertisement';
+    document.getElementById('adSubmitBtn').textContent = 'Add Advertisement';
+    document.getElementById('adForm').reset();
+    document.getElementById('adMediaFile').required = true;
+    document.getElementById('currentMediaPreview').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('adModal')).show();
+}
+
+function editAdvertisement(adId) {
+    const ad = advertisements.find(a => a.id === adId);
+    if (!ad) return;
+
+    editingAdId = adId;
+    document.getElementById('adModalLabel').textContent = 'Edit Advertisement';
+    document.getElementById('adSubmitBtn').textContent = 'Update Advertisement';
+    
+    // Fill form with existing data
+    document.getElementById('adTitle').value = ad.title;
+    document.getElementById('adDescription').value = ad.description || '';
+    document.getElementById('adDisplayDuration').value = ad.display_duration;
+    document.getElementById('adDisplayOrder').value = ad.display_order;
+    document.getElementById('adTargetLocation').value = ad.target_location || '';
+    document.getElementById('adTargetRideType').value = ad.target_ride_type || '';
+    document.getElementById('adTargetCustomerType').value = ad.target_customer_type || '';
+    document.getElementById('adStartDate').value = ad.start_date ? ad.start_date.split('T')[0] : '';
+    document.getElementById('adEndDate').value = ad.end_date ? ad.end_date.split('T')[0] : '';
+    document.getElementById('adActiveHoursStart').value = ad.active_hours_start || '';
+    document.getElementById('adActiveHoursEnd').value = ad.active_hours_end || '';
+    document.getElementById('adIsActive').checked = ad.is_active;
+    
+    // Show current media preview
+    document.getElementById('adMediaFile').required = false;
+    document.getElementById('currentMediaPreview').style.display = 'block';
+    const previewContainer = document.getElementById('mediaPreviewContainer');
+    if (ad.media_type === 'image') {
+        previewContainer.innerHTML = `<img src="${ad.media_file_url}" alt="${ad.title}" style="max-width: 200px; max-height: 100px; object-fit: cover;">`;
+    } else {
+        previewContainer.innerHTML = `<video controls style="max-width: 200px; max-height: 100px;"><source src="${ad.media_file_url}" type="video/mp4"></video>`;
+    }
+    
+    new bootstrap.Modal(document.getElementById('adModal')).show();
+}
+
+function deleteAdvertisement(adId, title) {
+    if (!confirm(`Are you sure you want to delete the advertisement "${title}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    fetch(`/admin/api/advertisements/${adId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Advertisement deleted successfully', 'success');
+            loadAdvertisements();
+        } else {
+            showAlert('Failed to delete advertisement: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting advertisement:', error);
+        showAlert('Error deleting advertisement', 'danger');
+    });
+}
+
+function showPreview(mediaUrl, mediaType, title) {
+    const previewContent = document.getElementById('previewContent');
+    document.getElementById('previewModalLabel').textContent = `Preview: ${title}`;
+    
+    if (mediaType === 'image') {
+        previewContent.innerHTML = `<img src="${mediaUrl}" alt="${title}" style="max-width: 100%; max-height: 500px; object-fit: contain;">`;
+    } else {
+        previewContent.innerHTML = `<video controls style="max-width: 100%; max-height: 500px;"><source src="${mediaUrl}" type="video/mp4"></video>`;
+    }
+    
+    new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+// Handle form submission
+document.getElementById('adForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.set('is_active', document.getElementById('adIsActive').checked ? 'true' : 'false');
+    
+    const url = editingAdId ? `/admin/api/advertisements/${editingAdId}` : '/admin/api/advertisements';
+    const method = editingAdId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(editingAdId ? 'Advertisement updated successfully' : 'Advertisement created successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('adModal')).hide();
+            loadAdvertisements();
+        } else {
+            showAlert('Failed to save advertisement: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving advertisement:', error);
+        showAlert('Error saving advertisement', 'danger');
+    });
+});
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    // Insert at the top of the container
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            bootstrap.Alert.getOrCreateInstance(alert).close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
