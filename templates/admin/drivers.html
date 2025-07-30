@@ -508,7 +508,7 @@ function submitCreateDriver() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.status === 'success') {
             showSuccess(data.message);
             
             // Close modal and refresh table smoothly
@@ -599,7 +599,7 @@ function submitEditDriver() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.status === 'success') {
             showSuccess(data.message);
             
             // Close modal and refresh table smoothly
@@ -655,7 +655,7 @@ function resetPassword(username) {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
+            if (data.status === 'success') {
                 showSuccess(data.message + ` New password: ${newPassword}`);
             } else {
                 showError(data.message);
@@ -694,7 +694,7 @@ function deleteDriver() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.status === 'success') {
             showSuccess(data.message);
             
             // Close modal and refresh table smoothly
