@@ -1,171 +1,53 @@
-# A1 Call Taxi Backend - System Architecture
+# A1 Call Taxi Backend - System Overview
 
 ## Overview
-
-A1 Call Taxi is a comprehensive taxi booking platform designed for the Indian market. This backend system provides APIs for customer bookings, driver management, and admin operations, along with a complete admin dashboard interface. The system handles the entire ride lifecycle from booking to completion with real-time status tracking.
-
-## System Architecture
-
-### Backend Architecture
-- **Framework**: Flask (Python 3) with modular blueprint structure
-- **ORM**: SQLAlchemy with Flask-SQLAlchemy integration
-- **Database**: SQLite for development, PostgreSQL for production
-- **Authentication**: Flask-Login with session-based authentication
-- **API Design**: RESTful endpoints with standardized JSON responses
-- **Timezone**: All timestamps use Asia/Kolkata timezone
-
-### Frontend Architecture
-- **Admin Interface**: Server-side rendered HTML templates with Bootstrap
-- **Theme**: Dark theme using Bootstrap agent styling
-- **Responsive Design**: Mobile-first approach with Bootstrap grid system
-- **JavaScript**: Minimal client-side scripting for interactive features
-
-### Project Structure
-```
-A1CallTaxi/
-├── app.py                    # Main Flask application setup
-├── main.py                   # Application entry point
-├── models.py                 # Database models (Customer, Driver, Ride, etc.)
-├── routes/                   # API endpoint modules
-│   ├── admin.py             # Admin dashboard and driver management
-│   ├── customer.py          # Customer booking and ride management
-│   ├── driver.py            # Driver authentication and ride handling
-│   └── mobile.py            # Mobile app read-only APIs
-├── static/                   # Static assets (CSS, JS, images, logo.png)
-├── templates/admin/          # Bootstrap-based admin UI templates
-├── utils/                    # Utility functions
-│   ├── maps.py              # Google Maps API integration
-│   └── validators.py        # Input validation and error handling
-├── test_*.py                # Automated testing scripts
-└── *.md                     # Documentation files
-```
-
-## Key Components
-
-### Authentication System
-- **Multi-role Authentication**: Separate login flows for customers, drivers, and admins
-- **Session Management**: Flask-Login handles user sessions across all user types
-- **Phone-based Authentication**: Customers and drivers authenticate using 10-digit Indian mobile numbers
-- **Admin Authentication**: Username/password authentication for admin users
-
-### User Management
-- **Customer Management**: Registration, login, and profile management
-- **Driver Management**: Driver onboarding and account management
-- **Admin Management**: Admin user creation and authentication
-- **Phone Validation**: Strict validation for Indian mobile numbers (6-9 starting digits)
-
-### Ride Management
-- **Booking System**: Customer ride requests with pickup/drop locations
-- **Driver Assignment**: Automatic driver assignment based on availability
-- **Status Tracking**: Real-time ride status updates through multiple states
-- **Fare Calculation**: Database-driven fare configuration with admin-controlled pricing
-- **GPS Tracking**: Real-time driver location tracking with optimized database indexing
-- **OTP Verification**: Secure ride start confirmation with 6-digit OTP system
-
-### API Integration
-- **Google Maps Distance Matrix API**: Calculate distances, routes, and travel times
-- **Fare Calculation**: Dynamic pricing based on distance and time
-- **Location Services**: Address validation and coordinate handling
-
-## Data Flow
-
-### Customer Journey
-1. **Authentication**: Login/register via phone number and name
-2. **Booking**: Submit ride request with pickup and drop addresses
-3. **Matching**: System finds available drivers and assigns ride
-4. **Tracking**: Real-time updates on driver status and location
-5. **Completion**: Ride completion with fare calculation and payment
-
-### Driver Journey
-1. **Authentication**: Login/register via phone number and name
-2. **Availability**: Mark themselves as available for rides
-3. **Assignment**: Receive ride assignments from the system
-4. **Acceptance**: Accept or decline ride requests
-5. **Execution**: Navigate through ride stages (arrive, start, complete)
-
-### Admin Operations
-1. **Dashboard**: Overview of system statistics and active rides
-2. **User Management**: Monitor and manage customers and drivers
-3. **Ride Monitoring**: Track all rides and their statuses
-4. **Fare Configuration**: Real-time pricing management with surge control
-5. **Analytics**: View system performance and usage metrics
-
-## External Dependencies
-
-### APIs
-- **Google Maps Distance Matrix API**: Required for distance calculation and fare estimation
-- **Environment Variables**: `GOOGLE_MAPS_API_KEY` must be configured
-
-### Python Packages
-- **Flask**: Web framework and routing
-- **Flask-SQLAlchemy**: Database ORM
-- **Flask-Login**: User session management
-- **Flask-CORS**: Cross-origin resource sharing
-- **Werkzeug**: WSGI utilities and security
-- **PyTz**: Timezone handling
-- **Requests**: HTTP client for API calls
-
-## Deployment Strategy
-
-### Environment Configuration
-- **Development**: SQLite database with debug mode enabled
-- **Production**: PostgreSQL with proper environment variables
-- **Session Security**: Configurable session secret key
-- **Proxy Support**: ProxyFix middleware for deployment behind proxies
-
-### Database Management
-- **Connection Pooling**: Configured with pool recycling and pre-ping
-- **Migration Support**: SQLAlchemy model-based schema management
-- **Timezone Consistency**: All timestamps in Asia/Kolkata timezone
-
-### Security Considerations
-- **Input Validation**: Comprehensive validation for all user inputs
-- **Phone Number Sanitization**: Automatic cleanup of international prefixes
-- **CORS Configuration**: Proper cross-origin policies for API access
-- **Session Management**: Secure session handling with proper logout
-
-## Changelog
-
-```
-Changelog:
-- July 05, 2025. Initial setup
-- July 06, 2025. Added driver online/offline toggle feature (Version 1.1)
-- July 06, 2025. Added login-aware landing page with automatic redirects (Version 1.1)
-- July 06, 2025. Added comprehensive admin driver management system (Version 1.1)
-- July 06, 2025. Enhanced customer API with complete driver details when assigned (Version 1.1)
-- July 06, 2025. Added admin password display for testing purposes (Version 1.1)
-- July 07, 2025. Implemented driver username/password authentication system (Version 1.2)
-- July 07, 2025. Removed old driver login_or_register endpoint to eliminate confusion (Version 1.2)
-- July 07, 2025. Added ride rejection tracking system with database table and filtering (Version 1.3)
-- July 07, 2025. Implemented complete mobile API endpoints for customer and driver apps (Version 1.4)
-- July 07, 2025. Added ride type selection and vehicle-based filtering for customers and drivers (Version 1.5)
-- July 07, 2025. Implemented ride estimate endpoint with Google Maps integration and multi-vehicle fare calculation (Version 1.6)
-- July 07, 2025. Enhanced ride estimate endpoint with simplified JSON format and strengthened backend-only pricing control (Version 1.6.1)
-- July 07, 2025. Implemented comprehensive GPS tracking system with real-time driver location updates, customer location retrieval, and optimized database indexing (Version 1.7)
-- July 07, 2025. Implemented OTP-based ride start confirmation system with 6-digit OTP generation, customer OTP retrieval, driver OTP verification, and automatic OTP cleanup for enhanced security (Version 1.8)
-- July 08, 2025. Implemented database-driven fare configuration system with admin web interface for real-time pricing management, replacing hardcoded fare calculations with configurable base_fare, per_km_rate, and surge_multiplier settings (Version 1.9)
-- July 08, 2025. Resolved authentication issues and completed fare configuration system deployment - admin can now manage all fare settings in real-time with full web interface and API functionality (Version 1.9.1)
-- July 08, 2025. Fixed JavaScript error in fare configuration page - resolved data structure mismatch between API response and frontend code, ensuring proper loading of fare configurations (Version 1.9.2)
-- July 08, 2025. Enhanced JavaScript error handling in fare configuration page - added null/undefined checks, improved error messages, and robust array validation to prevent forEach errors (Version 1.9.3)
-- July 08, 2025. Verified complete database-driven fare system implementation - all APIs (ride estimate, book ride, driver incoming rides) now use FareConfig calculations with no hardcoded values, ensuring admin has full real-time pricing control (Version 1.9.4)
-- July 08, 2025. Finalized fare calculation system with standardized API responses - ride estimate returns exact format specified (success, distance_km, estimates) and booking system ensures fare consistency between estimate and booking stages (Version 1.9.5)
-- July 08, 2025. Implemented proximity-based driver dispatch system with 5km radius filtering - added driver current location tracking (current_lat, current_lng, location_updated_at), haversine distance calculation utility, and booking validation to ensure only nearby drivers receive ride requests (Version 2.0)
-- July 13, 2025. Updated Google Maps API key configuration - replaced old API key with new Firebase-generated browser key (AIzaSyDw7eAaQOKVOrurvnqTyR6yK3tDdXnjsFk) in .env file, verified all Google Maps integrations are working correctly (Version 2.0.1)
-- July 13, 2025. Implemented comprehensive backend enhancements including special fare configurations, zone management, scheduled rides, and enhanced ride tracking - added SpecialFareConfig and Zone models, admin API endpoints, enhanced customer booking with ride categories (regular/airport/rental/outstation), final fare freezing system, driver zone assignment, and comprehensive API testing (Version 2.1)
-- July 13, 2025. Enhanced admin interface with complete dashboard including 6 new management sections: Bookings, Ongoing, History, Zones, Fare Matrix, and Live Map - implemented real-time ride management, driver assignment modals, zone visualization with Google Maps, comprehensive filtering and search capabilities, and mobile-responsive design (Version 2.2)
-- July 13, 2025. Implemented advanced admin features including password change functionality, admin user creation system, Firebase push notification integration, map-based zone creation with visual circle overlays, reduced polling delays to 3 seconds for real-time updates, enhanced Admin model with additional fields (name, mobile_number, firebase_token), and comprehensive security features (Version 2.3)
-- July 13, 2025. Implemented comprehensive polygon-based zone management system with concentric ring dispatch logic, dynamic fare expansion, and intelligent driver allocation - enhanced Zone model with polygon coordinates support, ray casting algorithm for point-in-polygon detection, priority-based zone matching, RideDispatchEngine with multi-ring progressive expansion, customer approval workflow for zone expansion with extra fare calculation, automatic driver zone assignment based on GPS location, and enhanced booking API with advanced dispatch integration (Version 2.4)
-- July 13, 2025. Enhanced dispatch system with configurable ring parameters - added ring_radius_meters and ring_wait_time_seconds database columns, updated admin zone creation interface with ring configuration fields, implemented EnhancedDispatchEngine with progressive ring search algorithm, added zone expansion approval API, comprehensive testing suite with polygon detection validation, and complete documentation of enhanced dispatch system with usage examples and performance optimizations (Version 2.5)
-- July 16, 2025. Fixed critical frontend-backend connectivity issues - identified customer app "Failed to fetch" error caused by API connectivity problems, resolved driver app login failures by correcting username format (DRVJX69QZ vs DRIV2710), validated all backend APIs are working correctly, updated driver credentials documentation with correct usernames and password format, confirmed customer booking API operational with proper address geocoding (Version 2.6)
-- July 17, 2025. Disabled auto-assignment system and implemented driver notification system with choice-based acceptance - replaced automatic ride assignment with driver notification system that filters by car type, zone, and proximity, created utils/driver_notification_system.py for matching driver logic, modified customer booking to notify drivers instead of auto-assigning, implemented complete accept/reject workflow where drivers can choose rides, tested successful flow with 2 drivers notified and manual acceptance process working perfectly (Version 2.7)
-- July 17, 2025. Enhanced scheduled ride handling and fixed outstation ride notifications - updated book_ride() function to properly handle scheduled rides by skipping driver notification for all non-regular ride categories (airport, rental, outstation), implemented separate logic for scheduled vs immediate special rides, fixed outstation rides to require admin assignment instead of triggering driver notifications, added proper response messages for different ride categories (Version 2.8)
-- July 18, 2025. Implemented comprehensive promo code support system - added PromoCode model with discount types (flat/percent), usage limits, validity dates, and ride filtering options, integrated promo code validation and application into both regular and special fare calculation methods, created customer API endpoints for promo validation and ride estimates with promo codes, updated all ride booking responses to include promo code and discount information, added complete admin API endpoints for promo code management (create, read, update, delete), implemented automatic usage tracking and validation logic, created comprehensive test suite validating all promo code functionality including ride-specific and category-specific restrictions (Version 2.9)
-- July 18, 2025. Implemented A1 Call Taxi branding and admin promo code management interface - integrated company logo throughout admin interface including login page and dashboard sidebar, updated all page titles and documentation to reflect A1 Call Taxi branding, created comprehensive promo codes management page with full CRUD operations, real-time usage statistics, form validation, and secure admin authentication, added promo codes navigation link to admin sidebar for easy access to promotional campaign management (Version 2.10)
-- July 19, 2025. Implemented comprehensive advertisement management system with media file upload, slideshow timing controls, and customer API integration - created Advertisement model with media storage, display duration controls, targeting options (location, ride type, customer type), scheduling features (date/time ranges), and analytics tracking (impressions/clicks), developed complete admin interface for advertisement CRUD operations with file upload support for images and videos, implemented customer API endpoints for slideshow display with configurable timing and targeting filters, added advertisement navigation to admin sidebar with megaphone icon, created comprehensive test suite for validation, and established foundation for promotional campaign management with real-time analytics (Version 2.11)
-```
+A1 Call Taxi is a comprehensive taxi booking platform for the Indian market, providing backend APIs for customer bookings, driver management, and admin operations. It includes a full admin dashboard and manages the entire ride lifecycle with real-time status tracking. The project aims to deliver a robust and scalable solution for the on-demand taxi service industry.
 
 ## User Preferences
-
-```
 Preferred communication style: Simple, everyday language.
-```
+
+## System Architecture
+### Backend
+- **Framework**: Flask (Python 3) with modular blueprint structure.
+- **ORM**: SQLAlchemy with Flask-SQLAlchemy.
+- **Database**: PostgreSQL for production, SQLite for development.
+- **Authentication**: Flask-Login for session-based authentication with multi-role support (customer, driver, admin) and phone-based authentication for customers/drivers.
+- **API Design**: RESTful endpoints with standardized JSON responses.
+- **Timezone**: All timestamps are in Asia/Kolkata timezone.
+
+### Frontend
+- **Admin Interface**: Server-side rendered HTML templates using Bootstrap.
+- **Theme**: Dark theme with Bootstrap agent styling.
+- **Design Principles**: Mobile-first responsive design using Bootstrap grid system.
+- **Interactivity**: Minimal client-side JavaScript for dynamic features.
+
+### Core Features
+- **Authentication System**: Secure session management and login flows for customers, drivers, and admins. Includes phone-based authentication for customers/drivers and username/password for admins.
+- **User Management**: Comprehensive management for customers, drivers, and admins, including profile management and phone number validation.
+- **Ride Management**:
+    - **Booking System**: Customer ride requests with pickup/drop locations.
+    - **Dispatch System**: Configurable concentric ring-based dispatch logic with priority-based zone matching and automatic driver zone assignment. Includes an approval workflow for zone expansion with extra fare calculation.
+    - **Driver Notification**: Driver choice-based acceptance system, filtering by car type, zone, and proximity.
+    - **Status Tracking**: Real-time ride status updates and GPS tracking of drivers with OTP verification for ride start.
+    - **Fare Calculation**: Database-driven fare configuration with admin-controlled pricing, including special fare configurations and promo code support (flat/percent discounts, usage limits, validity).
+    - **Scheduled Rides**: Support for scheduled bookings with distinct handling from immediate rides.
+- **Admin Operations**:
+    - **Dashboard**: Overview of system statistics, active rides, and user management.
+    - **Ride Monitoring**: Live tracking and management of rides, including manual assignment.
+    - **Configuration Management**: Real-time pricing control, zone management (polygon-based creation), and advertisement management with media upload and scheduling.
+    - **Analytics**: System performance and usage metrics.
+    - **Branding**: Integrated A1 Call Taxi branding across the admin interface.
+
+## External Dependencies
+### APIs
+- **Google Maps Distance Matrix API**: Used for distance calculation, route estimation, and fare estimation.
+- **Firebase**: For push notification integration (e.g., driver notifications).
+
+### Python Packages
+- **Flask**: Web framework.
+- **Flask-SQLAlchemy**: ORM for database interaction.
+- **Flask-Login**: User session management.
+- **Flask-CORS**: Cross-origin resource sharing.
+- **Werkzeug**: WSGI utilities and security.
+- **PyTz**: Timezone handling.
+- **Requests**: HTTP client for external API calls.
