@@ -47,13 +47,9 @@ def get_distance_and_fare(pickup_address, drop_address, pickup_lat=None, pickup_
                 if pickup_lat and pickup_lng and drop_lat and drop_lng:
                     from utils.distance import haversine_distance
                     distance_km = haversine_distance(pickup_lat, pickup_lng, drop_lat, drop_lng)
-                    # Calculate fare: ₹12 base + ₹11/km
-                    base_fare = 12
-                    per_km_rate = 11
-                    fare_amount = base_fare + (distance_km * per_km_rate)
-                    fare_amount = round(fare_amount, 2)
-                    logging.info(f"Fallback distance calculated: {distance_km}km, Fare: ₹{fare_amount}")
-                    return True, distance_km, fare_amount, None
+                    logging.info(f"Fallback distance calculated: {distance_km}km")
+                    # Return distance only, let the calling function handle fare calculation
+                    return True, distance_km, None, None
             
             return False, None, None, "Could not calculate distance - invalid location"
         
