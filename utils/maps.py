@@ -38,7 +38,23 @@ def get_distance_and_fare(pickup_address, drop_address, pickup_lat=None, pickup_
         
         # Check API response status
         if data.get('status') != 'OK':
-            logging.error(f"Google Maps API error: {data.get('status')}")
+            error_msg = data.get('error_message', data.get('status'))
+            logging.error(f"Google Maps API error: {data.get('status')} - {error_msg}")
+            
+            # If billing not enabled, use fallback calculation
+            if 'billing' in error_msg.lower() or data.get('status') == 'REQUEST_DENIED':
+                logging.warning("Google Maps API billing not active, using fallback calculation")
+                if pickup_lat and pickup_lng and drop_lat and drop_lng:
+                    from utils.distance import haversine_distance
+                    distance_km = haversine_distance(pickup_lat, pickup_lng, drop_lat, drop_lng)
+                    # Calculate fare: ₹12 base + ₹11/km
+                    base_fare = 12
+                    per_km_rate = 11
+                    fare_amount = base_fare + (distance_km * per_km_rate)
+                    fare_amount = round(fare_amount, 2)
+                    logging.info(f"Fallback distance calculated: {distance_km}km, Fare: ₹{fare_amount}")
+                    return True, distance_km, fare_amount, None
+            
             return False, None, None, "Could not calculate distance - invalid location"
         
         # Extract distance information

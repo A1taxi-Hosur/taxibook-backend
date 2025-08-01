@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 
 ## External Dependencies
 ### APIs
-- **Google Maps Distance Matrix API**: Used for distance calculation, route estimation, and fare estimation.
+- **Google Maps Distance Matrix API**: Used for distance calculation, route estimation, and fare estimation. Includes automatic fallback to Haversine formula when billing is not available.
 - **Firebase**: For push notification integration (e.g., driver notifications).
 
 ### Python Packages
