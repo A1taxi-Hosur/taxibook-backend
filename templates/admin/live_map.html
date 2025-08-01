@@ -535,8 +535,55 @@ window.addEventListener('beforeunload', function() {
 });
 </script>
 
-<!-- Load Google Maps API -->
-<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
+<!-- Load Google Maps API with error handling -->
+<script>
+// Global error handler for Google Maps API
+window.gm_authFailure = function() {
+    console.warn('Google Maps API authentication failed - billing not enabled');
+    handleMapsUnavailable();
+};
+
+function handleMapsUnavailable() {
+    document.getElementById('map').innerHTML = `
+        <div class="d-flex align-items-center justify-content-center h-100">
+            <div class="text-center">
+                <i class="bi bi-map display-1 text-muted"></i>
+                <p class="mt-3 text-muted">Google Maps not available</p>
+                <p class="text-muted">Please check your API key configuration</p>
+            </div>
+        </div>
+    `;
+}
+
+// Initialize Google Maps or handle gracefully
+function initializeGoogleMaps() {
+    try {
+        if (typeof google !== 'undefined' && google.maps) {
+            initMap();
+        } else {
+            handleMapsUnavailable();
+        }
+    } catch (error) {
+        console.warn('Google Maps initialization failed:', error);
+        handleMapsUnavailable();
+    }
+}
+
+// Load Google Maps API with error handling
+if (typeof google === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initializeGoogleMaps';
+    script.async = true;
+    script.defer = true;
+    script.onerror = function() {
+        console.warn('Failed to load Google Maps API');
+        handleMapsUnavailable();
+    };
+    document.head.appendChild(script);
+} else {
+    initializeGoogleMaps();
+}
+</script>
 
 <style>
 .driver-marker-preview {
