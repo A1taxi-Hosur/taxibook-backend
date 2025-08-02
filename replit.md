@@ -14,6 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Authentication**: Flask-Login for session-based authentication with multi-role support (customer, driver, admin) and phone-based authentication for customers/drivers.
 - **API Design**: RESTful endpoints with standardized JSON responses.
 - **Timezone**: All timestamps are in Asia/Kolkata timezone.
+- **Driver Status**: "Always Online" system - drivers automatically online when logged in, offline when logged out (implemented 2025-08-02).
 
 ### Frontend
 - **Admin Interface**: Server-side rendered HTML templates using Bootstrap.
@@ -23,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Features
 - **Authentication System**: Secure session management and login flows for customers, drivers, and admins. Includes phone-based authentication for customers/drivers and username/password for admins.
-- **User Management**: Comprehensive management for customers, drivers, and admins, including profile management and phone number validation.
+- **User Management**: Comprehensive management for customers, drivers, and admins, including profile management and phone number validation. Driver availability managed through login/logout states only (no manual toggle).
 - **Ride Management**:
     - **Booking System**: Customer ride requests with pickup/drop locations.
     - **Dispatch System**: Configurable concentric ring-based dispatch logic with priority-based zone matching and automatic driver zone assignment. Includes an approval workflow for zone expansion with extra fare calculation.
