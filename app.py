@@ -80,28 +80,39 @@ with app.app_context():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(mobile_bp, url_prefix='')
     
-    # Create all tables
-    db.create_all()
+    # Only create tables and initialize data in development
+    # In production (Railway), tables should already exist
+    is_production = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('NODE_ENV') == 'production'
     
-    # Create default admin user if not exists
-    admin = models.Admin.query.filter_by(username='admin').first()
-    if not admin:
-        admin = models.Admin(
-            username='admin',
-            password_hash='admin123'  # In production, this should be hashed
-        )
-        db.session.add(admin)
-        db.session.commit()
-        logging.info("Default admin user created: admin/admin123")
-    
-    # Initialize default data
-    try:
-        models.FareConfig.initialize_default_fares()
-        models.SpecialFareConfig.initialize_default_special_fares()
-        models.Zone.initialize_default_zones()
-        models.PromoCode.initialize_default_promo_codes()
-    except Exception as e:
-        logging.error(f"Error initializing default data: {e}")
+    if not is_production:
+        # Development environment - create tables and default data
+        logging.info("Development environment detected - initializing database")
+        db.create_all()
+        
+        # Create default admin user if not exists
+        admin = models.Admin.query.filter_by(username='admin').first()
+        if not admin:
+            admin = models.Admin(
+                username='admin',
+                password_hash='admin123'  # In production, this should be hashed
+            )
+            db.session.add(admin)
+            db.session.commit()
+            logging.info("Default admin user created: admin/admin123")
+        
+        # Initialize default data
+        try:
+            models.FareConfig.initialize_default_fares()
+            models.SpecialFareConfig.initialize_default_special_fares()
+            models.Zone.initialize_default_zones()
+            models.PromoCode.initialize_default_promo_codes()
+        except Exception as e:
+            logging.error(f"Error initializing default data: {e}")
+    else:
+        # Production environment - just ensure tables exist without dropping/recreating
+        logging.info("Production environment detected - skipping database initialization")
+        # Only create tables if they don't exist (this won't drop existing data)
+        db.create_all()
 
 # Root route - Login-aware landing page
 @app.route('/')

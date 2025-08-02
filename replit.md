@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 ### Backend
 - **Framework**: Flask (Python 3) with modular blueprint structure.
 - **ORM**: SQLAlchemy with Flask-SQLAlchemy.
-- **Database**: PostgreSQL for production, SQLite for development.
+- **Database**: PostgreSQL for production (Railway), PostgreSQL for development (Replit). Environment-aware initialization prevents production data loss during deployments (implemented 2025-08-02).
 - **Authentication**: Flask-Login for session-based authentication with multi-role support (customer, driver, admin) and phone-based authentication for customers/drivers.
 - **API Design**: RESTful endpoints with standardized JSON responses.
 - **Timezone**: All timestamps are in Asia/Kolkata timezone.
