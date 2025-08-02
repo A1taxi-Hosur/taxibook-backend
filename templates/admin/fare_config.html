@@ -135,19 +135,31 @@
         }
         
         function loadFareConfigurations() {
-            fetch('/admin/api/fare_config')
-                .then(response => response.json())
+            fetch('/admin/api/fare_config', {
+                method: 'GET',
+                credentials: 'include'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Fare config API response:', data); // Debug log
                     if (data.status === 'success' && data.data && data.data.fare_configs) {
                         fareConfigs = data.data.fare_configs;
+                        console.log('Loaded fare configs:', fareConfigs); // Debug log
                         renderFareConfigCards();
                         updateGlobalSurgeDisplay();
                     } else {
+                        console.error('API response structure:', data); // Debug log
                         showAlert('Failed to load fare configurations: ' + (data.message || 'Invalid response structure'), 'danger');
                         fareConfigs = [];
                     }
                 })
                 .catch(error => {
+                    console.error('Fetch error:', error); // Debug log
                     showAlert('Error loading fare configurations: ' + error.message, 'danger');
                 });
         }
@@ -156,13 +168,22 @@
             const container = document.getElementById('fareConfigContainer');
             container.innerHTML = '';
             
+            console.log('Rendering fare config cards, fareConfigs:', fareConfigs); // Debug log
+            
             // Check if fareConfigs is defined and is an array
             if (!fareConfigs || !Array.isArray(fareConfigs)) {
+                console.error('Invalid fareConfigs:', fareConfigs); // Debug log
                 showAlert('No fare configurations available', 'warning');
                 return;
             }
             
+            if (fareConfigs.length === 0) {
+                showAlert('No fare configurations found in database', 'warning');
+                return;
+            }
+            
             fareConfigs.forEach(config => {
+                console.log('Creating card for config:', config); // Debug log
                 const card = document.createElement('div');
                 card.className = 'col-md-4 mb-3';
                 card.innerHTML = `
@@ -194,6 +215,8 @@
                 `;
                 container.appendChild(card);
             });
+            
+            console.log('Rendered', fareConfigs.length, 'fare config cards'); // Debug log
         }
         
         function updateGlobalSurgeDisplay() {
