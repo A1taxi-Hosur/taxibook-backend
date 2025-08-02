@@ -3,6 +3,13 @@
 ## Overview
 Complete API documentation for the A1 Call Taxi driver mobile application. This guide provides all endpoints, request/response formats, field requirements, and route types needed for driver app integration.
 
+## ⚠️ IMPORTANT: ALWAYS ONLINE SYSTEM
+**New System Update**: Drivers are now automatically online when logged in and offline when logged out. No manual online/offline toggle is needed.
+
+- **Login** → Driver automatically becomes online
+- **Logout** → Driver automatically becomes offline  
+- **No manual status toggle required**
+
 **Base URL**: `https://your-backend-domain.com/driver/`
 **Content-Type**: `application/json`
 **Authentication**: Session-based after login

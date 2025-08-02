@@ -42,16 +42,19 @@ def login():
         if not check_password_hash(driver.password_hash, password):
             return create_error_response("Invalid username or password")
         
-        # Login successful
+        # Login successful - automatically set driver online
+        driver.is_online = True
+        db.session.commit()
+        
         login_user(driver)
-        logging.info(f"Driver logged in: {driver.name} ({driver.username})")
+        logging.info(f"Driver logged in: {driver.name} ({driver.username}) - automatically set online")
         
         return create_success_response({
             'driver_id': driver.id,
             'name': driver.name,
             'phone': driver.phone,
             'username': driver.username,
-            'is_online': driver.is_online,
+            'is_online': True,  # Always online when logged in
             'car_make': driver.car_make,
             'car_model': driver.car_model,
             'car_year': driver.car_year,
@@ -85,12 +88,8 @@ def incoming_rides():
         if not driver:
             return create_error_response("Driver not found. Please login first.")
         
-        # Check if driver is online
-        if not driver.is_online:
-            return create_success_response({
-                'rides': [],
-                'count': 0
-            }, "Driver is offline. No rides available.")
+        # In the new "always online" system, all logged-in drivers are online
+        # No need to check is_online status anymore
         
         # Get available rides (pending status, not assigned to any driver, not rejected by this driver, matching vehicle type)
         # First get ride IDs rejected by this driver
@@ -524,8 +523,20 @@ def current_ride():
 
 @driver_bp.route('/logout', methods=['POST'])
 def logout():
-    """Logout driver"""
+    """Logout driver and set offline"""
     try:
+        data = request.get_json()
+        if data and 'phone' in data:
+            # Validate phone number
+            valid, phone_or_error = validate_phone(data['phone'])
+            if valid:
+                # Find driver and set offline
+                driver = Driver.query.filter_by(phone=phone_or_error).first()
+                if driver:
+                    driver.is_online = False
+                    db.session.commit()
+                    logging.info(f"Driver {driver.name} ({driver.phone}) logged out and set offline")
+        
         logout_user()
         return create_success_response(message="Logout successful")
     except Exception as e:
@@ -534,66 +545,40 @@ def logout():
 
 @driver_bp.route('/status', methods=['POST'])
 def update_status():
-    """Toggle driver availability (online/offline)"""
+    """Always online approach - drivers are online when logged in"""
     try:
         data = request.get_json()
         if not data:
             return create_error_response("Invalid JSON data")
         
-        # Validate required fields
-        valid, error = validate_required_fields(data, ['mobile', 'is_online'])
-        if not valid:
-            return create_error_response(error)
-        
         # Validate phone number
-        valid, phone_or_error = validate_phone(data['mobile'])
+        valid, phone_or_error = validate_phone(data.get('mobile', ''))
         if not valid:
             return create_error_response(phone_or_error)
         
         phone = phone_or_error
-        is_online = data['is_online']
-        
-        if not isinstance(is_online, bool):
-            return create_error_response("is_online must be a boolean value")
         
         # Find driver
         driver = Driver.query.filter_by(phone=phone).first()
         if not driver:
             return create_error_response("Driver not found")
         
-        # Check if driver has active ride when trying to go offline
-        if not is_online:
-            active_ride = Ride.query.filter_by(
-                driver_id=driver.id
-            ).filter(
-                Ride.status.in_(['accepted', 'arrived', 'started'])
-            ).first()
-            
-            if active_ride:
-                return create_error_response("Cannot go offline while having an active ride")
-        
-        # Update driver status
-        driver.is_online = is_online
-        db.session.commit()
-        
-        status_text = "online" if is_online else "offline"
-        logging.info(f"Driver {driver.name} ({driver.phone}) went {status_text}")
-        
+        # In the "always online" system, drivers are automatically online when logged in
+        # This endpoint now just returns the current status without changing it
         return create_success_response({
             'driver_id': driver.id,
             'name': driver.name,
             'phone': driver.phone,
-            'is_online': driver.is_online
-        }, f"Driver status updated to {status_text}")
+            'is_online': True  # Always online when logged in
+        }, "Driver is always online when logged in")
         
     except Exception as e:
         logging.error(f"Error in update_status: {str(e)}")
-        db.session.rollback()
         return create_error_response("Internal server error")
 
 @driver_bp.route('/status', methods=['GET'])
 def get_status():
-    """Get current driver status (online/offline)"""
+    """Get current driver status - always online when logged in"""
     try:
         mobile = request.args.get('mobile')
         if not mobile:
@@ -612,7 +597,7 @@ def get_status():
             return create_error_response("Driver not found")
         
         return create_success_response({
-            'is_online': driver.is_online,
+            'is_online': True,  # Always online in the new system
             'driver_id': driver.id,
             'name': driver.name,
             'phone': driver.phone
