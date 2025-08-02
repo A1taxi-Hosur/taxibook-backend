@@ -164,59 +164,92 @@ function initMap() {
 }
 
 function refreshDrivers() {
-    console.log('Refreshing drivers...');
+    console.log('🚀 Refreshing drivers...');
     fetch('/admin/api/live_driver_locations')
-        .then(response => response.json())
+        .then(response => {
+            console.log('📡 Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
-            console.log('Driver data received:', data);
+            console.log('📊 Driver data received:', data);
             if (data.status === 'success') {
                 driversData = data.data.drivers;
-                console.log('Total drivers:', driversData.length);
+                console.log('👥 Total drivers:', driversData.length);
+                
+                // Debug each driver
+                driversData.forEach((driver, index) => {
+                    console.log(`🚗 Driver ${index + 1}:`, {
+                        name: driver.name,
+                        lat: driver.current_lat,
+                        lng: driver.current_lng,
+                        online: driver.is_online,
+                        hasLocation: !!(driver.current_lat && driver.current_lng)
+                    });
+                });
+                
                 // Filter to only drivers with location data for debugging
                 const driversWithLocation = driversData.filter(d => d.current_lat && d.current_lng);
-                console.log('Drivers with location:', driversWithLocation.length);
+                console.log('📍 Drivers with location:', driversWithLocation.length);
+                console.log('🎯 About to call applyFilters()');
                 applyFilters();
             } else {
-                console.error('API error:', data.message);
+                console.error('❌ API error:', data.message);
                 showError('Failed to load driver locations: ' + data.message);
             }
         })
         .catch(error => {
-            console.error('Network error:', error);
+            console.error('🚨 Network error:', error);
             showError('Network error occurred: ' + error.message);
         });
 }
 
 function displayDriversOnMap(drivers) {
-    console.log('Displaying drivers on map:', drivers.length);
+    console.log('🗺️ Displaying drivers on map:', drivers.length);
     
     // Clear existing markers
+    console.log('🧹 Clearing existing markers:', markers.length);
     markers.forEach(marker => marker.setMap(null));
     markers = [];
     
     // Add new markers
-    drivers.forEach(driver => {
+    console.log('➕ Adding new markers...');
+    drivers.forEach((driver, index) => {
         if (driver.current_lat && driver.current_lng) {
-            console.log(`Creating marker for ${driver.name} at (${driver.current_lat}, ${driver.current_lng})`);
-            const marker = createDriverMarker(driver);
-            markers.push(marker);
+            console.log(`📍 Creating marker ${index + 1} for ${driver.name} at (${driver.current_lat}, ${driver.current_lng})`);
+            try {
+                const marker = createDriverMarker(driver);
+                markers.push(marker);
+                console.log(`✅ Marker created successfully for ${driver.name}`);
+            } catch (error) {
+                console.error(`❌ Error creating marker for ${driver.name}:`, error);
+            }
         } else {
-            console.log(`Skipping ${driver.name} - no location data`);
+            console.log(`⚠️ Skipping ${driver.name} - no location data (lat: ${driver.current_lat}, lng: ${driver.current_lng})`);
         }
     });
     
-    console.log('Total markers created:', markers.length);
+    console.log('📊 Total markers created:', markers.length);
+    console.log('🎯 Map object:', map);
     
     // Update driver list
+    console.log('📝 Updating driver list...');
     displayDriverList(drivers);
     
     // Update count
     document.getElementById('driver-count').textContent = drivers.length;
+    console.log('🏁 displayDriversOnMap completed');
 }
 
 function createDriverMarker(driver) {
     const position = { lat: parseFloat(driver.current_lat), lng: parseFloat(driver.current_lng) };
-    console.log(`Creating marker for ${driver.name} at position:`, position);
+    console.log(`🎯 Creating marker for ${driver.name} at position:`, position);
+    console.log('🗺️ Map object available:', !!map);
+    
+    // Validate coordinates
+    if (isNaN(position.lat) || isNaN(position.lng)) {
+        console.error(`❌ Invalid coordinates for ${driver.name}:`, position);
+        return null;
+    }
     
     // Determine marker color based on status
     let color = '#28a745'; // Green for online
@@ -225,6 +258,8 @@ function createDriverMarker(driver) {
     } else if (driver.out_of_zone) {
         color = '#ffc107'; // Yellow for out of zone
     }
+    
+    console.log(`🎨 Marker color for ${driver.name}:`, color, '(Online:', driver.is_online, ', Out of zone:', driver.out_of_zone, ')');
     
     // Create marker with custom icon
     const marker = new google.maps.Marker({
@@ -242,7 +277,7 @@ function createDriverMarker(driver) {
         animation: google.maps.Animation.DROP
     });
     
-    console.log('Marker created successfully for', driver.name);
+    console.log('✅ Marker created successfully for', driver.name, '- Position on map:', marker.getPosition().toString());
     
     // Create info window
     const infoWindow = new google.maps.InfoWindow({
@@ -356,10 +391,13 @@ function focusOnDriver(driverId) {
 }
 
 function applyFilters() {
+    console.log('🔍 Applying filters...');
     const statusFilter = document.getElementById('statusFilter').value;
     const companyFilter = document.getElementById('companyFilter').value;
     const zoneFilter = document.getElementById('zoneFilter').value;
     const vehicleFilter = document.getElementById('vehicleFilter').value;
+    
+    console.log('🎛️ Filter values:', { statusFilter, companyFilter, zoneFilter, vehicleFilter });
     
     filteredDrivers = driversData.filter(driver => {
         // Status filter
@@ -381,6 +419,8 @@ function applyFilters() {
         return true;
     });
     
+    console.log('✅ Filtered drivers:', filteredDrivers.length, 'out of', driversData.length);
+    console.log('🎯 About to display drivers on map...');
     displayDriversOnMap(filteredDrivers);
 }
 
