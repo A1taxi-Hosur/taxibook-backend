@@ -50,7 +50,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Login successful",
     "data": {
         "driver_id": 1,
@@ -70,7 +70,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Error Response** (400):
 ```json
 {
-    "success": false,
+    "status": "error",
     "message": "Invalid username or password"
 }
 ```
@@ -83,7 +83,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Logout successful"
 }
 ```
@@ -101,7 +101,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Driver status retrieved",
     "data": {
         "is_online": true,
@@ -130,7 +130,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Driver status updated to online",
     "data": {
         "driver_id": 1,
@@ -159,7 +159,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Incoming rides retrieved",
     "data": {
         "rides": [
@@ -211,7 +211,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Ride accepted successfully",
     "data": {
         "ride_id": 1,
@@ -243,7 +243,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Ride rejected successfully",
     "data": {
         "ride_id": 1,
@@ -261,7 +261,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Current ride retrieved",
     "data": {
         "has_active_ride": true,
@@ -285,7 +285,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **No Active Ride Response**:
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "No active ride",
     "data": {
         "has_active_ride": false
@@ -310,7 +310,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Arrival confirmed",
     "data": {
         "ride_id": 1,
@@ -341,7 +341,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Ride started successfully",
     "data": {
         "ride_id": 1,
@@ -369,7 +369,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Ride completed successfully",
     "data": {
         "ride_id": 1,
@@ -392,7 +392,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Ride cancelled successfully",
     "data": {
         "ride_id": 1,
@@ -432,7 +432,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Location updated successfully",
     "data": {
         "ride_id": 1,
@@ -463,7 +463,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Current location updated successfully",
     "data": {
         "driver_id": 1,
@@ -494,7 +494,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 **Success Response** (200):
 ```json
 {
-    "success": true,
+    "status": "success",
     "message": "Zone status retrieved",
     "data": {
         "driver_id": 1,
@@ -597,7 +597,7 @@ pending → accepted → arrived → started → completed
 ### 10.1 Common Error Responses
 ```json
 {
-    "success": false,
+    "status": "error",
     "message": "Error description"
 }
 ```
