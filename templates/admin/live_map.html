@@ -137,10 +137,10 @@ const companyColors = {
 };
 
 function initMap() {
-    // Initialize map centered on Hosur
+    // Initialize map centered on Chennai (where the drivers are)
     map = new google.maps.Map(document.getElementById('map'), {
         zoom: 12,
-        center: { lat: 12.7400, lng: 77.8253 }, // Hosur coordinates
+        center: { lat: 13.0827, lng: 80.2707 }, // Chennai coordinates (where drivers are located)
         mapTypeId: 'roadmap',
         styles: [
             {
@@ -150,6 +150,8 @@ function initMap() {
             }
         ]
     });
+    
+    console.log('Map initialized, center: 13.0827, 80.2707');
     
     // Start auto refresh
     startAutoRefresh();
@@ -162,23 +164,32 @@ function initMap() {
 }
 
 function refreshDrivers() {
+    console.log('Refreshing drivers...');
     fetch('/admin/api/live_driver_locations')
         .then(response => response.json())
         .then(data => {
+            console.log('Driver data received:', data);
             if (data.status === 'success') {
                 driversData = data.data.drivers;
+                console.log('Total drivers:', driversData.length);
+                // Filter to only drivers with location data for debugging
+                const driversWithLocation = driversData.filter(d => d.current_lat && d.current_lng);
+                console.log('Drivers with location:', driversWithLocation.length);
                 applyFilters();
             } else {
-                showError('Failed to load driver locations');
+                console.error('API error:', data.message);
+                showError('Failed to load driver locations: ' + data.message);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showError('Network error occurred');
+            console.error('Network error:', error);
+            showError('Network error occurred: ' + error.message);
         });
 }
 
 function displayDriversOnMap(drivers) {
+    console.log('Displaying drivers on map:', drivers.length);
+    
     // Clear existing markers
     markers.forEach(marker => marker.setMap(null));
     markers = [];
@@ -186,10 +197,15 @@ function displayDriversOnMap(drivers) {
     // Add new markers
     drivers.forEach(driver => {
         if (driver.current_lat && driver.current_lng) {
+            console.log(`Creating marker for ${driver.name} at (${driver.current_lat}, ${driver.current_lng})`);
             const marker = createDriverMarker(driver);
             markers.push(marker);
+        } else {
+            console.log(`Skipping ${driver.name} - no location data`);
         }
     });
+    
+    console.log('Total markers created:', markers.length);
     
     // Update driver list
     displayDriverList(drivers);
@@ -199,34 +215,45 @@ function displayDriversOnMap(drivers) {
 }
 
 function createDriverMarker(driver) {
-    const position = { lat: driver.current_lat, lng: driver.current_lng };
+    const position = { lat: parseFloat(driver.current_lat), lng: parseFloat(driver.current_lng) };
+    console.log(`Creating marker for ${driver.name} at position:`, position);
     
-    // Determine marker color based on company
-    const companyName = driver.company_name || 'default';
-    const color = companyColors[companyName] || companyColors['default'];
+    // Determine marker color based on status
+    let color = '#28a745'; // Green for online
+    if (!driver.is_online) {
+        color = '#dc3545'; // Red for offline
+    } else if (driver.out_of_zone) {
+        color = '#ffc107'; // Yellow for out of zone
+    }
     
     // Create marker with custom icon
     const marker = new google.maps.Marker({
         position: position,
         map: map,
-        title: `${driver.name} (${driver.phone})`,
+        title: `${driver.name} (${driver.car_number || 'Unknown'})`,
         icon: {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
+            scale: 10,
             fillColor: color,
-            fillOpacity: driver.out_of_zone ? 0.4 : 0.8,
+            fillOpacity: 0.9,
             strokeColor: '#ffffff',
-            strokeWeight: 2
+            strokeWeight: 3
         },
         animation: google.maps.Animation.DROP
     });
+    
+    console.log('Marker created successfully for', driver.name);
     
     // Create info window
     const infoWindow = new google.maps.InfoWindow({
         content: createInfoWindowContent(driver)
     });
     
-    // Add click listener
+    // Add hover and click listeners
+    marker.addListener('mouseover', () => {
+        infoWindow.open(map, marker);
+    });
+    
     marker.addListener('click', () => {
         // Close all other info windows
         markers.forEach(m => {
@@ -245,24 +272,29 @@ function createDriverMarker(driver) {
 }
 
 function createInfoWindowContent(driver) {
-    const statusBadge = getStatusBadge(driver.is_online, driver.out_of_zone);
-    const typeBadge = getTypeBadge(driver.car_type);
+    const statusText = driver.is_online ? 
+        (driver.out_of_zone ? 'Online (Out of Zone)' : 'Online') : 'Offline';
+    const statusColor = driver.is_online ? 
+        (driver.out_of_zone ? '#ffc107' : '#28a745') : '#dc3545';
     
     return `
-        <div class="info-window">
+        <div class="info-window" style="min-width: 200px;">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="mb-0">${driver.name}</h6>
-                ${statusBadge}
+                <h6 class="mb-0"><strong>${driver.name}</strong></h6>
+                <span class="badge" style="background-color: ${statusColor}; color: white;">
+                    ${statusText}
+                </span>
             </div>
-            <p class="mb-1">
-                <i class="bi bi-telephone"></i> ${driver.phone}<br>
-                <i class="bi bi-car-front"></i> ${driver.car_number || 'N/A'} ${typeBadge}<br>
-                <i class="bi bi-building"></i> ${driver.company_name || 'N/A'}<br>
-                <i class="bi bi-geo-alt"></i> ${driver.zone || 'No zone'}
+            <p class="mb-1" style="font-size: 14px;">
+                <strong>📞 Phone:</strong> ${driver.phone}<br>
+                <strong>🚗 Vehicle:</strong> ${driver.car_number || 'Not specified'}<br>
+                <strong>🚙 Type:</strong> ${driver.car_type || 'Unknown'}<br>
+                <strong>🏢 Company:</strong> ${driver.company_name || 'A1 Taxi'}<br>
+                <strong>📍 Zone:</strong> ${driver.zone || 'No zone'}
             </p>
-            <button class="btn btn-sm btn-primary" onclick="showDriverDetails(${driver.id})">
-                <i class="bi bi-eye"></i> View Details
-            </button>
+            <small class="text-muted">
+                Last updated: ${driver.location_updated_at ? formatDateTime(driver.location_updated_at) : 'Unknown'}
+            </small>
         </div>
     `;
 }
