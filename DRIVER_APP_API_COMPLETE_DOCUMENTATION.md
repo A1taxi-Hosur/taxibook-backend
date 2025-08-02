@@ -191,7 +191,9 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 - Only shows rides matching driver's vehicle type
 - Excludes previously rejected rides
 - Distance calculation requires Google Maps API
-- Only online drivers receive rides
+- **Driver Availability Logic**:
+  - If driver is OFFLINE: Returns empty rides array with message "Driver is offline. No rides available."
+  - If driver is ONLINE: Returns available rides or empty array with message "Incoming rides retrieved"
 
 ### 3.2 Accept Ride
 **Endpoint**: `POST /driver/accept_ride`
@@ -290,6 +292,18 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
     "message": "No active ride",
     "data": {
         "has_active_ride": false
+    }
+}
+```
+
+**Offline Driver Response** (when driver calls /incoming_rides while offline):
+```json
+{
+    "status": "success",
+    "message": "Driver is offline. No rides available.",
+    "data": {
+        "rides": [],
+        "count": 0
     }
 }
 ```
