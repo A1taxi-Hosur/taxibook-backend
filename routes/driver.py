@@ -88,8 +88,13 @@ def incoming_rides():
         if not driver:
             return create_error_response("Driver not found. Please login first.")
         
-        # In the new "always online" system, all logged-in drivers are online
-        # No need to check is_online status anymore
+        # Check if driver is actually online (logged in)
+        # Only online drivers should receive ride requests
+        if not driver.is_online:
+            return create_success_response({
+                'rides': [],
+                'count': 0
+            }, "Driver is offline - no rides available")
         
         # Get available rides (pending status, not assigned to any driver, not rejected by this driver, matching vehicle type)
         # First get ride IDs rejected by this driver
@@ -523,7 +528,7 @@ def current_ride():
 
 @driver_bp.route('/logout', methods=['POST'])
 def logout():
-    """Logout driver and set offline"""
+    """Logout driver, set offline, and clear location data"""
     try:
         data = request.get_json()
         if data and 'phone' in data:
@@ -533,14 +538,24 @@ def logout():
                 # Find driver and set offline
                 driver = Driver.query.filter_by(phone=phone_or_error).first()
                 if driver:
+                    # Set driver offline
                     driver.is_online = False
+                    
+                    # Clear location data to prevent ghost driver appearance
+                    driver.current_lat = None
+                    driver.current_lng = None
+                    driver.location_updated_at = None
+                    driver.zone_id = None
+                    driver.out_of_zone = False
+                    
                     db.session.commit()
-                    logging.info(f"Driver {driver.name} ({driver.phone}) logged out and set offline")
+                    logging.info(f"Driver {driver.name} ({driver.phone}) logged out, set offline, and location cleared")
         
         logout_user()
         return create_success_response(message="Logout successful")
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
+        db.session.rollback()
         return create_error_response("Internal server error")
 
 @driver_bp.route('/status', methods=['POST'])

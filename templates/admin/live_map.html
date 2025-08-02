@@ -259,6 +259,13 @@ function createDriverMarker(driver) {
         color = '#ffc107'; // Yellow for out of zone
     }
     
+    // Make stale locations semi-transparent
+    let fillOpacity = 0.9;
+    if (driver.is_stale) {
+        fillOpacity = 0.5; // Semi-transparent for stale locations
+        console.log(`⏰ Driver ${driver.name} has stale location data`);
+    }
+    
     console.log(`🎨 Marker color for ${driver.name}:`, color, '(Online:', driver.is_online, ', Out of zone:', driver.out_of_zone, ')');
     
     // Create marker with custom icon
@@ -270,7 +277,7 @@ function createDriverMarker(driver) {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
             fillColor: color,
-            fillOpacity: 0.9,
+            fillOpacity: fillOpacity,
             strokeColor: '#ffffff',
             strokeWeight: 3
         },
@@ -312,6 +319,25 @@ function createInfoWindowContent(driver) {
     const statusColor = driver.is_online ? 
         (driver.out_of_zone ? '#ffc107' : '#28a745') : '#dc3545';
     
+    // Format last seen time if available
+    let lastSeenText = '';
+    if (driver.location_updated_at) {
+        const lastSeen = new Date(driver.location_updated_at);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - lastSeen) / (1000 * 60));
+        
+        if (diffMinutes < 1) {
+            lastSeenText = 'Just now';
+        } else if (diffMinutes < 60) {
+            lastSeenText = `${diffMinutes} minutes ago`;
+        } else {
+            const diffHours = Math.floor(diffMinutes / 60);
+            lastSeenText = `${diffHours} hours ago`;
+        }
+    } else {
+        lastSeenText = 'Unknown';
+    }
+    
     return `
         <div class="info-window" style="min-width: 200px;">
             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -323,6 +349,7 @@ function createInfoWindowContent(driver) {
             <p class="mb-1" style="font-size: 14px;">
                 <strong>📞 Phone:</strong> ${driver.phone}<br>
                 <strong>🚗 Vehicle:</strong> ${driver.car_number || 'Not specified'}<br>
+                <strong>🕒 Last Seen:</strong> ${lastSeenText}<br>
                 <strong>🚙 Type:</strong> ${driver.car_type || 'Unknown'}<br>
                 <strong>🏢 Company:</strong> ${driver.company_name || 'A1 Taxi'}<br>
                 <strong>📍 Zone:</strong> ${driver.zone || 'No zone'}

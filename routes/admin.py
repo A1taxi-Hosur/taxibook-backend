@@ -1036,13 +1036,35 @@ def live_map():
 @admin_bp.route('/api/live_driver_locations', methods=['GET'])
 @login_required
 def api_live_driver_locations():
-    """API endpoint to get live driver locations"""
+    """API endpoint to get live driver locations with staleness filtering"""
     try:
+        from datetime import timedelta
+        
+        # Get current time for staleness check
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(minutes=15)  # Consider locations older than 15 minutes as stale
+        
         # Get all drivers with their current locations
         drivers = Driver.query.all()
         
         driver_locations = []
         for driver in drivers:
+            # Skip drivers without location data
+            if not (driver.current_lat and driver.current_lng):
+                continue
+            
+            # Check if location is stale (older than 15 minutes)
+            is_stale = False
+            if driver.location_updated_at:
+                time_since_update = current_time - driver.location_updated_at
+                is_stale = time_since_update > staleness_threshold
+            
+            # Only show drivers with fresh location data OR online drivers with any location
+            # This prevents ghost drivers while showing recently active drivers
+            if is_stale and not driver.is_online:
+                logging.debug(f"Skipping stale offline driver: {driver.name} (last seen: {driver.location_updated_at})")
+                continue
+            
             driver_data = {
                 'id': driver.id,
                 'name': driver.name,
@@ -1058,7 +1080,8 @@ def api_live_driver_locations():
                 'car_model': driver.car_model,
                 'car_year': driver.car_year,
                 'company_name': 'A1 Taxi',  # Default company name
-                'zone': driver.zone.zone_name if driver.zone else None
+                'zone': driver.zone.zone_name if driver.zone else None,
+                'is_stale': is_stale
             }
             driver_locations.append(driver_data)
         
