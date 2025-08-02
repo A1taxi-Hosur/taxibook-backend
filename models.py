@@ -1,5 +1,6 @@
 from app import db, get_ist_time
 from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import func
 import logging
@@ -77,6 +78,14 @@ class Admin(UserMixin, db.Model):
     role = db.Column(db.String(20), default='admin')  # admin only for now
     firebase_token = db.Column(db.Text, nullable=True)  # FCM token
     created_at = db.Column(db.DateTime, default=get_ist_time)
+    
+    def set_password(self, password):
+        """Hash and set password"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check if provided password matches the hash"""
+        return check_password_hash(self.password_hash, password)
     
     def __repr__(self):
         return f'<Admin {self.username}>'

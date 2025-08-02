@@ -43,7 +43,7 @@ def login():
             return render_template('admin/login.html')
         
         admin = Admin.query.filter_by(username=username).first()
-        if admin and admin.password_hash == password:  # In production, use proper password hashing
+        if admin and admin.check_password(password):  # Now using secure password verification
             login_user(admin)
             logging.info(f"Admin logged in: {admin.username}")
             return redirect(url_for('admin.dashboard'))
@@ -67,7 +67,7 @@ def api_login():
             return create_error_response("Username and password are required")
         
         admin = Admin.query.filter_by(username=username).first()
-        if admin and admin.password_hash == password:
+        if admin and admin.check_password(password):
             login_user(admin)
             logging.info(f"Admin logged in via API: {admin.username}")
             return create_success_response({

@@ -92,13 +92,11 @@ with app.app_context():
         # Create default admin user if not exists
         admin = models.Admin.query.filter_by(username='admin').first()
         if not admin:
-            admin = models.Admin(
-                username='admin',
-                password_hash='admin123'  # In production, this should be hashed
-            )
+            admin = models.Admin(username='admin')
+            admin.set_password('admin123')  # Now properly hashed
             db.session.add(admin)
             db.session.commit()
-            logging.info("Default admin user created: admin/admin123")
+            logging.info("Default admin user created: admin/admin123 (password hashed)")
         
         # Initialize default data
         try:
