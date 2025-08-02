@@ -143,7 +143,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 
 **Error Cases**:
 - Cannot go offline while having active ride
-- Invalid phone number format
+- Invalid phone number format (must be 10-digit Indian mobile number starting with 6-9)
 
 ---
 
@@ -225,9 +225,10 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 ```
 
 **Error Cases**:
-- Driver already has ongoing ride
-- Ride no longer available
-- Driver not found
+- Driver already has ongoing ride: "You already have an ongoing ride"
+- Ride no longer available: "Ride not available or already accepted"
+- Driver not found: "Driver not found"
+- Missing parameters: "Missing required fields: driver_phone"
 
 ### 3.3 Reject Ride
 **Endpoint**: `POST /driver/reject_ride`
@@ -351,9 +352,9 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 ```
 
 **Error Cases**:
-- Invalid OTP format (must be 6 digits)
-- Wrong OTP code
-- Ride not in correct status
+- Invalid OTP format: "OTP must be exactly 6 digits"
+- Wrong OTP code: "Invalid OTP"
+- Ride not in correct status: "Ride cannot be started from current status"
 - Driver not authorized for this ride
 
 ### 4.3 Complete Ride
@@ -447,6 +448,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
 - Only for active rides (accepted, arrived, started)
 - Used for customer tracking
 - Creates ride location history
+- Error if ride not found: "Ride not found or not assigned to you"
 
 ### 5.2 Update Current Location
 **Endpoint**: `POST /driver/update_current_location`
@@ -470,7 +472,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
         "latitude": 13.0827,
         "longitude": 80.2707,
         "updated_at": "2025-08-02T10:45:00",
-        "zone": "Chennai Central",
+        "zone": "chennai",
         "out_of_zone": false
     }
 }
@@ -501,7 +503,7 @@ Complete API documentation for the A1 Call Taxi driver mobile application. This 
         "current_lat": 13.0827,
         "current_lng": 80.2707,
         "zone_id": 1,
-        "zone_name": "Chennai Central",
+        "zone_name": "chennai",
         "out_of_zone": false,
         "location_updated_at": "2025-08-02T10:45:00"
     }
@@ -612,13 +614,19 @@ pending → accepted → arrived → started → completed
 
 ### 10.3 Phone Number Validation
 - Must be exactly 10 digits
+- Must start with 6, 7, 8, or 9 (Indian mobile format)
 - Numeric characters only
 - No country code prefix
+- Error message: "Invalid phone number format. Must be a 10-digit Indian mobile number starting with 6-9"
 
 ### 10.4 GPS Coordinate Validation
 - Latitude: -90 to 90 degrees
 - Longitude: -180 to 180 degrees
 - Float format required
+- Error messages:
+  - "Invalid latitude value" (for values outside -90 to 90)
+  - "Invalid longitude value" (for values outside -180 to 180)
+  - "Invalid latitude or longitude format" (for non-numeric values)
 
 ---
 
