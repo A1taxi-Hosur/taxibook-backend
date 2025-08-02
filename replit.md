@@ -15,6 +15,7 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful endpoints with standardized JSON responses.
 - **Timezone**: All timestamps are in Asia/Kolkata timezone.
 - **Driver Status**: "Always Online" system - drivers automatically online when logged in, offline when logged out (implemented 2025-08-02).
+- **Live Map**: Real-time driver location tracking with Google Maps integration showing driver pins as colored circles (green=online, red=offline, yellow=out of zone) - verified working 2025-08-02.
 
 ### Frontend
 - **Admin Interface**: Server-side rendered HTML templates using Bootstrap.
