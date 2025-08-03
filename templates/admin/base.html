@@ -10,6 +10,7 @@
         .sidebar {
             min-height: 100vh;
             box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            display: block !important;
         }
         .sidebar .nav-link {
             color: #adb5bd;
@@ -34,7 +35,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse bg-dark">
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar bg-dark">
                 <div class="position-sticky pt-3">
                     <div class="text-center mb-3">
                         <img src="{{ url_for('static', filename='logo.png') }}" alt="A1 Call Taxi" class="img-fluid mb-2" style="max-width: 120px; height: auto;">
