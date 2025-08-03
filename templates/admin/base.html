@@ -9,6 +9,7 @@
     <style>
         .sidebar {
             min-height: 100vh;
+            height: 100vh;
             box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
             display: block !important;
             position: fixed;
@@ -16,11 +17,39 @@
             left: 0;
             width: 250px;
             z-index: 1000;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         .main-content {
             margin-left: 250px;
         }
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
         .sidebar .nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        .sidebar .text-center {
+            padding: 0.5rem;
+        }
+        .sidebar h5 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+        .sidebar small {
+            font-size: 0.75rem;
+        }
             color: #adb5bd;
         }
         .sidebar .nav-link.active {
@@ -44,9 +73,9 @@
         <div class="row">
             <!-- Sidebar -->
             <nav class="col-md-3 col-lg-2 d-md-block sidebar bg-dark">
-                <div class="position-sticky pt-3">
-                    <div class="text-center mb-3">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="A1 Call Taxi" class="img-fluid mb-2" style="max-width: 120px; height: auto;">
+                <div class="pt-3 pb-3">
+                    <div class="text-center mb-2">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="A1 Call Taxi" class="img-fluid mb-1" style="max-width: 100px; height: auto;">
                         <h5 class="text-primary">A1 Call Taxi</h5>
                         <small class="text-muted">Admin Panel</small>
                     </div>
