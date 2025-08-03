@@ -1049,28 +1049,29 @@ def api_live_driver_locations():
         
         driver_locations = []
         for driver in drivers:
-            # Skip drivers without location data
-            if not (driver.current_lat and driver.current_lng):
-                continue
-            
             # Check if location is stale (older than 15 minutes)
             is_stale = False
-            if driver.location_updated_at:
+            has_location = bool(driver.current_lat and driver.current_lng)
+            
+            if driver.location_updated_at and has_location:
                 time_since_update = current_time - driver.location_updated_at
                 is_stale = time_since_update > staleness_threshold
             
-            # Only show drivers with fresh location data OR online drivers with any location
-            # This prevents ghost drivers while showing recently active drivers
-            if is_stale and not driver.is_online:
-                logging.debug(f"Skipping stale offline driver: {driver.name} (last seen: {driver.location_updated_at})")
+            # Skip offline drivers with stale or no location data
+            if not driver.is_online and (is_stale or not has_location):
+                logging.debug(f"Skipping offline driver: {driver.name} (online: {driver.is_online}, has_location: {has_location}, stale: {is_stale})")
                 continue
+            
+            # Include online drivers even without location data (they'll be shown with special status)
+            if driver.is_online:
+                logging.info(f"Including online driver: {driver.name} (has_location: {has_location})")
             
             driver_data = {
                 'id': driver.id,
                 'name': driver.name,
                 'phone': driver.phone,
-                'current_lat': driver.current_lat,
-                'current_lng': driver.current_lng,
+                'current_lat': driver.current_lat if has_location else None,
+                'current_lng': driver.current_lng if has_location else None,
                 'location_updated_at': driver.location_updated_at.isoformat() if driver.location_updated_at else None,
                 'is_online': driver.is_online,
                 'out_of_zone': driver.out_of_zone,
@@ -1081,7 +1082,8 @@ def api_live_driver_locations():
                 'car_year': driver.car_year,
                 'company_name': 'A1 Taxi',  # Default company name
                 'zone': driver.zone.zone_name if driver.zone else None,
-                'is_stale': is_stale
+                'is_stale': is_stale,
+                'has_location': has_location
             }
             driver_locations.append(driver_data)
         

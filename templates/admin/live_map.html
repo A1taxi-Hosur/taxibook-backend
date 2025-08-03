@@ -234,7 +234,7 @@ function displayDriversOnMap(drivers) {
     // Clear empty state message if it exists
     clearEmptyDriverState();
     
-    // Add new markers
+    // Add new markers (only for drivers with location data)
     console.log('➕ Adding new markers...');
     drivers.forEach((driver, index) => {
         if (driver.current_lat && driver.current_lng) {
@@ -247,7 +247,7 @@ function displayDriversOnMap(drivers) {
                 console.error(`❌ Error creating marker for ${driver.name}:`, error);
             }
         } else {
-            console.log(`⚠️ Skipping ${driver.name} - no location data (lat: ${driver.current_lat}, lng: ${driver.current_lng})`);
+            console.log(`ℹ️ Driver ${driver.name} is online but has no location data - will show in list only`);
         }
     });
     
@@ -399,14 +399,15 @@ function displayDriverList(drivers) {
     
     let html = '';
     drivers.forEach(driver => {
-        const statusBadge = getStatusBadge(driver.is_online, driver.out_of_zone);
+        const hasLocation = driver.current_lat && driver.current_lng;
+        const statusBadge = getStatusBadge(driver.is_online, driver.out_of_zone, hasLocation);
         const typeBadge = getTypeBadge(driver.car_type);
         const companyColor = companyColors[driver.company_name] || companyColors['default'];
         
         html += `
-            <div class="driver-item p-2 border-bottom" onclick="focusOnDriver(${driver.id})">
+            <div class="driver-item p-2 border-bottom" ${hasLocation ? `onclick="focusOnDriver(${driver.id})"` : ''}>
                 <div class="d-flex align-items-center">
-                    <div class="driver-marker-preview" style="background-color: ${companyColor}; opacity: ${driver.out_of_zone ? 0.4 : 0.8}"></div>
+                    <div class="driver-marker-preview" style="background-color: ${hasLocation ? companyColor : '#6c757d'}; opacity: ${hasLocation ? (driver.out_of_zone ? 0.4 : 0.8) : 0.5}"></div>
                     <div class="ms-2 flex-grow-1">
                         <div class="d-flex justify-content-between align-items-start">
                             <h6 class="mb-0 small">${driver.name}</h6>
@@ -415,6 +416,7 @@ function displayDriverList(drivers) {
                         <p class="mb-0 small text-muted">
                             ${driver.phone}<br>
                             ${driver.car_number || 'N/A'} ${typeBadge}
+                            ${!hasLocation ? '<br><small class="text-warning">📍 Location not available</small>' : ''}
                         </p>
                     </div>
                 </div>
@@ -594,9 +596,11 @@ function loadZones() {
         });
 }
 
-function getStatusBadge(isOnline, outOfZone) {
+function getStatusBadge(isOnline, outOfZone, hasLocation) {
     if (!isOnline) {
         return '<span class="badge bg-secondary">Offline</span>';
+    } else if (!hasLocation) {
+        return '<span class="badge bg-info">Online (No Location)</span>';
     } else if (outOfZone) {
         return '<span class="badge bg-warning">Out of Zone</span>';
     } else {
