@@ -176,6 +176,18 @@ function refreshDrivers() {
                 driversData = data.data.drivers;
                 console.log('👥 Total drivers:', driversData.length);
                 
+                // Clear any existing error messages on successful load
+                const existingErrors = document.querySelectorAll('.alert-danger');
+                existingErrors.forEach(alert => alert.remove());
+                
+                // Handle case when no drivers are available
+                if (driversData.length === 0) {
+                    console.log('ℹ️ No drivers currently available');
+                    // Don't show error, just clear map and show empty state
+                    displayDriversOnMap([]);
+                    return;
+                }
+                
                 // Debug each driver
                 driversData.forEach((driver, index) => {
                     console.log(`🚗 Driver ${index + 1}:`, {
@@ -210,6 +222,17 @@ function displayDriversOnMap(drivers) {
     console.log('🧹 Clearing existing markers:', markers.length);
     markers.forEach(marker => marker.setMap(null));
     markers = [];
+    
+    // Show empty state message if no drivers
+    if (drivers.length === 0) {
+        showEmptyDriverState();
+        displayDriverList(drivers);
+        document.getElementById('driver-count').textContent = '0';
+        return;
+    }
+    
+    // Clear empty state message if it exists
+    clearEmptyDriverState();
     
     // Add new markers
     console.log('➕ Adding new markers...');
@@ -596,6 +619,10 @@ function formatDateTime(dateString) {
 }
 
 function showError(message) {
+    // Clear existing error alerts first
+    const existingErrors = document.querySelectorAll('.alert-danger');
+    existingErrors.forEach(alert => alert.remove());
+    
     const alert = document.createElement('div');
     alert.className = 'alert alert-danger alert-dismissible fade show';
     alert.innerHTML = `
@@ -605,6 +632,29 @@ function showError(message) {
     
     const main = document.querySelector('main .pt-3');
     main.insertBefore(alert, main.firstChild);
+}
+
+function showEmptyDriverState() {
+    clearEmptyDriverState(); // Clear any existing empty state
+    
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-info alert-dismissible fade show';
+    alert.id = 'empty-driver-state';
+    alert.innerHTML = `
+        <i class="bi bi-info-circle me-2"></i>
+        No drivers are currently online or available for tracking.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const main = document.querySelector('main .pt-3');
+    main.insertBefore(alert, main.firstChild);
+}
+
+function clearEmptyDriverState() {
+    const existingEmptyState = document.getElementById('empty-driver-state');
+    if (existingEmptyState) {
+        existingEmptyState.remove();
+    }
 }
 
 // Initialize page
