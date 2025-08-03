@@ -11,6 +11,14 @@
             min-height: 100vh;
             box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
             display: block !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            z-index: 1000;
+        }
+        .main-content {
+            margin-left: 250px;
         }
         .sidebar .nav-link {
             color: #adb5bd;
@@ -147,7 +155,7 @@
             </nav>
 
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <main class="main-content px-md-4">
                 <div class="pt-3">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
