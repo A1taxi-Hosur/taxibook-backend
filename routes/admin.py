@@ -1054,7 +1054,14 @@ def api_live_driver_locations():
             has_location = bool(driver.current_lat and driver.current_lng)
             
             if driver.location_updated_at and has_location:
-                time_since_update = current_time - driver.location_updated_at
+                # Convert location_updated_at to IST timezone if it's offset-naive
+                if driver.location_updated_at.tzinfo is None:
+                    from app import IST
+                    location_time = IST.localize(driver.location_updated_at)
+                else:
+                    location_time = driver.location_updated_at.astimezone(IST)
+                
+                time_since_update = current_time - location_time
                 is_stale = time_since_update > staleness_threshold
             
             # Skip offline drivers with stale or no location data
