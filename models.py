@@ -319,6 +319,7 @@ class FareConfig(db.Model):
             {'ride_type': 'suv', 'base_fare': 35.0, 'per_km_rate': 12.0, 'surge_multiplier': 1.0}
         ]
         
+        configs_added = 0
         for fare_data in default_fares:
             existing_config = FareConfig.query.filter_by(ride_type=fare_data['ride_type']).first()
             if not existing_config:
@@ -329,8 +330,14 @@ class FareConfig(db.Model):
                     surge_multiplier=fare_data['surge_multiplier']
                 )
                 db.session.add(config)
+                configs_added += 1
+                print(f"Added default fare config: {fare_data['ride_type']} - ₹{fare_data['base_fare']} + ₹{fare_data['per_km_rate']}/km")
         
-        db.session.commit()
+        if configs_added > 0:
+            db.session.commit()
+            print(f"Initialized {configs_added} fare configurations")
+        else:
+            print("Fare configurations already exist, skipping initialization")
 
 
 class SpecialFareConfig(db.Model):

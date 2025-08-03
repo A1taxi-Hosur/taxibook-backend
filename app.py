@@ -107,10 +107,23 @@ with app.app_context():
         except Exception as e:
             logging.error(f"Error initializing default data: {e}")
     else:
-        # Production environment - just ensure tables exist without dropping/recreating
-        logging.info("Production environment detected - skipping database initialization")
+        # Production environment - ensure tables exist and initialize essential data
+        logging.info("Production environment detected - ensuring essential data exists")
         # Only create tables if they don't exist (this won't drop existing data)
         db.create_all()
+        
+        # Ensure essential data exists in production (won't overwrite existing data)
+        try:
+            models.FareConfig.initialize_default_fares()
+            logging.info("Production: Fare configurations initialized")
+            models.SpecialFareConfig.initialize_default_special_fares()
+            logging.info("Production: Special fare configurations initialized")
+            models.Zone.initialize_default_zones()
+            logging.info("Production: Zones initialized")
+            models.PromoCode.initialize_default_promo_codes()
+            logging.info("Production: Promo codes initialized")
+        except Exception as e:
+            logging.error(f"Error initializing production data: {e}")
 
 # Root route - Login-aware landing page
 @app.route('/')

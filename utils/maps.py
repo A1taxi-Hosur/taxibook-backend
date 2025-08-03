@@ -67,14 +67,10 @@ def get_distance_and_fare(pickup_address, drop_address, pickup_lat=None, pickup_
         distance_meters = element['distance']['value']
         distance_km = distance_meters / 1000
         
-        # Calculate fare: ₹12 base + ₹11/km
-        base_fare = 12
-        per_km_rate = 11
-        fare_amount = base_fare + (distance_km * per_km_rate)
-        fare_amount = round(fare_amount, 2)
-        
-        logging.info(f"Distance calculated: {distance_km}km, Fare: ₹{fare_amount}")
-        return True, distance_km, fare_amount, None
+        # Note: Fare calculation now handled by calling function using FareConfig
+        # This function only returns distance, fare calculated elsewhere based on ride type
+        logging.info(f"Distance calculated: {distance_km}km")
+        return True, distance_km, None, None
         
     except requests.exceptions.RequestException as e:
         logging.error(f"Google Maps API request failed: {str(e)}")

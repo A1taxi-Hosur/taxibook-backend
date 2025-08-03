@@ -116,8 +116,13 @@
                 credentials: 'include'
             })
                 .then(response => {
+                    console.log('Response status:', response.status); // Debug log
+                    if (response.status === 401 || response.status === 403) {
+                        showAlert('Authentication required. Please refresh the page and login again.', 'danger');
+                        throw new Error('Authentication required');
+                    }
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     return response.json();
                 })
