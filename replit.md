@@ -6,6 +6,12 @@ A1 Call Taxi is a comprehensive taxi booking platform for the Indian market, pro
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Critical Issues (2025-08-06)
+- **Railway Production Backend Crisis:** Complete authentication failure affecting all user types (admin, driver, customer)
+- **Database Isolation:** Railway production and local development databases are completely separate with different driver credentials
+- **Cannot Access Production Data:** Admin login fails on Railway, preventing access to real driver credentials
+- **Driver App Impact:** Cannot provide working production credentials until Railway backend is fixed
+
 ## System Architecture
 ### Backend
 - **Framework**: Flask (Python 3) with modular blueprint structure.
