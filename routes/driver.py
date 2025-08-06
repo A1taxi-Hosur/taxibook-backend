@@ -64,11 +64,19 @@ def login():
         else:
             data = request.form.to_dict()
         
-        logging.info(f"Driver login attempt - Content-Type: {request.content_type}, Data: {data}")
+        # Enhanced debugging
+        raw_body = request.get_data(as_text=True)
+        logging.info(f"=== LOGIN DEBUG ===")
+        logging.info(f"Content-Type: {request.content_type}")
+        logging.info(f"Raw body: {raw_body}")
+        logging.info(f"Raw body length: {len(raw_body)}")
+        logging.info(f"Parsed data: {data}")
+        logging.info(f"Request headers: {dict(request.headers)}")
+        logging.info(f"=== END DEBUG ===")
         
         if not data:
             logging.warning("Empty login data received - form data might not be transmitted properly")
-            return create_error_response("Missing login data")
+            return create_error_response("Missing login data - check if frontend is sending data properly")
         
         if not data.get('username') or not data.get('password'):
             logging.warning(f"Incomplete login data - username: {bool(data.get('username'))}, password: {bool(data.get('password'))}")
