@@ -84,6 +84,13 @@ with app.app_context():
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(mobile_bp, url_prefix='')
     
+    # Add catch-all login route for backwards compatibility
+    @app.route('/login', methods=['POST'])
+    def legacy_login():
+        """Legacy login endpoint that redirects to driver login for backwards compatibility"""
+        from routes.driver import login
+        return login()
+    
     # Only create tables and initialize data in development
     # In production (Railway), tables should already exist
     is_production = bool(os.environ.get('RAILWAY_ENVIRONMENT')) or os.environ.get('NODE_ENV') == 'production'

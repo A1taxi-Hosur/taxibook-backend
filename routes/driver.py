@@ -54,6 +54,7 @@ def test_endpoint():
         }), 400
 
 @driver_bp.route('/login', methods=['POST'])
+@driver_bp.route('/', methods=['POST'])  # Also handle requests to /driver/ (root driver route)
 def login():
     """Driver login with username and password"""
     try:

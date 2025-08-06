@@ -1,0 +1,88 @@
+App-CpO7Uck2.js:184 === MUTATION FUNCTION CALLED ===
+App-CpO7Uck2.js:184 Starting login API call for username: DRVVJ53TA
+App-CpO7Uck2.js:184 Full login data being sent: {username: 'DRVVJ53TA', password: '6655@Taxi'}
+App-CpO7Uck2.js:184 JSON stringified data: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+App-CpO7Uck2.js:184 Request body length: 47
+App-CpO7Uck2.js:184 Making API request to: https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login
+App-CpO7Uck2.js:184 Request body: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+App-CpO7Uck2.js:184 Request headers: {Content-Type: 'application/json', Accept: 'application/json', Cache-Control: 'no-store, no-cache, must-revalidate', Pragma: 'no-cache'}
+Access to fetch at 'https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login' from origin 'https://taxi-book-react-a1taxihsr.replit.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+sw.js:56 Service Worker: Fetch failed TypeError: Failed to fetch
+    at sw.js:35:5
+(anonymous) @ sw.js:56
+Promise.catch
+(anonymous) @ sw.js:55
+App-CpO7Uck2.js:184  POST https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login 408 (Request Timeout)
+Ce @ App-CpO7Uck2.js:184
+mutationFn @ App-CpO7Uck2.js:184
+fn @ App-CpO7Uck2.js:9
+w @ App-CpO7Uck2.js:9
+start @ App-CpO7Uck2.js:9
+execute @ App-CpO7Uck2.js:9
+await in execute
+mutate @ App-CpO7Uck2.js:9
+(anonymous) @ App-CpO7Uck2.js:9
+d @ App-CpO7Uck2.js:902
+(anonymous) @ App-CpO7Uck2.js:902
+await in (anonymous)
+Wc @ index--5wKUBiE.js:37
+Kc @ index--5wKUBiE.js:37
+Yc @ index--5wKUBiE.js:37
+au @ index--5wKUBiE.js:37
+Js @ index--5wKUBiE.js:37
+(anonymous) @ index--5wKUBiE.js:37
+xi @ index--5wKUBiE.js:40
+ks @ index--5wKUBiE.js:37
+Ml @ index--5wKUBiE.js:37
+bo @ index--5wKUBiE.js:37
+cf @ index--5wKUBiE.js:37
+App-CpO7Uck2.js:184 API response received: 408 
+App-CpO7Uck2.js:184 API request failed: ApiError: HTTP error! status: 408
+    at Ce (App-CpO7Uck2.js:184:57819)
+    at async Object.mutationFn (App-CpO7Uck2.js:184:62342)
+Ce @ App-CpO7Uck2.js:184
+await in Ce
+mutationFn @ App-CpO7Uck2.js:184
+fn @ App-CpO7Uck2.js:9
+w @ App-CpO7Uck2.js:9
+start @ App-CpO7Uck2.js:9
+execute @ App-CpO7Uck2.js:9
+await in execute
+mutate @ App-CpO7Uck2.js:9
+(anonymous) @ App-CpO7Uck2.js:9
+d @ App-CpO7Uck2.js:902
+(anonymous) @ App-CpO7Uck2.js:902
+await in (anonymous)
+Wc @ index--5wKUBiE.js:37
+Kc @ index--5wKUBiE.js:37
+Yc @ index--5wKUBiE.js:37
+au @ index--5wKUBiE.js:37
+Js @ index--5wKUBiE.js:37
+(anonymous) @ index--5wKUBiE.js:37
+xi @ index--5wKUBiE.js:40
+ks @ index--5wKUBiE.js:37
+Ml @ index--5wKUBiE.js:37
+bo @ index--5wKUBiE.js:37
+cf @ index--5wKUBiE.js:37
+App-CpO7Uck2.js:184 Login mutation onError called with: ApiError: HTTP error! status: 408
+    at Ce (App-CpO7Uck2.js:184:57819)
+    at async Object.mutationFn (App-CpO7Uck2.js:184:62342)
+onError @ App-CpO7Uck2.js:184
+execute @ App-CpO7Uck2.js:9
+await in execute
+mutate @ App-CpO7Uck2.js:9
+(anonymous) @ App-CpO7Uck2.js:9
+d @ App-CpO7Uck2.js:902
+(anonymous) @ App-CpO7Uck2.js:902
+await in (anonymous)
+Wc @ index--5wKUBiE.js:37
+Kc @ index--5wKUBiE.js:37
+Yc @ index--5wKUBiE.js:37
+au @ index--5wKUBiE.js:37
+Js @ index--5wKUBiE.js:37
+(anonymous) @ index--5wKUBiE.js:37
+xi @ index--5wKUBiE.js:40
+ks @ index--5wKUBiE.js:37
+Ml @ index--5wKUBiE.js:37
+bo @ index--5wKUBiE.js:37
+cf @ index--5wKUBiE.js:37
