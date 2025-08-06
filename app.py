@@ -82,7 +82,7 @@ with app.app_context():
     
     # Only create tables and initialize data in development
     # In production (Railway), tables should already exist
-    is_production = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('NODE_ENV') == 'production'
+    is_production = bool(os.environ.get('RAILWAY_ENVIRONMENT')) or os.environ.get('NODE_ENV') == 'production'
     
     if not is_production:
         # Development environment - create tables and default data
