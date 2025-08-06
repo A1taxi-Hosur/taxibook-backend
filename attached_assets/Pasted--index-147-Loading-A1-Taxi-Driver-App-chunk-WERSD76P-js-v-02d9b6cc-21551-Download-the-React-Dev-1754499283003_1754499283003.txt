@@ -1,0 +1,197 @@
+(index):147 Loading A1 Taxi Driver App...
+chunk-WERSD76P.js?v=02d9b6cc:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:34 Clearing all caches and storage to fix white screen issue
+main.tsx:57 App version updated: 1754499161003
+main.tsx:60 Initializing Kad Taxi Driver App with production deployment fixes
+main.tsx:61 Android back button support: Active
+main.tsx:62 Cache control: Disabled for fresh data
+main.tsx:63 Session persistence: localStorage + sessionStorage
+main.tsx:7 Loading App component...
+sw.js:10 Service Worker: Installing with no-cache policy
+(index):154 Service Worker registered successfully
+sw.js:16 Service Worker: Activating with no-cache policy
+main.tsx:49 Updated service worker
+firebase.ts:36 Firebase not configured - push notifications will be disabled
+(anonymous) @ firebase.ts:36
+main.tsx:9 App component loaded successfully
+main.tsx:72 Rendering app...
+main.tsx:75 App rendered successfully
+notifications.ts:35 Firebase not configured - push notifications disabled
+initializeFirebaseMessaging @ notifications.ts:35
+handleNativeBack.ts:108 Not in Android WebView, skipping back button initialization
+simple-login.tsx:18 === SIMPLE LOGIN ATTEMPT ===
+simple-login.tsx:19 Username: DRVVJ53TA
+simple-login.tsx:20 Password: 6655@Taxi
+simple-login.tsx:28 Request body string: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+simple-login.tsx:29 Request body length: 47
+simple-login.tsx:30 Username type: string
+simple-login.tsx:31 Password type: string
+simple-login.tsx:44 Response status: 200
+simple-login.tsx:57 Login error: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+handleLogin @ simple-login.tsx:57
+await in handleLogin
+callCallback2 @ chunk-WERSD76P.js?v=02d9b6cc:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=02d9b6cc:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=02d9b6cc:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=02d9b6cc:3736
+executeDispatch @ chunk-WERSD76P.js?v=02d9b6cc:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=02d9b6cc:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=02d9b6cc:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=02d9b6cc:7051
+(anonymous) @ chunk-WERSD76P.js?v=02d9b6cc:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=02d9b6cc:18913
+batchedUpdates @ chunk-WERSD76P.js?v=02d9b6cc:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=02d9b6cc:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=02d9b6cc:5478
+dispatchEvent @ chunk-WERSD76P.js?v=02d9b6cc:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=02d9b6cc:5449
+simple-login.tsx:169 XHR Sending: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+simple-login.tsx:152 XHR Response Status: 200
+simple-login.tsx:153 XHR Response: <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script type="module">
+import { createHotContext } from "/@vite/client";
+const hot = createHotContext("/__dummy__runtime-error-plugin");
+
+function sendError(error) {
+  if (!(error instanceof Error)) {
+    error = new Error("(unknown runtime error)");
+  }
+  const serialized = {
+    message: error.message,
+    stack: error.stack,
+  };
+  hot.send("runtime-error-plugin:error", serialized);
+}
+
+window.addEventListener("error", (evt) => {
+  sendError(evt.error);
+});
+
+window.addEventListener("unhandledrejection", (evt) => {
+  sendError(evt.reason);
+});
+</script>
+
+    <script type="module">
+import RefreshRuntime from "/@react-refresh"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true
+</script>
+
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="A1 Driver" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/attached_assets/logo1-Bw5G6vXr_1752868618187.png" />
+    <link rel="apple-touch-icon" href="/attached_assets/logo1-Bw5G6vXr_1752868618187.png" />
+    <title>A1 Call Taxi Driver</title>
+    <script type="module">"use strict";(()=>{var P="0.2.7";var T={HIGHLIGHT_COLOR:"#0079F2",HIGHLIGHT_BG:"#0079F210",ALLOWED_DOMAIN:".replit.dev"},Q=`
+  [contenteditable] {
+    outline: none !important;
+  }
+
+  [contenteditable]:focus {
+    outline: none !important;
+  }
+`,Z=`
+  .beacon-highlighter {
+    content: '';
+    position: absolute;
+    z-index: ${Number.MAX_SAFE_INTEGER-3};
+    box-sizing: border-box;
+    pointer-events: none;
+    outline: 2px dashed ${T.HIGHLIGHT_COLOR} !important;
+    outline-offset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    background: ${T.HIGHLIGHT_BG} !important;
+    opacity: 0;
+  }
+  
+  .beacon-hover-highlighter {
+    position: fixed;
+    z-index: ${Number.MAX_SAFE_INTEGER};
+  }
+  
+  .beacon-selected-highlighter {
+    position: fixed;
+    pointer-events: none;
+    outline: 2px solid ${T.HIGHLIGHT_COLOR} !important;
+    outline-offset: 3px !important;
+    background: none !important;
+  }
+  
+  .beacon-label {
+    position: absolute;
+    background-color: ${T.HIGHLIGHT_COLOR};
+    color: #FFFFFF;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: monospace;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transform: translateY(-100%);
+    margin-top: -4px;
+    left: 0;
+    z-index: ${Number.MAX_SAFE_INTEGER-2};
+    pointer-events: none;
+    opacity: 0;
+  }
+  
+  .beacon-hover-label {
+    position: fixed;
+    z-index: ${Number.MAX_SAFE_INTEGER};
+  }
+  
+  .beacon-selected-label {
+    position: fixed;
+    pointer-events: none;
+  }
+  
+  .beacon-sibling-highlighter {
+    position: fixed;
+    pointer-events: none;
+    outline: 2px dashed ${T.HIGHLIGHT_COLOR} !important;
+    outline-offset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    background: ${T.HIGHLIGHT_BG} !important;
+  }
+`;function Ne(e,i){return e[13]=1,e[14]=i>>8,e[15]=i&255,e[16]=i>>8,e[17]=i&255,e}var oe=112,le=72,ae=89,ce=115,W;function Ie(){let e=new Int32Array(256);for(let i=0;i<256;i++){let t=i;for(let n=0;n<8;n++)t=t&1?3988292384^t>>>1:t>>>1;e[i]=t}return e}function De(e){let i=-1;W||(W=Ie());for(let t=0;t<e.length;t++)i=W[(i^e[t])&255]^i>>>8;return i^-1}function Me(e){let i=e.length-1;for(let t=i;t>=4;t--)if(e[t-4]===9&&e[t-3]===oe&&e[t-2]===le&&e[t-1]===ae&&e[t]===ce)return t-3;return 0}function Re(e,i,t=!1){let n=new Uint8Array(13);i*=39.3701,n[0]=oe,n[1]=le,n[2]=ae,n[3]=ce,n[4]=i>>>24,n[5]=i>>>16,n[6]=i>>>8,n[7]=i&255,n[8]=n[4],n[9]=n[5],n[10]=n[6],n[11]=n[7],n[12]=1;let o=De(n),r=new Uint8Array(4);if(r[0]=o>>>24,r[1]=o>>>16,r[2]=o>>>8,r[3]=o&255,t){let l=Me(e);return e.set(n,l),e.set(r,l+13),e}else{let l=new Uint8Array(4);l[0]=0,l[1]=0,l[2]=0,l[3]=9;let s=new Uint8Array(54);return s.set(e,0),s.set(l,33),s.set(n,37),s.set(r,50),s}}var he="[modern-screenshot]",C=typeof window<"u",_e=C&&"Worker"in window,Oe=C&&"atob"in window,jt=C&&"btoa"in window,V=C?window.navigator?.userAgent:"",de=V.includes("Chrome"),k=V.includes("AppleWebKit")&&!de,j=V.includes("Firefox"),Pe=e=>e&&"__CONTEXT__"in e,ke=e=>e.constructor.name==="CSSFontFaceRule",Fe=e=>e.constructor.name==="CSSImportR
+VM100:1 Uncaught SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+    at JSON.parse (<anonymous>)
+    at xhr.onreadystatechange (simple-login.tsx:155:43)
+xhr.onreadystatechange @ simple-login.tsx:155
+XMLHttpRequest.send
+onClick @ simple-login.tsx:170
+callCallback2 @ chunk-WERSD76P.js?v=02d9b6cc:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=02d9b6cc:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=02d9b6cc:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=02d9b6cc:3736
+executeDispatch @ chunk-WERSD76P.js?v=02d9b6cc:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=02d9b6cc:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=02d9b6cc:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=02d9b6cc:7051
+(anonymous) @ chunk-WERSD76P.js?v=02d9b6cc:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=02d9b6cc:18913
+batchedUpdates @ chunk-WERSD76P.js?v=02d9b6cc:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=02d9b6cc:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=02d9b6cc:5478
+dispatchEvent @ chunk-WERSD76P.js?v=02d9b6cc:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=02d9b6cc:5449
