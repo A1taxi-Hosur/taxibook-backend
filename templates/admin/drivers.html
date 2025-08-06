@@ -84,8 +84,12 @@
                                 </td>
                                 <td>{{ driver.rides|length }}</td>
                                 <td>
-                                    <div class="small">{{ driver.created_at.strftime('%Y-%m-%d') }}</div>
-                                    <div class="small text-muted">{{ driver.created_at.strftime('%H:%M:%S') }}</div>
+                                    {% if driver.created_at %}
+                                        <div class="small">{{ driver.created_at.strftime('%Y-%m-%d') }}</div>
+                                        <div class="small text-muted">{{ driver.created_at.strftime('%H:%M:%S') }}</div>
+                                    {% else %}
+                                        <div class="small text-muted">Not set</div>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
