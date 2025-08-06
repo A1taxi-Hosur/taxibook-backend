@@ -8,6 +8,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Critical Issues (2025-08-06)
 - ✅ **RESOLVED: Driver Authentication Issue** - Fixed frontend form data transmission issue where login requests were sending empty bodies `{}` instead of credentials
+- ✅ **RESOLVED: API Routing Issue** - Fixed driver app routing to use correct Flask backend URL instead of React dev server
 - **Railway Production Backend Crisis:** Complete authentication failure affecting all user types (admin, driver, customer)
 - **Database Isolation:** Railway production and local development databases are completely separate with different driver credentials
 - **Production Driver Credentials Confirmed:** Username `DRIVERMQO`, Password `3210@Taxi` verified from Railway admin panel
