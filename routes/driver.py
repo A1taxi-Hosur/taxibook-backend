@@ -22,7 +22,12 @@ def login():
         logging.info(f"Driver login attempt - Content-Type: {request.content_type}, Data: {data}")
         
         if not data:
+            logging.warning("Empty login data received - form data might not be transmitted properly")
             return create_error_response("Missing login data")
+        
+        if not data.get('username') or not data.get('password'):
+            logging.warning(f"Incomplete login data - username: {bool(data.get('username'))}, password: {bool(data.get('password'))}")
+            return create_error_response("Username and password are required")
         
         # Validate required fields
         valid, error = validate_required_fields(data, ['username', 'password'])
