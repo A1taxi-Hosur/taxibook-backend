@@ -27,10 +27,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-placeholder-key"
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Configure CORS - Allow all origins for development
+# Configure CORS - Allow all origins and headers for development
 CORS(app, 
      supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
+     allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials", "Accept", "Cache-Control", "Pragma"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      origins="*")
 

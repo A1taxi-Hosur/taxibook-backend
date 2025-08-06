@@ -1,0 +1,41 @@
+(index):23 Loading A1 Taxi Driver App...
+index--5wKUBiE.js:40 Clearing all caches and storage to fix white screen issue
+index--5wKUBiE.js:40 App version updated: 1754507259903
+index--5wKUBiE.js:40 Initializing Kad Taxi Driver App with production deployment fixes
+index--5wKUBiE.js:40 Android back button support: Active
+index--5wKUBiE.js:40 Cache control: Disabled for fresh data
+index--5wKUBiE.js:40 Session persistence: localStorage + sessionStorage
+index--5wKUBiE.js:40 Loading App component...
+(index):30 Service Worker registered successfully
+index--5wKUBiE.js:40 Updated service worker
+App-CpO7Uck2.js:902 Firebase not configured - push notifications will be disabled
+(anonymous) @ App-CpO7Uck2.js:902
+index--5wKUBiE.js:40 App component loaded successfully
+index--5wKUBiE.js:40 Rendering app...
+index--5wKUBiE.js:40 App rendered successfully
+App-CpO7Uck2.js:184 Stored driver info: null
+App-CpO7Uck2.js:902 Firebase not configured - push notifications disabled
+initializeFirebaseMessaging @ App-CpO7Uck2.js:902
+App-CpO7Uck2.js:902 Not in Android WebView, skipping back button initialization
+App-CpO7Uck2.js:184 === MUTATION FUNCTION CALLED ===
+App-CpO7Uck2.js:184 Starting login API call for username: DRVVJ53TA
+App-CpO7Uck2.js:184 Full login data being sent: Object
+App-CpO7Uck2.js:184 JSON stringified data: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+App-CpO7Uck2.js:184 Request body length: 47
+App-CpO7Uck2.js:184 Making API request to: https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login
+App-CpO7Uck2.js:184 Request body: {"username":"DRVVJ53TA","password":"6655@Taxi"}
+App-CpO7Uck2.js:184 Request headers: Object
+Access to fetch at 'https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login' from origin 'https://taxi-book-react-a1taxihsr.replit.app' has been blocked by CORS policy: Request header field pragma is not allowed by Access-Control-Allow-Headers in preflight response.
+sw.js:56 Service Worker: Fetch failed TypeError: Failed to fetch
+    at sw.js:35:5
+(anonymous) @ sw.js:56
+d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev/login:1  Failed to load resource: the server responded with a status of 408 ()
+App-CpO7Uck2.js:184 API response received: 408 
+App-CpO7Uck2.js:184 API request failed: ApiError: HTTP error! status: 408
+    at Ce (App-CpO7Uck2.js:184:57819)
+    at async Object.mutationFn (App-CpO7Uck2.js:184:62342)
+Ce @ App-CpO7Uck2.js:184
+App-CpO7Uck2.js:184 Login mutation onError called with: ApiError: HTTP error! status: 408
+    at Ce (App-CpO7Uck2.js:184:57819)
+    at async Object.mutationFn (App-CpO7Uck2.js:184:62342)
+onError @ App-CpO7Uck2.js:184

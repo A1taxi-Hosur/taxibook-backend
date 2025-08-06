@@ -13,6 +13,8 @@ Preferred communication style: Simple, everyday language.
 - ✅ **DRIVER LOGIN FULLY WORKING** - Authentication system confirmed working perfectly across all browsers including Tor
 - ✅ **Backend Verification Complete** - Flask authentication API tested and confirmed 100% functional with proper JSON responses
 - ✅ **Admin Drivers Page Fixed** - Resolved "strftime" error caused by NULL created_at values in driver records
+- ✅ **RESOLVED: API Endpoint Mismatch** - Added `/login` route forwarding to handle frontend calls to wrong endpoint
+- ✅ **RESOLVED: CORS Headers Issue** - Extended CORS configuration to allow `Accept`, `Cache-Control`, and `Pragma` headers sent by frontend
 - **Railway Production Backend Crisis:** Complete authentication failure affecting all user types (admin, driver, customer)
 - **Database Isolation:** Railway production and local development databases are completely separate with different driver credentials
 - **Production Driver Credentials Confirmed:** Username `DRIVERMQO`, Password `3210@Taxi` verified from Railway admin panel
