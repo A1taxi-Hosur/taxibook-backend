@@ -9,6 +9,50 @@ import logging
 
 driver_bp = Blueprint('driver', __name__)
 
+@driver_bp.route('/test', methods=['POST', 'GET'])
+def test_endpoint():
+    """Test endpoint to debug request data"""
+    if request.method == 'GET':
+        return jsonify({
+            "status": "success",
+            "message": "Test endpoint is working",
+            "method": "GET"
+        })
+    
+    try:
+        # Log everything about the request
+        logging.info(f"=== REQUEST DEBUG ===")
+        logging.info(f"Content-Type: {request.content_type}")
+        logging.info(f"Method: {request.method}")
+        logging.info(f"Headers: {dict(request.headers)}")
+        
+        if request.is_json:
+            data = request.get_json()
+            logging.info(f"JSON Data: {data}")
+        else:
+            form_data = request.form.to_dict()
+            logging.info(f"Form Data: {form_data}")
+            data = form_data
+            
+        raw_data = request.get_data(as_text=True)
+        logging.info(f"Raw Body: {raw_data}")
+        logging.info(f"=== END DEBUG ===")
+        
+        return jsonify({
+            "status": "success",
+            "message": "Test successful",
+            "received_data": data,
+            "content_type": request.content_type,
+            "raw_body_length": len(raw_data)
+        })
+        
+    except Exception as e:
+        logging.error(f"Test endpoint error: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 400
+
 @driver_bp.route('/login', methods=['POST'])
 def login():
     """Driver login with username and password"""
