@@ -13,9 +13,14 @@ driver_bp = Blueprint('driver', __name__)
 def login():
     """Driver login with username and password"""
     try:
-        data = request.get_json()
+        # Accept both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
         if not data:
-            return create_error_response("Invalid JSON data")
+            return create_error_response("Missing login data")
         
         # Validate required fields
         valid, error = validate_required_fields(data, ['username', 'password'])
