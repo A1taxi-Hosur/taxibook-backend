@@ -27,8 +27,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-placeholder-key"
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Configure CORS
-CORS(app, supports_credentials=True)
+# Configure CORS - Allow Replit dev domains and localhost
+CORS(app, 
+     supports_credentials=True, 
+     origins=[
+         "https://*.replit.dev",
+         "https://d14f67de-8be5-4bba-8cac-e3f54fd01bde-00-3pqh4yrkxjrrd.kirk.replit.dev",
+         "http://localhost:*",
+         "https://localhost:*"
+     ])
 
 # Configure the database
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL") or "sqlite:///dev.db"
