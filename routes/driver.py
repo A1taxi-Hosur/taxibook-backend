@@ -19,6 +19,8 @@ def login():
         else:
             data = request.form.to_dict()
         
+        logging.info(f"Driver login attempt - Content-Type: {request.content_type}, Data: {data}")
+        
         if not data:
             return create_error_response("Missing login data")
         
