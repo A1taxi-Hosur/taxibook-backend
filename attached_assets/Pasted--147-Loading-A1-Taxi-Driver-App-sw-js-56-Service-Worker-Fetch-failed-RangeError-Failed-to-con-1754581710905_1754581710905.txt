@@ -1,0 +1,42 @@
++:147 Loading A1 Taxi Driver App...
+sw.js:56 Service Worker: Fetch failed RangeError: Failed to construct 'Response': The status provided (0) is outside the range [200, 599].
+    at sw.js:50:14
+(anonymous) @ sw.js:56
+Promise.catch
+(anonymous) @ sw.js:55
++:163  GET https://replit.com/public/js/replit-dev-banner.js net::ERR_ABORTED 408 (Request Timeout)
+chunk-WERSD76P.js?v=02d9b6cc:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:34 Clearing all caches and storage to fix white screen issue
+main.tsx:57 App version updated: 1754581437770
+main.tsx:60 Initializing Kad Taxi Driver App with production deployment fixes
+main.tsx:61 Android back button support: Active
+main.tsx:62 Cache control: Disabled for fresh data
+main.tsx:63 Session persistence: localStorage + sessionStorage
+main.tsx:7 Loading App component...
+main.tsx:49 Updated service worker
++:154 Service Worker registered successfully
+firebase.ts:36 Firebase not configured - push notifications will be disabled
+(anonymous) @ firebase.ts:36
+main.tsx:9 App component loaded successfully
+main.tsx:72 Rendering app...
+main.tsx:75 App rendered successfully
+notifications.ts:35 Firebase not configured - push notifications disabled
+initializeFirebaseMessaging @ notifications.ts:35
+(anonymous) @ App.tsx:113
+commitHookEffectListMount @ chunk-WERSD76P.js?v=02d9b6cc:16915
+commitPassiveMountOnFiber @ chunk-WERSD76P.js?v=02d9b6cc:18156
+commitPassiveMountEffects_complete @ chunk-WERSD76P.js?v=02d9b6cc:18129
+commitPassiveMountEffects_begin @ chunk-WERSD76P.js?v=02d9b6cc:18119
+commitPassiveMountEffects @ chunk-WERSD76P.js?v=02d9b6cc:18109
+flushPassiveEffectsImpl @ chunk-WERSD76P.js?v=02d9b6cc:19490
+flushPassiveEffects @ chunk-WERSD76P.js?v=02d9b6cc:19447
+performSyncWorkOnRoot @ chunk-WERSD76P.js?v=02d9b6cc:18868
+flushSyncCallbacks @ chunk-WERSD76P.js?v=02d9b6cc:9119
+commitRootImpl @ chunk-WERSD76P.js?v=02d9b6cc:19432
+commitRoot @ chunk-WERSD76P.js?v=02d9b6cc:19277
+finishConcurrentRender @ chunk-WERSD76P.js?v=02d9b6cc:18805
+performConcurrentWorkOnRoot @ chunk-WERSD76P.js?v=02d9b6cc:18718
+workLoop @ chunk-WERSD76P.js?v=02d9b6cc:197
+flushWork @ chunk-WERSD76P.js?v=02d9b6cc:176
+performWorkUntilDeadline @ chunk-WERSD76P.js?v=02d9b6cc:384
+handleNativeBack.ts:108 Not in Android WebView, skipping back button initialization
