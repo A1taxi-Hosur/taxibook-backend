@@ -1,14 +1,16 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
-from flask import Flask
+import jwt
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_cors import CORS
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
+from functools import wraps
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,6 +27,7 @@ login_manager = LoginManager()
 # Create the app
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-placeholder-key"
+app.config['SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY") or "a1taxi-jwt-secret-key"  # JWT secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure CORS - Allow all origins and headers for development
@@ -51,6 +54,41 @@ IST = pytz.timezone('Asia/Kolkata')
 
 def get_ist_time():
     return datetime.now(IST)
+
+# JWT Token Authentication Decorator
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            bearer = request.headers['Authorization']
+            if bearer.startswith('Bearer '):
+                token = bearer.split(" ")[1]
+        
+        if not token:
+            return jsonify({'status': 'error', 'message': 'Token is missing'}), 401
+        
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user_data = data
+        except jwt.ExpiredSignatureError:
+            return jsonify({'status': 'error', 'message': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'status': 'error', 'message': 'Token is invalid'}), 401
+        
+        return f(current_user_data, *args, **kwargs)
+    return decorated
+
+# Generate JWT Token
+def generate_jwt_token(user_data):
+    payload = {
+        'user_id': user_data.get('user_id'),
+        'username': user_data.get('username'),
+        'user_type': user_data.get('user_type'),  # 'driver', 'customer', 'admin'
+        'exp': datetime.utcnow() + timedelta(days=7),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm="HS256")
 
 # User loader for Flask-Login
 @login_manager.user_loader

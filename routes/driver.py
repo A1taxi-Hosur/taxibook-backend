@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db, get_ist_time
+from app import db, get_ist_time, token_required, generate_jwt_token
 from models import Driver, Ride, RideRejection, RideLocation, Zone
 from utils.validators import validate_phone, validate_required_fields, create_error_response, create_success_response
 from utils.maps import get_distance_to_pickup
@@ -58,9 +58,17 @@ def test_endpoint():
 def login():
     """Driver login with username and password"""
     try:
-        # Accept both JSON and form data
-        if request.is_json:
-            data = request.get_json()
+        # Enhanced data parsing to handle Content-Type issues
+        data = None
+        raw_body = request.get_data(as_text=True)
+        
+        # Try to parse JSON from raw body if request.get_json() fails
+        if request.content_type == 'application/json' or raw_body.startswith('{'):
+            try:
+                import json
+                data = json.loads(raw_body) if raw_body else {}
+            except:
+                data = request.get_json() or {}
         else:
             data = request.form.to_dict()
         
@@ -111,21 +119,33 @@ def login():
         driver.is_online = True
         db.session.commit()
         
-        login_user(driver)
-        logging.info(f"Driver logged in: {driver.name} ({driver.username}) - automatically set online")
-        
-        return create_success_response({
-            'driver_id': driver.id,
-            'name': driver.name,
-            'phone': driver.phone,
+        # Generate JWT token instead of session-based login
+        token_data = {
+            'user_id': driver.id,
             'username': driver.username,
-            'is_online': True,  # Always online when logged in
-            'car_make': driver.car_make,
-            'car_model': driver.car_model,
-            'car_year': driver.car_year,
-            'car_number': driver.car_number,
-            'car_type': driver.car_type
-        }, "Login successful")
+            'user_type': 'driver'
+        }
+        token = generate_jwt_token(token_data)
+        
+        logging.info(f"Driver logged in: {driver.name} ({driver.username}) - automatically set online, JWT token generated")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Login successful',
+            'token': token,
+            'data': {
+                'driver_id': driver.id,
+                'name': driver.name,
+                'phone': driver.phone,
+                'username': driver.username,
+                'is_online': True,  # Always online when logged in
+                'car_make': driver.car_make,
+                'car_model': driver.car_model,
+                'car_year': driver.car_year,
+                'car_number': driver.car_number,
+                'car_type': driver.car_type
+            }
+        })
         
     except Exception as e:
         logging.error(f"Error in driver login: {str(e)}")
@@ -134,24 +154,14 @@ def login():
 
 
 @driver_bp.route('/incoming_rides', methods=['GET'])
-def incoming_rides():
-    """Get available rides for driver"""
+@token_required
+def incoming_rides(current_user_data):
+    """Get available rides for driver (JWT protected)"""
     try:
-        phone = request.args.get('phone')
-        if not phone:
-            return create_error_response("Phone number is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from token instead of phone parameter
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
-            return create_error_response("Driver not found. Please login first.")
+            return create_error_response("Driver not found")
         
         # Check if driver is actually online (logged in)
         # Only online drivers should receive ride requests
@@ -592,36 +602,37 @@ def current_ride():
         return create_success_response({'has_active_ride': False}, "Error retrieving ride")
 
 @driver_bp.route('/logout', methods=['POST'])
-def logout():
-    """Logout driver, set offline, and clear location data"""
+@token_required
+def logout(current_user_data):
+    """Logout driver, set offline, and clear location data (JWT protected)"""
     try:
-        data = request.get_json()
-        if data and 'phone' in data:
-            # Validate phone number
-            valid, phone_or_error = validate_phone(data['phone'])
-            if valid:
-                # Find driver and set offline
-                driver = Driver.query.filter_by(phone=phone_or_error).first()
-                if driver:
-                    # Set driver offline
-                    driver.is_online = False
-                    
-                    # Clear location data to prevent ghost driver appearance
-                    driver.current_lat = None
-                    driver.current_lng = None
-                    driver.location_updated_at = None
-                    driver.zone_id = None
-                    driver.out_of_zone = False
-                    
-                    db.session.commit()
-                    logging.info(f"Driver {driver.name} ({driver.phone}) logged out, set offline, and location cleared")
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
+        if driver:
+            # Set driver offline
+            driver.is_online = False
+            
+            # Clear location data to prevent ghost driver appearance
+            driver.current_lat = None
+            driver.current_lng = None
+            driver.location_updated_at = None
+            driver.zone_id = None
+            driver.out_of_zone = False
+            
+            db.session.commit()
+            logging.info(f"Driver {driver.name} ({driver.phone}) logged out, set offline, and location cleared")
         
-        logout_user()
-        return create_success_response(message="Logout successful")
+        return jsonify({
+            'status': 'success',
+            'message': 'Logout successful'
+        })
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
         db.session.rollback()
-        return create_error_response("Internal server error")
+        return jsonify({
+            'status': 'error', 
+            'message': 'Internal server error'
+        }), 500
 
 @driver_bp.route('/status', methods=['POST'])
 def update_status():

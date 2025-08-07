@@ -1,0 +1,123 @@
+You are updating the A1 Taxi backend from session-based auth to **token-based authentication using JWT**.
+
+---
+
+### 🔧 Changes to Make in the Flask Backend:
+
+✅ Install PyJWT:
+```bash
+pip install PyJWT
+```
+
+---
+
+### ✅ In `main.py` (or `app.py`), make these changes:
+
+#### 🔐 Import:
+```python
+import jwt
+import datetime
+from flask import request, jsonify
+from functools import wraps
+```
+
+---
+
+### ✅ Add a SECRET_KEY at the top:
+```python
+app.config['SECRET_KEY'] = 'a1taxi-secret-key'  # change this in production
+```
+
+---
+
+### ✅ Create a `token_required` decorator:
+```python
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            bearer = request.headers['Authorization']
+            if bearer.startswith('Bearer '):
+                token = bearer.split(" ")[1]
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = data['username']
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token expired'}), 401
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
+```
+
+---
+
+### ✅ Replace `/driver/login_or_register` session logic with this new version:
+```python
+@app.route('/driver/login_or_register', methods=['POST'])
+def driver_login_or_register():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({'status': 'error', 'message': 'Missing login data'}), 400
+
+    # Fetch driver from DB
+    driver = db.get_driver_by_username(username)  # replace with actual DB query
+    if not driver:
+        return jsonify({'status': 'error', 'message': 'Driver not found'}), 404
+
+    if password != driver.password:
+        return jsonify({'status': 'error', 'message': 'Invalid password'}), 401
+
+    token = jwt.encode({
+        'username': username,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({
+        'status': 'success',
+        'message': 'Login successful',
+        'token': token,
+        'data': {
+            'driver_id': driver.id,
+            'username': driver.username,
+            'name': driver.name,
+            'phone': driver.phone,
+            'car_make': driver.car_make,
+            'car_model': driver.car_model,
+            'car_number': driver.car_number,
+            'car_type': driver.car_type,
+            'car_year': driver.car_year,
+            'is_online': driver.is_online
+        }
+    })
+```
+
+---
+
+### ✅ Protect private routes with `@token_required`
+Example:
+```python
+@app.route('/incoming_rides', methods=['GET'])
+@token_required
+def incoming_rides(current_user):
+    # current_user is the username from the token
+    phone = request.args.get('phone')
+    ...
+```
+
+---
+
+### ✅ Remove all session, `flask_login`, and `credentials='include'` logic across all routes. You're now fully token-based.
+
+---
+
+✅ Once done, I’ll give you the **Driver App** token handling and storage logic.
+
+✅ Then we’ll update the **Customer App** to match.
+
