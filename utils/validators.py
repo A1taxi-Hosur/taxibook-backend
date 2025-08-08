@@ -34,7 +34,7 @@ def validate_required_fields(data, required_fields):
 def create_error_response(message, status_code=400):
     """Create standardized error response"""
     return jsonify({
-        'status': 'error',
+        'success': False,
         'message': message
     }), status_code
 

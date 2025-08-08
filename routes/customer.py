@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db, get_ist_time
+from app import db, get_ist_time, generate_jwt_token
 from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone, Advertisement, PromoCode
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
@@ -39,29 +39,45 @@ def login_or_register():
         customer = Customer.query.filter_by(phone=phone).first()
         
         if customer:
-            # Login existing customer
-            login_user(customer)
+            # Login existing customer - generate JWT token
+            token_data = {
+                'user_id': customer.id,
+                'username': customer.phone,
+                'user_type': 'customer'
+            }
+            token = generate_jwt_token(token_data)
             logging.info(f"Customer logged in: {customer.name} ({customer.phone})")
-            return create_success_response({
-                'customer_id': customer.id,
-                'name': customer.name,
-                'phone': customer.phone,
-                'action': 'login'
-            }, "Login successful")
+            return jsonify({
+                'success': True,
+                'token': token,
+                'customer': {
+                    'id': customer.id,
+                    'phone': customer.phone,
+                    'name': customer.name
+                }
+            })
         else:
-            # Register new customer
+            # Register new customer - generate JWT token
             customer = Customer(name=name, phone=phone)
             db.session.add(customer)
             db.session.commit()
             
-            login_user(customer)
+            token_data = {
+                'user_id': customer.id,
+                'username': customer.phone,
+                'user_type': 'customer'
+            }
+            token = generate_jwt_token(token_data)
             logging.info(f"New customer registered: {customer.name} ({customer.phone})")
-            return create_success_response({
-                'customer_id': customer.id,
-                'name': customer.name,
-                'phone': customer.phone,
-                'action': 'register'
-            }, "Registration successful")
+            return jsonify({
+                'success': True,
+                'token': token,
+                'customer': {
+                    'id': customer.id,
+                    'phone': customer.phone,
+                    'name': customer.name
+                }
+            })
             
     except Exception as e:
         logging.error(f"Error in customer login/register: {str(e)}")

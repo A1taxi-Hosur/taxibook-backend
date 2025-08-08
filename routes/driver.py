@@ -130,20 +130,20 @@ def login():
         logging.info(f"Driver logged in: {driver.name} ({driver.username}) - automatically set online, JWT token generated")
         
         return jsonify({
-            'status': 'success',
-            'message': 'Login successful',
+            'success': True,
             'token': token,
-            'data': {
-                'driver_id': driver.id,
+            'driver': {
+                'id': driver.id,
+                'driver_id': driver.username,
                 'name': driver.name,
                 'phone': driver.phone,
-                'username': driver.username,
-                'is_online': True,  # Always online when logged in
+                'car_type': driver.car_type,
+                'status': 'online',
+                'zone_id': driver.zone_id,
                 'car_make': driver.car_make,
                 'car_model': driver.car_model,
                 'car_year': driver.car_year,
-                'car_number': driver.car_number,
-                'car_type': driver.car_type
+                'car_number': driver.car_number
             }
         })
         
