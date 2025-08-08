@@ -66,15 +66,15 @@ def token_required(f):
                 token = bearer.split(" ")[1]
         
         if not token:
-            return jsonify({'status': 'error', 'message': 'Token is missing'}), 401
+            return jsonify({'success': False, 'message': 'Token is missing'}), 401
         
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user_data = data
         except jwt.ExpiredSignatureError:
-            return jsonify({'status': 'error', 'message': 'Token expired'}), 401
+            return jsonify({'success': False, 'message': 'Token expired'}), 401
         except jwt.InvalidTokenError:
-            return jsonify({'status': 'error', 'message': 'Token is invalid'}), 401
+            return jsonify({'success': False, 'message': 'Token is invalid'}), 401
         
         return f(current_user_data, *args, **kwargs)
     return decorated

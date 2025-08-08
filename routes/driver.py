@@ -14,7 +14,7 @@ def test_endpoint():
     """Test endpoint to debug request data"""
     if request.method == 'GET':
         return jsonify({
-            "status": "success",
+            "success": True,
             "message": "Test endpoint is working",
             "method": "GET"
         })
@@ -39,7 +39,7 @@ def test_endpoint():
         logging.info(f"=== END DEBUG ===")
         
         return jsonify({
-            "status": "success",
+            "success": True,
             "message": "Test successful",
             "received_data": data,
             "content_type": request.content_type,
@@ -49,7 +49,7 @@ def test_endpoint():
     except Exception as e:
         logging.error(f"Test endpoint error: {str(e)}")
         return jsonify({
-            "status": "error", 
+            "success": False, 
             "message": str(e)
         }), 400
 
@@ -623,14 +623,14 @@ def logout(current_user_data):
             logging.info(f"Driver {driver.name} ({driver.phone}) logged out, set offline, and location cleared")
         
         return jsonify({
-            'status': 'success',
+            'success': True,
             'message': 'Logout successful'
         })
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
         db.session.rollback()
         return jsonify({
-            'status': 'error', 
+            'success': False, 
             'message': 'Internal server error'
         }), 500
 

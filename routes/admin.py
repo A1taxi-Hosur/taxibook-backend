@@ -459,7 +459,7 @@ def reset_driver_password():
         
         # WARNING: Plain password returned for admin testing only - remove before production
         return jsonify({
-            "status": "success",
+            "success": True,
             "message": "Driver password reset successfully",
             "username": driver.username,
             "password": data['new_password']  # Plain password for admin testing only
@@ -578,7 +578,7 @@ def get_driver(driver_id):
         
         return jsonify({
             'success': True,
-            'data': {
+            'driver': {
                 'id': driver.id,
                 'name': driver.name,
                 'phone': driver.phone,
