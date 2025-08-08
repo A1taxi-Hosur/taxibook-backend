@@ -173,7 +173,7 @@ def incoming_rides(current_user_data):
         
         # Get available rides (pending status, not assigned to any driver, not rejected by this driver, matching vehicle type)
         # First get ride IDs rejected by this driver
-        rejected_ride_ids = db.session.query(RideRejection.ride_id).filter_by(driver_phone=phone)
+        rejected_ride_ids = db.session.query(RideRejection.ride_id).filter_by(driver_phone=driver.phone)
         
         # Query for available rides excluding rejected ones and matching vehicle type
         available_rides = Ride.query.filter(

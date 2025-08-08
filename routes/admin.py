@@ -264,7 +264,7 @@ def api_stats():
         
     except Exception as e:
         logging.error(f"Error in api_stats: {str(e)}")
-        return jsonify({'error': 'Error loading stats'}), 500
+        return jsonify({'success': False, 'message': 'Error loading stats'}), 500
 
 @admin_bp.route('/api/recent_rides')
 @login_required
@@ -293,7 +293,7 @@ def api_recent_rides():
         
     except Exception as e:
         logging.error(f"Error in api_recent_rides: {str(e)}")
-        return jsonify({'error': 'Error loading recent rides'}), 500
+        return jsonify({'success': False, 'message': 'Error loading recent rides'}), 500
 
 # Removed duplicate api_drivers route - using api_get_drivers instead
 
@@ -305,7 +305,7 @@ def cancel_ride_admin(ride_id):
         ride = Ride.query.get_or_404(ride_id)
         
         if ride.status in ['completed', 'cancelled']:
-            return jsonify({'error': 'Ride cannot be cancelled'}), 400
+            return jsonify({'success': False, 'message': 'Ride cannot be cancelled'}), 400
         
         ride.status = 'cancelled'
         ride.cancelled_at = get_ist_time()
@@ -313,12 +313,12 @@ def cancel_ride_admin(ride_id):
         db.session.commit()
         
         logging.info(f"Ride {ride_id} cancelled by admin")
-        return jsonify({'message': 'Ride cancelled successfully'})
+        return jsonify({'success': True, 'message': 'Ride cancelled successfully'})
         
     except Exception as e:
         logging.error(f"Error cancelling ride {ride_id}: {str(e)}")
         db.session.rollback()
-        return jsonify({'error': 'Error cancelling ride'}), 500
+        return jsonify({'success': False, 'message': 'Error cancelling ride'}), 500
 
 @admin_bp.route('/create_driver', methods=['POST'])
 @login_required

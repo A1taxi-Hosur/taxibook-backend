@@ -600,7 +600,7 @@ def ride_estimate():
         required_fields = ['pickup_lat', 'pickup_lng', 'drop_lat', 'drop_lng']
         missing_fields = [field for field in required_fields if field not in data or data[field] is None]
         if missing_fields:
-            return jsonify({'error': f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            return jsonify({'success': False, 'message': f"Missing required fields: {', '.join(missing_fields)}"}), 400
         
         pickup_lat = data['pickup_lat']
         pickup_lng = data['pickup_lng']
@@ -609,9 +609,9 @@ def ride_estimate():
         
         # Validate coordinate ranges
         if not (-90 <= pickup_lat <= 90) or not (-90 <= drop_lat <= 90):
-            return jsonify({'error': 'Invalid latitude values'}), 400
+            return jsonify({'success': False, 'message': 'Invalid latitude values'}), 400
         if not (-180 <= pickup_lng <= 180) or not (-180 <= drop_lng <= 180):
-            return jsonify({'error': 'Invalid longitude values'}), 400
+            return jsonify({'success': False, 'message': 'Invalid longitude values'}), 400
         
         # Use Google Maps to calculate actual road distance
         # We'll use coordinates as both address and coordinates for the distance calculation
@@ -719,11 +719,11 @@ def get_driver_location(ride_id):
         # Validate that the ride exists
         ride = Ride.query.get(ride_id)
         if not ride:
-            return jsonify({'error': 'Ride not found'}), 404
+            return jsonify({'success': False, 'message': 'Ride not found'}), 404
         
         # Only allow location tracking for active rides
         if ride.status not in ['accepted', 'arrived', 'started']:
-            return jsonify({'error': 'Location tracking only available for active rides'}), 400
+            return jsonify({'success': False, 'message': 'Location tracking only available for active rides'}), 400
         
         # Get latest location for this ride
         latest_location = RideLocation.query.filter_by(
@@ -732,7 +732,7 @@ def get_driver_location(ride_id):
         ).first()
         
         if not latest_location:
-            return jsonify({'error': 'No location data available'}), 404
+            return jsonify({'success': False, 'message': 'No location data available'}), 404
         
         # Return location data
         return jsonify({
@@ -749,7 +749,7 @@ def get_driver_location(ride_id):
         
     except Exception as e:
         logging.error(f"Error getting driver location: {str(e)}")
-        return jsonify({'error': 'Error retrieving location'}), 500
+        return jsonify({'success': False, 'message': 'Error retrieving location'}), 500
 
 
 @customer_bp.route('/bookings/<int:customer_id>', methods=['GET'])
