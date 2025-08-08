@@ -211,30 +211,23 @@ def incoming_rides(current_user_data):
         return create_success_response({'rides': [], 'count': 0}, "Error retrieving rides")
 
 @driver_bp.route('/accept_ride', methods=['POST'])
-def accept_ride():
-    """Accept a ride"""
+@token_required
+def accept_ride(current_user_data):
+    """Accept a ride (JWT protected)"""
     try:
         data = request.get_json()
         if not data:
             return create_error_response("Invalid JSON data")
         
         # Validate required fields
-        valid, error = validate_required_fields(data, ['ride_id', 'driver_phone'])
+        valid, error = validate_required_fields(data, ['ride_id'])
         if not valid:
             return create_error_response(error)
         
         ride_id = data['ride_id']
-        driver_phone = data['driver_phone']
         
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
@@ -280,27 +273,25 @@ def accept_ride():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/reject_ride', methods=['POST'])
-def reject_ride():
-    """Reject a ride"""
+@token_required
+def reject_ride(current_user_data):
+    """Reject a ride (JWT protected)"""
     try:
         data = request.get_json()
         if not data:
             return create_error_response("Invalid JSON data")
         
         # Validate required fields
-        valid, error = validate_required_fields(data, ['ride_id', 'driver_phone'])
+        valid, error = validate_required_fields(data, ['ride_id'])
         if not valid:
             return create_error_response(error)
         
         ride_id = data['ride_id']
-        driver_phone = data['driver_phone']
         
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
+        if not driver:
+            return create_error_response("Driver not found")
         
         # Check if ride exists and is pending
         ride = Ride.query.filter_by(id=ride_id, status='pending').first()
@@ -310,7 +301,7 @@ def reject_ride():
         # Check if driver has already rejected this ride
         existing_rejection = RideRejection.query.filter_by(
             ride_id=ride_id, 
-            driver_phone=phone
+            driver_phone=driver.phone
         ).first()
         if existing_rejection:
             return create_error_response("Ride already rejected by this driver")
@@ -318,13 +309,13 @@ def reject_ride():
         # Create rejection record
         rejection = RideRejection(
             ride_id=ride_id,
-            driver_phone=phone,
+            driver_phone=driver.phone,
             rejected_at=get_ist_time()
         )
         db.session.add(rejection)
         db.session.commit()
         
-        logging.info(f"Driver {phone} rejected ride {ride_id}")
+        logging.info(f"Driver {driver.phone} rejected ride {ride_id}")
         
         return create_success_response({
             'ride_id': ride_id,
@@ -337,26 +328,12 @@ def reject_ride():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/arrived', methods=['POST'])
-def arrived():
-    """Mark driver as arrived at pickup location"""
+@token_required
+def arrived(current_user_data):
+    """Mark driver as arrived at pickup location (JWT protected)"""
     try:
-        data = request.get_json()
-        if not data:
-            return create_error_response("Invalid JSON data")
-        
-        driver_phone = data.get('driver_phone')
-        if not driver_phone:
-            return create_error_response("Driver phone is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
@@ -387,8 +364,9 @@ def arrived():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/start_ride', methods=['POST'])
-def start_ride():
-    """Start the ride with OTP verification"""
+@token_required
+def start_ride(current_user_data):
+    """Start the ride with OTP verification (JWT protected)"""
     try:
         data = request.get_json()
         if not data:
@@ -458,26 +436,12 @@ def start_ride():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/complete_ride', methods=['POST'])
-def complete_ride():
-    """Complete the ride"""
+@token_required
+def complete_ride(current_user_data):
+    """Complete the ride (JWT protected)"""
     try:
-        data = request.get_json()
-        if not data:
-            return create_error_response("Invalid JSON data")
-        
-        driver_phone = data.get('driver_phone')
-        if not driver_phone:
-            return create_error_response("Driver phone is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
@@ -509,26 +473,12 @@ def complete_ride():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/cancel_ride', methods=['POST'])
-def cancel_ride():
-    """Cancel accepted ride"""
+@token_required
+def cancel_ride(current_user_data):
+    """Cancel accepted ride (JWT protected)"""
     try:
-        data = request.get_json()
-        if not data:
-            return create_error_response("Invalid JSON data")
-        
-        driver_phone = data.get('driver_phone')
-        if not driver_phone:
-            return create_error_response("Driver phone is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(driver_phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
@@ -562,22 +512,12 @@ def cancel_ride():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/current_ride', methods=['GET'])
-def current_ride():
-    """Get current ride for driver"""
+@token_required
+def current_ride(current_user_data):
+    """Get current ride for driver (JWT protected)"""
     try:
-        phone = request.args.get('phone')
-        if not phone:
-            return create_error_response("Phone number is required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_success_response({'has_active_ride': False}, "No active ride")
         
@@ -700,8 +640,9 @@ def get_status():
 
 
 @driver_bp.route('/update_location', methods=['POST'])
-def update_location():
-    """Update driver's GPS location for active ride"""
+@token_required
+def update_location(current_user_data):
+    """Update driver's GPS location for active ride (JWT protected)"""
     try:
         data = request.get_json()
         if not data:
@@ -776,8 +717,9 @@ def update_location():
         return create_error_response("Internal server error")
 
 @driver_bp.route('/update_current_location', methods=['POST'])
-def update_current_location():
-    """Update driver's current location for proximity-based dispatch"""
+@token_required
+def update_current_location(current_user_data):
+    """Update driver's current location for proximity-based dispatch (JWT protected)"""
     try:
         data = request.get_json()
         if not data:
@@ -839,8 +781,9 @@ def update_current_location():
 
 
 @driver_bp.route('/get_zone_status', methods=['GET'])
-def get_zone_status():
-    """Get driver's current zone status"""
+@token_required
+def get_zone_status(current_user_data):
+    """Get driver's current zone status (JWT protected)"""
     try:
         phone = request.args.get('phone')
         if not phone:
