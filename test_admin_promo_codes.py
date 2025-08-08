@@ -19,8 +19,8 @@ def test_admin_promo_apis():
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
-        if data.get('status') == 'success':
-            promo_codes = data.get('data', [])
+        if data.get('success'):
+            promo_codes = data.get('promo_codes', [])
             print(f"✓ Found {len(promo_codes)} promo codes")
             for promo in promo_codes[:3]:  # Show first 3
                 print(f"  - {promo['code']}: {promo['discount_type']} {promo['discount_value']} (Usage: {promo['usage_percentage']}%)")
@@ -45,8 +45,8 @@ def test_admin_promo_apis():
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
-        if data.get('status') == 'success':
-            created_promo = data.get('data')
+        if data.get('success'):
+            created_promo = data
             print(f"✓ Created promo code: {created_promo['code']}")
             test_promo_id = created_promo['id']
         else:
@@ -68,8 +68,8 @@ def test_admin_promo_apis():
     print(f"Status: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
-        if data.get('status') == 'success':
-            updated_promo = data.get('data')
+        if data.get('success'):
+            updated_promo = data
             print(f"✓ Updated promo code: {updated_promo['code']} - Discount: {updated_promo['discount_value']}%")
         else:
             print(f"✗ Error: {data.get('message')}")

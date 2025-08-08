@@ -60,8 +60,8 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/customer/book_ride", ride_data)
-    if status_code == 200 and response.get("status") == "success":
-        ride_id = response["data"]["ride_id"]
+    if status_code == 200 and response.get("success"):
+        ride_id = response["ride_id"]
         print(f"✅ Ride booked successfully with ID: {ride_id}")
     else:
         print(f"❌ Failed to book ride: {response.get('message', 'Unknown error')}")
@@ -76,7 +76,7 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/driver/accept_ride", accept_data)
-    if status_code == 200 and response.get("status") == "success":
+    if status_code == 200 and response.get("success"):
         print("✅ Driver accepted ride successfully")
         print("✅ OTP should be generated automatically")
     else:
@@ -88,8 +88,8 @@ def test_otp_system():
     status_code, response = make_request("GET", "/customer/ride_status", 
                                        params={"phone": TEST_CUSTOMER_PHONE})
     
-    if status_code == 200 and response.get("status") == "success":
-        ride_data = response["data"]
+    if status_code == 200 and response.get("success"):
+        ride_data = response
         otp = ride_data.get("start_otp")
         ride_status = ride_data.get("status")
         driver_name = ride_data.get("driver_name")
@@ -116,10 +116,10 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/driver/start_ride", start_data)
-    if status_code == 200 and response.get("status") == "success":
+    if status_code == 200 and response.get("success"):
         print("✅ OTP verification successful")
         print("✅ Ride started successfully")
-        print(f"✅ Final ride status: {response['data']['status']}")
+        print(f"✅ Final ride status: {response['status']}")
     else:
         print(f"❌ OTP verification failed: {response.get('message', 'Unknown error')}")
         return False
@@ -132,7 +132,7 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/driver/start_ride", invalid_data)
-    if status_code in [400, 403] and response.get("status") == "error":
+    if status_code in [400, 403] and not response.get("success"):
         print("✅ Invalid OTP correctly rejected")
         print(f"✅ Error message: {response.get('message', 'Unknown error')}")
     else:
@@ -144,8 +144,8 @@ def test_otp_system():
     status_code, response = make_request("GET", "/customer/ride_status", 
                                        params={"phone": TEST_CUSTOMER_PHONE})
     
-    if status_code == 200 and response.get("status") == "success":
-        ride_data = response["data"]
+    if status_code == 200 and response.get("success"):
+        ride_data = response
         final_otp = ride_data.get("start_otp")
         final_status = ride_data.get("status")
         
@@ -170,7 +170,7 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/driver/start_ride", invalid_ride_data)
-    if response.get("status") == "error":
+    if not response.get("success"):
         print("   ✅ Non-existent ride correctly rejected")
     else:
         print("   ❌ Non-existent ride was not rejected")
@@ -183,7 +183,7 @@ def test_otp_system():
     }
     
     status_code, response = make_request("POST", "/driver/start_ride", invalid_format_data)
-    if response.get("status") == "error" and "6 digits" in response.get("message", ""):
+    if not response.get("success") and "6 digits" in response.get("message", ""):
         print("   ✅ Invalid OTP format correctly rejected")
     else:
         print("   ❌ Invalid OTP format was not rejected properly")
@@ -202,7 +202,7 @@ def test_security_features():
     status_code, response = make_request("GET", "/customer/ride_status", 
                                        params={"phone": TEST_CUSTOMER_PHONE})
     
-    if status_code == 200 and "start_otp" in response.get("data", {}):
+    if status_code == 200 and "start_otp" in response:
         print("   ✅ Customer can see OTP (as expected)")
     else:
         print("   ❌ Customer cannot see OTP")

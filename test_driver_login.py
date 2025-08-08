@@ -54,7 +54,7 @@ def test_driver_login():
                     
                     result = response.json()
                     
-                    if result.get("status") == "success":
+                    if result.get("success"):
                         print(f"  Login Test: ✅ SUCCESS")
                     else:
                         print(f"  Login Test: ❌ FAILED - {result.get('message', 'Unknown error')}")

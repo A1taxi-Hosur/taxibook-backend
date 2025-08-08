@@ -49,8 +49,8 @@ def test_admin_api():
         try:
             data = response.json()
             print(f"API Response: {json.dumps(data, indent=2)}")
-            if data.get('status') == 'success':
-                drivers = data.get('data', {}).get('drivers', [])
+            if data.get('success'):
+                drivers = data.get('drivers', [])
                 print(f"✅ API successful - Found {len(drivers)} drivers")
                 
                 # Print first driver details

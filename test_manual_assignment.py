@@ -44,11 +44,11 @@ def test_manual_assignment():
         return False
     
     ride_response = response.json()
-    if ride_response.get('status') != 'success':
+    if not ride_response.get('success'):
         print(f"❌ Failed to create test ride: {ride_response.get('message')}")
         return False
     
-    ride_id = ride_response['data']['ride_id']
+    ride_id = ride_response['ride_id']
     print(f"✅ Test ride created with ID: {ride_id}")
     
     # Step 3: Get available drivers
@@ -59,11 +59,11 @@ def test_manual_assignment():
         return False
     
     drivers_response = response.json()
-    if drivers_response.get('status') != 'success':
+    if not drivers_response.get('success'):
         print(f"❌ Failed to get drivers: {drivers_response.get('message')}")
         return False
     
-    drivers = drivers_response['data']['drivers']
+    drivers = drivers_response['drivers']
     print(f"✅ Found {len(drivers)} drivers")
     
     # Test assignment to both online and offline drivers
@@ -79,16 +79,16 @@ def test_manual_assignment():
         response = session.post(f"{base_url}/admin/assign_driver", json=assignment_data)
         if response.status_code == 200:
             assignment_response = response.json()
-            if assignment_response.get('status') == 'success':
+            if assignment_response.get('success'):
                 print(f"✅ Successfully assigned {driver['name']} to ride {ride_id}")
-                print(f"   Driver: {assignment_response['data']['driver_name']}")
-                print(f"   Status: {assignment_response['data']['status']}")
+                print(f"   Driver: {assignment_response['driver_name']}")
+                print(f"   Status: {assignment_response['status']}")
                 
                 # Test assigning to the same driver again (should work as admin can override)
                 response = session.post(f"{base_url}/admin/assign_driver", json=assignment_data)
                 if response.status_code == 200:
                     second_response = response.json()
-                    if second_response.get('status') == 'success':
+                    if second_response.get('success'):
                         print(f"✅ Re-assignment successful (admin can override)")
                     else:
                         print(f"⚠️ Re-assignment message: {second_response.get('message')}")

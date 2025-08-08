@@ -37,10 +37,10 @@ if response.status_code == 200:
     print("✅ LOGIN SUCCESS!")
     try:
         data = response.json()
-        if data.get('status') == 'success':
+        if data.get('success'):
             print("✅ Driver authentication successful!")
-            print(f"Driver ID: {data.get('data', {}).get('driver_id')}")
-            print(f"Online Status: {data.get('data', {}).get('is_online')}")
+            print(f"Driver ID: {data.get('driver', {}).get('driver_id')}")
+            print(f"Online Status: {data.get('driver', {}).get('status')}")
         else:
             print(f"❌ Login failed: {data.get('message')}")
     except:
