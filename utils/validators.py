@@ -53,9 +53,8 @@ def validate_ride_type(ride_type):
 def create_success_response(data=None, message="Success"):
     """Create standardized success response"""
     response = {
-        'status': 'success',
-        'message': message
+        'success': True
     }
     if data:
-        response['data'] = data
+        response.update(data)  # Merge data directly into response
     return jsonify(response)
