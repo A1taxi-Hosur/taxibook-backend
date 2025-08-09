@@ -26,6 +26,8 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Apps**: JWT token-based authentication with 7-day expiration and Bearer token validation
 - **Admin Panel**: Traditional session-based authentication using Flask-Login for server-side rendered templates
 - **Token Management**: Automatic token refresh and validation with proper error handling for expired tokens
+- **Customer API**: Working endpoints at `/customer/*` (not `/api/customer/*`) with proper JWT authentication
+- **API Documentation**: Complete customer API documentation created with working examples and field formats
 
 ### Dispatch Engine
 - **Zone-Based Assignment**: Drivers are automatically assigned to zones based on their GPS location
