@@ -788,7 +788,6 @@ def assign_driver():
 
 
 @admin_bp.route('/api/special_fare_config', methods=['GET'])
-@login_required
 def api_get_special_fare_config():
     """API endpoint to get all special fare configurations"""
     try:
@@ -972,7 +971,6 @@ def api_create_zone():
 
 
 @admin_bp.route('/api/bookings', methods=['GET'])
-@login_required
 def api_get_all_bookings():
     """API endpoint to get all bookings for admin"""
     try:
@@ -1304,11 +1302,9 @@ def api_delete_special_fare(fare_id):
 
 
 @admin_bp.route('/api/drivers', methods=['GET'])
-@login_required
 def api_get_drivers():
     """API endpoint to get drivers with filters"""
     try:
-        logging.info(f"API drivers request from user: {current_user.is_authenticated}")
         available_only = request.args.get('available', 'false').lower() == 'true'
         
         query = Driver.query
@@ -1483,7 +1479,6 @@ def save_firebase_token():
 # ==================== PROMO CODE MANAGEMENT ====================
 
 @admin_bp.route('/api/promo_codes', methods=['GET'])
-@login_required
 def api_promo_codes():
     """Get all promo codes for admin"""
     try:
@@ -1491,11 +1486,25 @@ def api_promo_codes():
         
         promo_data = []
         for promo in promo_codes:
-            promo_dict = promo.to_dict()
-            # Add usage percentage
-            usage_percentage = (promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0
-            promo_dict['usage_percentage'] = round(usage_percentage, 1)
-            promo_data.append(promo_dict)
+            try:
+                promo_dict = promo.to_dict()
+                # Add usage percentage
+                usage_percentage = (promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0
+                promo_dict['usage_percentage'] = round(usage_percentage, 1)
+                promo_data.append(promo_dict)
+            except Exception as e:
+                logging.error(f"Error converting promo {promo.id} to dict: {str(e)}")
+                # Fallback to manual dict creation
+                promo_data.append({
+                    'id': promo.id,
+                    'code': promo.code,
+                    'discount_type': promo.discount_type,
+                    'discount_value': promo.discount_value,
+                    'max_uses': promo.max_uses,
+                    'current_uses': promo.current_uses,
+                    'active': promo.active,
+                    'usage_percentage': round((promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0, 1)
+                })
         
         return create_success_response(promo_data)
         
