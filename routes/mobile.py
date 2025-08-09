@@ -123,37 +123,123 @@ def driver_earnings():
         total_fare = float(total_stats.total_fare or 0)
         
         # Get daily earnings for last 7 days
-        seven_days_ago = datetime.now() - timedelta(days=7)
-        daily_earnings = db.session.query(
-            func.date(Ride.completed_at).label('date'),
-            func.count(Ride.id).label('ride_count'),
-            func.sum(Ride.fare_amount).label('total_fare')
-        ).filter(
-            Ride.driver_id == driver.id,
-            Ride.status == 'completed',
-            Ride.completed_at >= seven_days_ago
-        ).group_by(func.date(Ride.completed_at)).order_by(func.date(Ride.completed_at).desc()).all()
         
-        # Format daily data
-        daily_summary = []
-        for day in daily_earnings:
-            daily_summary.append({
-                'date': day.date.isoformat(),
-                'ride_count': day.ride_count,
-                'total_fare': float(day.total_fare)
-            })
-        
-        earnings_data = {
+        return create_success_response({
             'total_rides': total_rides,
             'total_fare': total_fare,
-            'daily_summary': daily_summary
-        }
-        
-        return create_success_response(earnings_data, "Driver earnings retrieved successfully")
+            'average_fare': round(total_fare / total_rides, 2) if total_rides > 0 else 0
+        }, "Driver earnings retrieved successfully")
     
     except Exception as e:
         logging.error(f"Error retrieving driver earnings: {str(e)}")
         return create_error_response("Internal server error", 500)
+
+# ADMIN/SYSTEM ENDPOINTS FOR MOBILE APP
+
+@mobile_bp.route('/active_drivers_count', methods=['GET'])
+def active_drivers_count():
+    """Get count of active/online drivers - Public endpoint"""
+    try:
+        # Count only online drivers with recent location updates
+        from datetime import timedelta
+        from app import get_ist_time
+        
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(minutes=15)
+        
+        # Get drivers that are online and have updated location recently
+        active_drivers = Driver.query.filter(
+            Driver.is_online == True,
+            Driver.current_lat.isnot(None),
+            Driver.current_lng.isnot(None)
+        ).all()
+        
+        # Filter out stale locations
+        truly_active = 0
+        for driver in active_drivers:
+            if driver.location_updated_at:
+                # Handle timezone-aware comparison
+                if driver.location_updated_at.tzinfo is None:
+                    from app import IST
+                    location_time = IST.localize(driver.location_updated_at)
+                else:
+                    location_time = driver.location_updated_at.astimezone(IST)
+                
+                time_since_update = current_time - location_time
+                if time_since_update <= staleness_threshold:
+                    truly_active += 1
+        
+        return jsonify({
+            'success': True,
+            'count': truly_active,
+            'message': f'{truly_active} active drivers found'
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting active drivers count: {str(e)}")
+        return jsonify({
+            'success': False,
+            'count': 0,
+            'message': 'Failed to get active drivers count'
+        }), 500
+
+@mobile_bp.route('/driver_locations', methods=['GET'])
+def driver_locations():
+    """Get all driver locations for map display - Public endpoint"""
+    try:
+        from datetime import timedelta
+        from app import get_ist_time
+        
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(minutes=15)
+        
+        # Get all drivers with location data
+        drivers = Driver.query.filter(
+            Driver.current_lat.isnot(None),
+            Driver.current_lng.isnot(None)
+        ).all()
+        
+        driver_locations = []
+        for driver in drivers:
+            # Check if location is recent
+            is_stale = True
+            if driver.location_updated_at:
+                if driver.location_updated_at.tzinfo is None:
+                    from app import IST
+                    location_time = IST.localize(driver.location_updated_at)
+                else:
+                    location_time = driver.location_updated_at.astimezone(IST)
+                
+                time_since_update = current_time - location_time
+                is_stale = time_since_update > staleness_threshold
+            
+            # Only include drivers with recent locations
+            if not is_stale:
+                driver_locations.append({
+                    'id': driver.id,
+                    'name': driver.name,
+                    'lat': float(driver.current_lat),
+                    'lng': float(driver.current_lng),
+                    'is_online': driver.is_online,
+                    'car_type': driver.car_type,
+                    'car_number': driver.car_number,
+                    'location_updated_at': driver.location_updated_at.isoformat() if driver.location_updated_at else None
+                })
+        
+        return jsonify({
+            'success': True,
+            'drivers': driver_locations,
+            'count': len(driver_locations),
+            'message': f'{len(driver_locations)} driver locations retrieved'
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting driver locations: {str(e)}")
+        return jsonify({
+            'success': False,
+            'drivers': [],
+            'message': 'Failed to load driver locations'
+        }), 500
 
 # CUSTOMER ENDPOINTS
 

@@ -611,18 +611,33 @@ def fare_config():
 
 
 @admin_bp.route('/api/fare_config', methods=['GET'])
-@login_required
 def api_get_fare_config():
-    """API endpoint to get all fare configurations"""
+    """API endpoint to get all fare configurations - Public endpoint for mobile app"""
     try:
         fare_configs = FareConfig.query.all()
-        return create_success_response({
-            'fare_configs': [config.to_dict() for config in fare_configs]
+        
+        # Convert to dictionary format expected by mobile app
+        config_data = []
+        for config in fare_configs:
+            config_data.append({
+                'id': config.id,
+                'ride_type': config.ride_type,
+                'base_fare': float(config.base_fare),
+                'per_km_rate': float(config.per_km_rate)
+            })
+        
+        return jsonify({
+            'success': True,
+            'message': 'Fare configurations retrieved successfully',
+            'data': config_data
         })
     
     except Exception as e:
         logging.error(f"Error getting fare configurations: {str(e)}")
-        return create_error_response("Failed to get fare configurations")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to load fare configurations'
+        }), 500
 
 
 @admin_bp.route('/api/fare_config', methods=['POST'])
@@ -1034,9 +1049,8 @@ def live_map():
 
 # Additional API endpoints for enhanced features
 @admin_bp.route('/api/live_driver_locations', methods=['GET'])
-@login_required
 def api_live_driver_locations():
-    """API endpoint to get live driver locations with staleness filtering"""
+    """API endpoint to get live driver locations - Public endpoint for mobile app"""
     try:
         from datetime import timedelta
         
