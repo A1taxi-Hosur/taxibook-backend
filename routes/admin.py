@@ -601,6 +601,54 @@ def get_driver(driver_id):
         return create_error_response('Error retrieving driver details', 500)
 
 
+@admin_bp.route('/api/rides/<int:ride_id>', methods=['GET'])
+@admin_bp.route('/get_ride_details/<int:ride_id>', methods=['GET'])
+def get_ride_details(ride_id):
+    """API endpoint to get ride details for admin"""
+    try:
+        ride = Ride.query.get(ride_id)
+        if not ride:
+            return create_error_response('Ride not found', 404)
+        
+        # Get related data
+        customer = Customer.query.get(ride.customer_id) if ride.customer_id else None
+        driver = Driver.query.get(ride.driver_id) if ride.driver_id else None
+        
+        ride_data = {
+            'id': ride.id,
+            'customer_name': customer.name if customer else 'Unknown',
+            'customer_phone': customer.phone if customer else 'Unknown',
+            'driver_name': driver.name if driver else 'Unassigned',
+            'driver_phone': driver.phone if driver else 'N/A',
+            'pickup_location': ride.pickup_location,
+            'pickup_latitude': ride.pickup_latitude,
+            'pickup_longitude': ride.pickup_longitude,
+            'destination': ride.destination,
+            'destination_latitude': ride.destination_latitude,
+            'destination_longitude': ride.destination_longitude,
+            'ride_type': ride.ride_type,
+            'ride_category': ride.ride_category,
+            'status': ride.status,
+            'fare': float(ride.fare) if ride.fare else 0.0,
+            'distance_km': ride.distance_km,
+            'created_at': ride.created_at.isoformat() if ride.created_at else None,
+            'accepted_at': ride.accepted_at.isoformat() if ride.accepted_at else None,
+            'started_at': ride.started_at.isoformat() if ride.started_at else None,
+            'completed_at': ride.completed_at.isoformat() if ride.completed_at else None,
+            'promo_code': ride.promo_code,
+            'promo_discount': float(ride.promo_discount) if ride.promo_discount else 0.0
+        }
+        
+        return jsonify({
+            'success': True,
+            'ride': ride_data
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting ride details: {str(e)}")
+        return create_error_response('Error retrieving ride details', 500)
+
+
 @admin_bp.route('/fare_config')
 @login_required
 def fare_config():
@@ -1486,7 +1534,8 @@ def api_promo_codes():
             try:
                 # Manual dict creation to avoid PromoCode.to_dict() issues
                 usage_percentage = (promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0
-                promo_dict = {
+                
+                promo_data.append({
                     'id': promo.id,
                     'code': promo.code,
                     'discount_type': promo.discount_type,
@@ -1500,8 +1549,7 @@ def api_promo_codes():
                     'min_fare': float(promo.min_fare) if promo.min_fare else 0.0,
                     'ride_type': promo.ride_type,
                     'ride_category': promo.ride_category
-                }
-                promo_data.append(promo_dict)
+                })
             except Exception as promo_error:
                 logging.error(f"Error processing promo {promo.id}: {str(promo_error)}")
                 # Add minimal promo data

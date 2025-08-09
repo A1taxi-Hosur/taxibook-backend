@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadPromoCodes() {
-    fetch('/admin/api/promo_codes')
+    fetch('/admin/api/promo-codes')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {

@@ -333,11 +333,11 @@ function clearFilters() {
 }
 
 function showRideDetails(rideId) {
-    fetch(`/admin/get_ride_details/${rideId}`)
+    fetch(`/admin/api/rides/${rideId}`)
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'success') {
-                const ride = data.data;
+            if (data.success) {
+                const ride = data.ride;
                 displayRideDetailsModal(ride);
             } else {
                 showError('Failed to load ride details');

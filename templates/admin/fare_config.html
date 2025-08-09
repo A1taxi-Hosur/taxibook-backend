@@ -111,7 +111,7 @@
         }
         
         function loadFareConfigurations() {
-            fetch('/admin/api/fare_config', {
+            fetch('/admin/api/fare-config', {
                 method: 'GET',
                 credentials: 'include'
             })
@@ -239,7 +239,7 @@
                 per_km_rate: perKmRate
             };
             
-            fetch('/admin/api/fare_config', {
+            fetch('/admin/api/fare-config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

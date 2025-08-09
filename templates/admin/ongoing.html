@@ -222,11 +222,11 @@ function openActionModal(rideId, action) {
     document.getElementById('confirmActionBtn').innerHTML = `<i class="${actionIcon}"></i> ${actionTitle}`;
     
     // Load ride details
-    fetch(`/admin/get_ride_details/${rideId}`)
+    fetch(`/admin/api/rides/${rideId}`)
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'success') {
-                const ride = data.data;
+            if (data.success) {
+                const ride = data.ride;
                 document.getElementById('action-details').innerHTML = `
                     <div class="alert alert-info">
                         <strong>Ride #${ride.id}</strong><br>
