@@ -1,9 +1,5 @@
 # A1 Call Taxi - Customer API Documentation
 
-## Base URL
-- Development: `http://localhost:5000`
-- Production: `https://your-domain.com`
-
 ## Authentication System
 
 ### JWT Token Authentication
