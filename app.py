@@ -55,18 +55,72 @@ IST = pytz.timezone('Asia/Kolkata')
 def get_ist_time():
     return datetime.now(IST)
 
-# JWT Token Authentication Decorator - TEMPORARILY DISABLED FOR TESTING
+# JWT Token Authentication Decorator
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # TEMPORARY: Skip JWT validation for testing driver app issues
-        # Use real driver data for testing
-        fake_user_data = {
-            'user_id': 25,  # Real driver ID from database
-            'username': 'DRVSUVTEST',  # Real username
-            'user_type': 'driver'
-        }
-        return f(fake_user_data, *args, **kwargs)
+        token = None
+        
+        # Check for token in Authorization header (Bearer token)
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(" ")[1]  # Remove "Bearer " prefix
+            except IndexError:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Invalid token format. Use: Bearer <token>'
+                }), 401
+        
+        # Check for token in request body (fallback for mobile apps)
+        elif request.is_json:
+            data = request.get_json()
+            if data and 'token' in data:
+                token = data['token']
+        
+        # Check for token in form data (fallback)
+        elif request.form and 'token' in request.form:
+            token = request.form['token']
+        
+        if not token:
+            return jsonify({
+                'success': False,
+                'message': 'Token is required. Please login first.'
+            }), 401
+        
+        try:
+            # Decode JWT token
+            payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user_data = {
+                'user_id': payload['user_id'],
+                'username': payload['username'],
+                'user_type': payload['user_type'],
+                'exp': payload['exp'],
+                'iat': payload['iat']
+            }
+            
+            # Log successful token validation
+            logging.info(f"JWT token validated for {current_user_data['user_type']} {current_user_data['username']}")
+            
+            return f(current_user_data, *args, **kwargs)
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({
+                'success': False,
+                'message': 'Token has expired. Please login again.'
+            }), 401
+        except jwt.InvalidTokenError:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid token. Please login again.'
+            }), 401
+        except Exception as e:
+            logging.error(f"JWT token validation error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Token validation failed'
+            }), 401
+    
     return decorated
 
 # Generate JWT Token

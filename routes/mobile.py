@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from app import token_required
 from models import db, Driver, Customer, Ride
 from utils.validators import validate_phone, create_error_response, create_success_response
 from sqlalchemy import func, extract
@@ -10,7 +11,8 @@ mobile_bp = Blueprint('mobile', __name__)
 # DRIVER ENDPOINTS
 
 @mobile_bp.route('/driver/profile', methods=['GET'])
-def driver_profile():
+@token_required
+def driver_profile(current_user):
     """Get driver profile information"""
     try:
         username = request.args.get('username')
@@ -49,7 +51,8 @@ def driver_profile():
         return create_error_response("Internal server error", 500)
 
 @mobile_bp.route('/driver/history', methods=['GET'])
-def driver_history():
+@token_required
+def driver_history(current_user):
     """Get paginated driver ride history"""
     try:
         username = request.args.get('username')

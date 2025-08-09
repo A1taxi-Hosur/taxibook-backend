@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import db, get_ist_time, generate_jwt_token
+from app import db, get_ist_time, generate_jwt_token, token_required
 from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone, Advertisement, PromoCode
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
@@ -84,7 +84,8 @@ def login_or_register():
         return create_error_response("Internal server error")
 
 @customer_bp.route('/book_ride', methods=['POST'])
-def book_ride():
+@token_required
+def book_ride(current_user):
     """Book a new ride"""
     try:
         data = request.get_json()
@@ -379,7 +380,8 @@ def book_ride():
         return create_error_response("Internal server error")
 
 @customer_bp.route('/validate_promo', methods=['POST'])
-def validate_promo():
+@token_required
+def validate_promo(current_user):
     """Validate promo code for given ride parameters"""
     try:
         data = request.get_json()
@@ -430,7 +432,8 @@ def validate_promo():
         return create_error_response("Internal server error")
 
 @customer_bp.route('/approve_zone_expansion', methods=['POST'])
-def approve_zone_expansion():
+@token_required
+def approve_zone_expansion(current_user):
     """Customer approval for zone expansion with extra fare"""
     try:
         data = request.get_json()
@@ -497,7 +500,8 @@ def approve_zone_expansion():
         return create_error_response("Internal server error")
 
 @customer_bp.route('/ride_status', methods=['GET'])
-def ride_status():
+@token_required
+def ride_status(current_user):
     """Get current ride status for customer"""
     try:
         phone = request.args.get('phone')
@@ -537,7 +541,8 @@ def ride_status():
         return create_success_response({'has_active_ride': False}, "Error retrieving ride status")
 
 @customer_bp.route('/cancel_ride', methods=['POST'])
-def cancel_ride():
+@token_required
+def cancel_ride(current_user):
     """Cancel current ride"""
     try:
         data = request.get_json()
@@ -753,7 +758,8 @@ def get_driver_location(ride_id):
 
 
 @customer_bp.route('/bookings/<int:customer_id>', methods=['GET'])
-def get_customer_bookings(customer_id):
+@token_required
+def get_customer_bookings(current_user, customer_id):
     """Get bookings for a specific customer categorized by status"""
     try:
         # Find customer
