@@ -168,12 +168,15 @@ function refreshDrivers() {
     fetch('/admin/api/live_driver_locations')
         .then(response => {
             console.log('📡 Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             return response.json();
         })
         .then(data => {
             console.log('📊 Driver data received:', data);
-            if (data.status === 'success') {
-                driversData = data.data.drivers;
+            if (data.success) {
+                driversData = data.drivers;
                 console.log('👥 Total drivers:', driversData.length);
                 
                 // Clear any existing error messages on successful load

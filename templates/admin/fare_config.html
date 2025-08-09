@@ -117,10 +117,6 @@
             })
                 .then(response => {
                     console.log('Response status:', response.status); // Debug log
-                    if (response.status === 401 || response.status === 403) {
-                        showAlert('Authentication required. Please refresh the page and login again.', 'danger');
-                        throw new Error('Authentication required');
-                    }
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
@@ -128,8 +124,8 @@
                 })
                 .then(data => {
                     console.log('Fare config API response:', data); // Debug log
-                    if (data.status === 'success' && data.data && data.data.fare_configs) {
-                        fareConfigs = data.data.fare_configs;
+                    if (data.success && data.data) {
+                        fareConfigs = data.data;
                         console.log('Loaded fare configs:', fareConfigs); // Debug log
                         renderFareConfigCards();
                         updateGlobalSurgeDisplay();
