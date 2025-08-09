@@ -610,7 +610,7 @@ def fare_config():
     return render_template('admin/fare_config.html')
 
 
-@admin_bp.route('/api/fare_config', methods=['GET'])
+@admin_bp.route('/api/fare-config', methods=['GET'])
 def api_get_fare_config():
     """API endpoint to get all fare configurations - Public endpoint for mobile app"""
     try:
@@ -640,8 +640,7 @@ def api_get_fare_config():
         }), 500
 
 
-@admin_bp.route('/api/fare_config', methods=['POST'])
-@login_required
+@admin_bp.route('/api/fare-config', methods=['POST'])
 def api_update_fare_config():
     """API endpoint to update fare configuration for a specific ride type"""
     # Authentication handled by @login_required decorator
@@ -787,7 +786,7 @@ def assign_driver():
         return create_error_response('Error assigning driver', 500)
 
 
-@admin_bp.route('/api/special_fare_config', methods=['GET'])
+@admin_bp.route('/api/special-fares', methods=['GET'])
 def api_get_special_fare_config():
     """API endpoint to get all special fare configurations"""
     try:
@@ -801,8 +800,7 @@ def api_get_special_fare_config():
         return create_error_response("Failed to get special fare configurations")
 
 
-@admin_bp.route('/api/special_fare_config', methods=['POST'])
-@login_required
+@admin_bp.route('/api/special-fares', methods=['POST'])
 def api_create_special_fare_config():
     """API endpoint to create or update special fare configuration"""
     try:
@@ -1046,6 +1044,7 @@ def live_map():
 
 
 # Additional API endpoints for enhanced features
+@admin_bp.route('/api/driver-locations', methods=['GET'])
 @admin_bp.route('/api/live_driver_locations', methods=['GET'])
 def api_live_driver_locations():
     """API endpoint to get live driver locations - Public endpoint for mobile app"""
@@ -1478,6 +1477,7 @@ def save_firebase_token():
 
 # ==================== PROMO CODE MANAGEMENT ====================
 
+@admin_bp.route('/api/promo-codes', methods=['GET'])
 @admin_bp.route('/api/promo_codes', methods=['GET'])
 def api_promo_codes():
     """Get all promo codes for admin"""
