@@ -560,8 +560,8 @@ def delete_driver():
         db.session.rollback()
         return create_error_response('Error deleting driver', 500)
 
+@admin_bp.route('/api/drivers/<int:driver_id>', methods=['GET'])
 @admin_bp.route('/get_driver/<int:driver_id>', methods=['GET'])
-@login_required
 def get_driver(driver_id):
     """Admin API to get driver details including plain-text password for testing"""
     try:

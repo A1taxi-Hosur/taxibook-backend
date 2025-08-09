@@ -547,11 +547,11 @@ function editDriver(driverId) {
     currentDriverId = driverId;
     
     // Fetch detailed driver information including password
-    fetch(`/admin/get_driver/${driverId}`)
+    fetch(`/admin/api/drivers/${driverId}`)
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const driver = data.data;
+            const driver = data.driver;
             
             // Populate form fields
             document.getElementById('editDriverId').value = driver.id;
