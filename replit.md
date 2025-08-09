@@ -5,7 +5,7 @@ A1 Call Taxi is a comprehensive taxi booking platform for the Indian market, pro
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language
-- Documentation: Keep only replit.md in root, move all other docs to docs/ folder
+- Documentation: Keep ONLY replit.md in root, ALL other docs moved to docs/ folder (COMPLETED)
 - Testing approach: Implement changes directly for quick validation
 
 ## Recent Critical Issues - IN PROGRESS (2025-08-08)
