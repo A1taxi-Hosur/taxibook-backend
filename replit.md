@@ -4,9 +4,11 @@
 A1 Call Taxi is a comprehensive taxi booking platform for the Indian market, providing backend APIs for customer bookings, driver management, and admin operations. It includes a full admin dashboard and manages the entire ride lifecycle with real-time status tracking. The project aims to deliver a robust and scalable solution for the on-demand taxi service industry.
 
 ## User Preferences
-Preferred communication style: Simple, everyday language.
+- Preferred communication style: Simple, everyday language
+- Documentation: Keep only replit.md in root, move all other docs to docs/ folder
+- Testing approach: Implement changes directly for quick validation
 
-## Recent Critical Issues - RESOLVED (2025-08-07)
+## Recent Critical Issues - IN PROGRESS (2025-08-08)
 - ✅ **JWT Authentication Migration Complete** - Successfully migrated from session-based to JWT token-based authentication
 - ✅ **Content-Type Issue Fixed** - Enhanced JSON parsing handles Chrome's missing Content-Type header and Firefox's proper headers
 - ✅ **Login/Logout JWT Protected** - Both endpoints now use JWT tokens with 7-day expiration
@@ -14,6 +16,7 @@ Preferred communication style: Simple, everyday language.
 - ✅ **Cross-Browser Compatibility** - Authentication works identically in Chrome, Firefox, and all browsers
 - ✅ **Railway Deployment Ready** - Backend code identical between Replit and Railway, only environment variables differ
 - ✅ **CORS Configuration Complete** - All required headers supported for cross-origin requests
+- 🔄 **JWT Token Bypass Testing** - Temporarily disabled JWT validation to isolate driver app login loop issues
 
 ## System Architecture
 ### Backend
