@@ -47,7 +47,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize extensions
 db.init_app(app)
 login_manager.init_app(app)
-login_manager.login_view = 'admin.login'
+login_manager.login_view = 'admin.login'  # Only for admin panel
 
 # Set timezone
 IST = pytz.timezone('Asia/Kolkata')

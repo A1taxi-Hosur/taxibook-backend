@@ -1,5 +1,4 @@
-from flask import Blueprint, request, jsonify, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, request, jsonify
 from app import db, get_ist_time, token_required, generate_jwt_token
 from models import Driver, Ride, RideRejection, RideLocation, Zone
 from utils.validators import validate_phone, validate_required_fields, create_error_response, create_success_response
@@ -403,10 +402,13 @@ def start_ride(current_user_data):
         if not ride.driver_id:
             return create_error_response("No driver assigned to this ride")
         
-        # Check if current user is the assigned driver (for session-based auth)
-        if hasattr(current_user, 'id') and current_user.is_authenticated:
-            if current_user.id != ride.driver_id:
-                return create_error_response("You are not authorized to start this ride")
+        # Verify JWT user is the assigned driver
+        driver = Driver.query.get(current_user_data['user_id'])
+        if not driver:
+            return create_error_response("Driver not found")
+            
+        if driver.id != ride.driver_id:
+            return create_error_response("You are not authorized to start this ride")
         
         # Verify OTP
         if not ride.start_otp:

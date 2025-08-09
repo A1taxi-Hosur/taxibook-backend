@@ -14,6 +14,10 @@ class Customer(UserMixin, db.Model):
     # Relationship with rides
     rides = db.relationship('Ride', backref='customer', lazy=True)
     
+    def __init__(self, name, phone):
+        self.name = name
+        self.phone = phone
+    
     def __repr__(self):
         return f'<Customer {self.name}>'
 
@@ -73,11 +77,16 @@ class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
+    
     name = db.Column(db.String(100), nullable=True)
+    
     mobile_number = db.Column(db.String(10), unique=True, nullable=True)
     role = db.Column(db.String(20), default='admin')  # admin only for now
     firebase_token = db.Column(db.Text, nullable=True)  # FCM token
     created_at = db.Column(db.DateTime, default=get_ist_time)
+    
+    def __init__(self, username):
+        self.username = username
     
     def set_password(self, password):
         """Hash and set password"""
@@ -218,6 +227,10 @@ class RideRejection(db.Model):
     driver_phone = db.Column(db.String(10), nullable=False)
     rejected_at = db.Column(db.DateTime, default=get_ist_time)
     
+    def __init__(self, ride_id, driver_phone):
+        self.ride_id = ride_id
+        self.driver_phone = driver_phone
+    
     def __repr__(self):
         return f'<RideRejection {self.ride_id} by {self.driver_phone}>'
 
@@ -233,6 +246,12 @@ class RideLocation(db.Model):
     
     # Relationships
     ride = db.relationship('Ride', backref='locations', lazy=True)
+    
+    def __init__(self, ride_id, latitude, longitude, is_latest=True):
+        self.ride_id = ride_id
+        self.latitude = latitude
+        self.longitude = longitude
+        self.is_latest = is_latest
     
     def __repr__(self):
         return f'<RideLocation {self.ride_id}: {self.latitude}, {self.longitude}>'

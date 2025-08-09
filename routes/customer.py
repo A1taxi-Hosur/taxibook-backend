@@ -1,5 +1,4 @@
-from flask import Blueprint, request, jsonify, session
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Blueprint, request, jsonify
 from app import db, get_ist_time, generate_jwt_token
 from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone, Advertisement, PromoCode
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
@@ -649,6 +648,7 @@ def ride_estimate():
         promo_code_str = data.get('promo_code', '').strip().upper()
         promo_discount_info = None
         
+        promo = None
         if promo_code_str:
             from models import PromoCode
             promo = PromoCode.query.filter_by(code=promo_code_str).first()
@@ -796,7 +796,8 @@ def get_customer_bookings(customer_id):
 def logout():
     """Logout customer"""
     try:
-        logout_user()
+        # Customer logout - clear any session data if needed
+        pass
         return create_success_response(message="Logout successful")
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
