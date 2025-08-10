@@ -296,8 +296,9 @@ def book_ride(current_user):
                 notification_result = notify_matching_drivers_in_zone(ride.id, pickup_lat, pickup_lng, ride_type)
                 
                 if notification_result.get('success'):
-                    # Drivers notified successfully
-                    logging.info(f"Matching drivers notified for ride {ride.id}")
+                    # Drivers notified successfully - status should now be 'pending'
+                    db.session.refresh(ride)  # Refresh to get updated status
+                    logging.info(f"Matching drivers notified for ride {ride.id}, status: {ride.status}")
                     return create_success_response({
                         'ride_id': ride.id,
                         'pickup_address': pickup_address,
@@ -309,7 +310,7 @@ def book_ride(current_user):
                         'final_fare': fare_amount,
                         'promo_code': promo_code_str if promo_code_str else None,
                         'discount_applied': discount_applied,
-                        'status': 'new',
+                        'status': ride.status,  # Show updated status (should be 'pending')
                         'drivers_notified': True,
                         'notification_info': {
                             'drivers_count': notification_result.get('drivers_count'),
@@ -319,8 +320,8 @@ def book_ride(current_user):
                     }, "Ride booked successfully. Matching drivers have been notified.")
                 
                 else:
-                    # No matching drivers found in zone
-                    logging.info(f"No matching drivers found in zone for ride {ride.id}")
+                    # No matching drivers found in zone - status remains 'new'
+                    logging.info(f"No matching drivers found in zone for ride {ride.id}, status remains: {ride.status}")
                     return create_success_response({
                         'ride_id': ride.id,
                         'pickup_address': pickup_address,
@@ -332,7 +333,7 @@ def book_ride(current_user):
                         'final_fare': fare_amount,
                         'promo_code': promo_code_str if promo_code_str else None,
                         'discount_applied': discount_applied,
-                        'status': 'new',
+                        'status': ride.status,  # Show current status ('new' when no drivers found)
                         'drivers_notified': False,
                         'error_message': notification_result.get('message', 'No matching drivers available in zone')
                     }, "Ride booked. No matching drivers available in your area.")
