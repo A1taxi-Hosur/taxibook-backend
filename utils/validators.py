@@ -35,6 +35,7 @@ def create_error_response(message, status_code=400):
     """Create standardized error response"""
     return jsonify({
         'success': False,
+        'status': 'error',
         'message': message
     }), status_code
 
@@ -53,8 +54,10 @@ def validate_ride_type(ride_type):
 def create_success_response(data=None, message="Success"):
     """Create standardized success response"""
     response = {
-        'success': True
+        'success': True,
+        'status': 'success',
+        'message': message
     }
-    if data:
-        response.update(data)  # Merge data directly into response
+    if data is not None:
+        response['data'] = data
     return jsonify(response)
