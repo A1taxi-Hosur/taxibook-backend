@@ -198,6 +198,62 @@ def customers():
         flash('Error loading customers', 'error')
         return render_template('admin/customers.html', customers=None)
 
+@admin_bp.route('/api/customers', methods=['GET'])
+@login_required
+def api_get_customers():
+    """API endpoint to get all customers for admin"""
+    try:
+        customers = Customer.query.order_by(Customer.created_at.desc()).all()
+        logging.info(f"Found {len(customers)} customers")
+        
+        customer_data = []
+        for customer in customers:
+            try:
+                # Count rides for this customer
+                total_rides = Ride.query.filter_by(customer_id=customer.id).count()
+                active_rides = Ride.query.filter_by(customer_id=customer.id).filter(
+                    Ride.status.in_(['pending', 'accepted', 'arrived', 'started'])
+                ).count()
+                
+                # Get last ride
+                last_ride = Ride.query.filter_by(customer_id=customer.id).order_by(
+                    Ride.created_at.desc()
+                ).first()
+                
+                customer_dict = {
+                    'id': customer.id,
+                    'name': customer.name or 'Unknown',
+                    'phone': customer.phone or '',
+                    'total_rides': total_rides,
+                    'active_rides': active_rides,
+                    'created_at': customer.created_at.isoformat() if customer.created_at else None,
+                    'last_activity': last_ride.created_at.isoformat() if last_ride and last_ride.created_at else None
+                }
+                customer_data.append(customer_dict)
+                
+            except Exception as customer_error:
+                logging.error(f"Error processing customer {customer.id}: {str(customer_error)}")
+                # Add minimal customer data on error
+                customer_data.append({
+                    'id': getattr(customer, 'id', 0),
+                    'name': 'Error Loading',
+                    'phone': 'Error',
+                    'total_rides': 0,
+                    'active_rides': 0,
+                    'created_at': None,
+                    'last_activity': None
+                })
+        
+        logging.info(f"Successfully processed {len(customer_data)} customers")
+        return create_success_response({
+            'customers': customer_data,
+            'total_count': len(customer_data)
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting customers: {str(e)}")
+        return create_error_response("Failed to retrieve customers")
+
 @admin_bp.route('/drivers')
 @login_required
 def drivers():

@@ -44,14 +44,22 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="small">{{ customer.created_at.strftime('%Y-%m-%d') }}</div>
-                                    <div class="small text-muted">{{ customer.created_at.strftime('%H:%M:%S') }}</div>
+                                    {% if customer.created_at %}
+                                        <div class="small">{{ customer.created_at.strftime('%Y-%m-%d') }}</div>
+                                        <div class="small text-muted">{{ customer.created_at.strftime('%H:%M:%S') }}</div>
+                                    {% else %}
+                                        <span class="text-muted">No date</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if customer.rides %}
                                         {% set last_ride = customer.rides|sort(attribute='created_at', reverse=true)|first %}
-                                        <div class="small">{{ last_ride.created_at.strftime('%Y-%m-%d') }}</div>
-                                        <div class="small text-muted">{{ last_ride.created_at.strftime('%H:%M:%S') }}</div>
+                                        {% if last_ride.created_at %}
+                                            <div class="small">{{ last_ride.created_at.strftime('%Y-%m-%d') }}</div>
+                                            <div class="small text-muted">{{ last_ride.created_at.strftime('%H:%M:%S') }}</div>
+                                        {% else %}
+                                            <span class="text-muted">No date</span>
+                                        {% endif %}
                                     {% else %}
                                         <span class="text-muted">No rides</span>
                                     {% endif %}
