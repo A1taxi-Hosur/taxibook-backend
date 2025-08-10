@@ -1020,15 +1020,13 @@ def api_get_zones():
         zone_data = []
         for zone in zones:
             try:
-                # Safe dict creation
+                # Safe dict creation - Zone model doesn't have base_fare/per_km
                 zone_dict = {
                     'id': zone.id,
                     'zone_name': zone.zone_name or '',
                     'polygon_coordinates': zone.polygon_coordinates or '[]',
                     'center_lat': float(zone.center_lat) if zone.center_lat else 0.0,
                     'center_lng': float(zone.center_lng) if zone.center_lng else 0.0,
-                    'base_fare': float(zone.base_fare) if zone.base_fare else 0.0,
-                    'per_km': float(zone.per_km) if zone.per_km else 0.0,
                     'is_active': bool(zone.is_active),
                     'created_at': zone.created_at.isoformat() if zone.created_at else None
                 }
@@ -1043,8 +1041,6 @@ def api_get_zones():
                     'polygon_coordinates': '[]',
                     'center_lat': 0.0,
                     'center_lng': 0.0,
-                    'base_fare': 0.0,
-                    'per_km': 0.0,
                     'is_active': False,
                     'created_at': None
                 })
