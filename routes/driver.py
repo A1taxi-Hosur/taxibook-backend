@@ -723,26 +723,48 @@ def update_location(current_user_data):
 def update_current_location(current_user_data):
     """Update driver's current location for proximity-based dispatch (JWT protected)"""
     try:
+        # Enhanced logging for debugging production issues
+        logging.info(f"=== LOCATION UPDATE REQUEST ===")
+        logging.info(f"User data from JWT: {current_user_data}")
+        logging.info(f"Request headers: {dict(request.headers)}")
+        logging.info(f"Content-Type: {request.content_type}")
+        
         data = request.get_json()
+        logging.info(f"Received location data: {data}")
+        
         if not data:
+            logging.error("No JSON data provided in location update request")
             return create_error_response("No data provided")
         
-        # Validate required fields
-        valid, error = validate_required_fields(data, ['phone', 'latitude', 'longitude'])
-        if not valid:
-            return create_error_response(error)
+        # Validate required fields - accept both 'phone' and 'current_lat'/'current_lng' formats
+        if 'latitude' in data and 'longitude' in data:
+            # Format 1: latitude/longitude
+            lat_field, lng_field = 'latitude', 'longitude'
+        elif 'current_lat' in data and 'current_lng' in data:
+            # Format 2: current_lat/current_lng
+            lat_field, lng_field = 'current_lat', 'current_lng'
+        else:
+            logging.error(f"Missing latitude/longitude fields in data: {data}")
+            return create_error_response("Missing latitude and longitude fields")
+        
+        # Phone can come from JWT or request data
+        phone = data.get('phone') or current_user_data.get('phone')
+        if not phone:
+            logging.error(f"No phone number found in JWT or request data")
+            return create_error_response("Phone number required")
         
         # Validate phone number
-        valid, phone_or_error = validate_phone(data['phone'])
+        valid, phone_or_error = validate_phone(phone)
         if not valid:
             return create_error_response(phone_or_error)
         
         phone = phone_or_error
         
         try:
-            latitude = float(data['latitude'])
-            longitude = float(data['longitude'])
+            latitude = float(data[lat_field])
+            longitude = float(data[lng_field])
         except (ValueError, TypeError):
+            logging.error(f"Invalid coordinate format: {data.get(lat_field)}, {data.get(lng_field)}")
             return create_error_response("Invalid latitude or longitude format")
         
         # Validate coordinates
