@@ -293,6 +293,7 @@ function updateRecentRides(rides) {
                         <th>Status</th>
                         <th>Fare</th>
                         <th>Created</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -324,6 +325,11 @@ function updateRecentRides(rides) {
                 </td>
                 <td>₹${parseFloat(ride.fare_amount).toFixed(2)}</td>
                 <td>${ride.created_at}</td>
+                <td>
+                    ${ride.status !== 'completed' && ride.status !== 'cancelled' ? 
+                        `<button class="btn btn-sm btn-outline-danger" onclick="cancelRide(${ride.id})">Cancel</button>` : 
+                        '<span class="text-muted">-</span>'}
+                </td>
             </tr>
         `;
     });
@@ -398,5 +404,33 @@ document.addEventListener('visibilitychange', () => {
         setTimeout(refreshStats, 1000);
     }
 });
+
+// Cancel ride function for dashboard
+function cancelRide(rideId) {
+    if (!confirm('Are you sure you want to cancel this ride?')) {
+        return;
+    }
+    
+    fetch(`{{ url_for('admin.cancel_ride', ride_id=0) }}`.replace('0', rideId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            refreshStats(); // Refresh the dashboard
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error cancelling ride');
+    });
+}
 </script>
 {% endblock %}

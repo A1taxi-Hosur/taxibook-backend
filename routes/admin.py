@@ -302,6 +302,66 @@ def clear_logs():
     
     return redirect(url_for('admin.dashboard'))
 
+@admin_bp.route('/clear_stuck_rides', methods=['POST'])
+@login_required
+def clear_stuck_rides():
+    """Cancel all stuck rides (pending, accepted, arrived, started)"""
+    try:
+        # Find all stuck rides (non-final statuses)
+        stuck_statuses = ['pending', 'accepted', 'arrived', 'started']
+        stuck_rides = Ride.query.filter(Ride.status.in_(stuck_statuses)).all()
+        
+        count = len(stuck_rides)
+        
+        # Update all stuck rides to cancelled
+        for ride in stuck_rides:
+            old_status = ride.status
+            ride.status = 'cancelled'
+            logging.info(f"Cancelled stuck ride ID {ride.id} (was {old_status})")
+        
+        db.session.commit()
+        
+        logging.info(f"Cancelled {count} stuck rides")
+        flash(f'Successfully cancelled {count} stuck rides', 'success')
+        
+    except Exception as e:
+        logging.error(f"Error cancelling stuck rides: {str(e)}")
+        flash('Error cancelling stuck rides', 'error')
+        db.session.rollback()
+    
+    return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/cancel_ride/<int:ride_id>', methods=['POST'])
+@login_required
+def cancel_ride(ride_id):
+    """Cancel a specific ride"""
+    try:
+        ride = Ride.query.get_or_404(ride_id)
+        
+        if ride.status in ['completed', 'cancelled']:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot cancel completed or already cancelled ride'
+            }), 400
+        
+        old_status = ride.status
+        ride.status = 'cancelled'
+        db.session.commit()
+        
+        logging.info(f"Admin cancelled ride ID {ride_id} (was {old_status})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Ride #{ride_id} cancelled successfully'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error cancelling ride {ride_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Error cancelling ride'
+        }), 500
+
 @admin_bp.route('/api/stats')
 @login_required
 def api_stats():

@@ -167,7 +167,7 @@ function cancelRide(rideId) {
         return;
     }
     
-    fetch(`{{ url_for('admin.cancel_ride_admin', ride_id=0) }}`.replace('0', rideId), {
+    fetch(`{{ url_for('admin.cancel_ride', ride_id=0) }}`.replace('0', rideId), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -176,11 +176,11 @@ function cancelRide(rideId) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.error) {
-            alert('Error: ' + data.error);
-        } else {
-            alert('Ride cancelled successfully');
+        if (data.success) {
+            alert(data.message);
             window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
         }
     })
     .catch(error => {

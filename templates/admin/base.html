@@ -163,9 +163,17 @@
                         </li>
                         <li class="nav-item">
                             <form method="POST" action="{{ url_for('admin.clear_logs') }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm w-100 mb-2" 
+                                        onclick="return confirm('Clear ALL rides? This will delete all ride data and cannot be undone.')">
+                                    <i class="bi bi-trash3"></i> Clear All Rides
+                                </button>
+                            </form>
+                        </li>
+                        <li class="nav-item">
+                            <form method="POST" action="{{ url_for('admin.clear_stuck_rides') }}" class="d-inline">
                                 <button type="submit" class="btn btn-outline-warning btn-sm w-100 mb-2" 
-                                        onclick="return confirm('Clear stuck rides? This action cannot be undone.')">
-                                    <i class="bi bi-trash"></i> Clear Stuck Rides
+                                        onclick="return confirm('Cancel all stuck rides (pending/accepted/arrived/started)? This action cannot be undone.')">
+                                    <i class="bi bi-exclamation-triangle"></i> Clear Stuck Rides
                                 </button>
                             </form>
                         </li>
