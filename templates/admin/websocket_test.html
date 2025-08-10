@@ -1,0 +1,191 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}WebSocket Test{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-wifi"></i> WebSocket Connection Test</h2>
+                <div>
+                    <span id="connection-status" class="badge bg-secondary">Disconnected</span>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Connection Controls</h5>
+                        </div>
+                        <div class="card-body">
+                            <button id="connect-btn" class="btn btn-success me-2">Connect as Admin</button>
+                            <button id="disconnect-btn" class="btn btn-danger me-2" disabled>Disconnect</button>
+                            <button id="test-msg-btn" class="btn btn-info" disabled>Send Test Message</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>Connection Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="connection-info">
+                                <p>Not connected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Event Log</h5>
+                            <button class="btn btn-sm btn-outline-secondary float-end" onclick="clearLog()">Clear</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="event-log" style="height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                                <div class="text-muted">Event log will appear here...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let testClient = null;
+
+document.getElementById('connect-btn').addEventListener('click', function() {
+    connectWebSocket();
+});
+
+document.getElementById('disconnect-btn').addEventListener('click', function() {
+    if (testClient) {
+        testClient.disconnect();
+        testClient = null;
+        updateUI();
+    }
+});
+
+document.getElementById('test-msg-btn').addEventListener('click', function() {
+    if (testClient && testClient.isConnected()) {
+        testClient.socket.emit('test_message', {
+            message: 'Hello from admin test client!',
+            timestamp: new Date().toISOString()
+        });
+        logEvent('Sent test message');
+    }
+});
+
+function connectWebSocket() {
+    if (testClient) {
+        testClient.disconnect();
+    }
+    
+    testClient = new WebSocketClient({ 
+        debug: true,
+        autoConnect: false 
+    });
+    
+    // Setup event handlers
+    testClient.on('connected', () => {
+        logEvent('WebSocket connected successfully', 'success');
+        updateUI();
+        updateConnectionInfo();
+    });
+    
+    testClient.on('disconnected', (reason) => {
+        logEvent(`WebSocket disconnected: ${reason}`, 'warning');
+        updateUI();
+        updateConnectionInfo();
+    });
+    
+    testClient.on('connection_error', (error) => {
+        logEvent(`Connection error: ${error.message}`, 'danger');
+        updateUI();
+    });
+    
+    testClient.on('server_error', (data) => {
+        logEvent(`Server error: ${data.message}`, 'danger');
+    });
+    
+    testClient.on('connection_established', (data) => {
+        logEvent(`Connection established: ${JSON.stringify(data)}`, 'info');
+    });
+    
+    testClient.on('driver_location_updated', (data) => {
+        logEvent(`Driver location updated: ${data.driver_id} at ${data.latitude}, ${data.longitude}`, 'info');
+    });
+    
+    testClient.on('dashboard_stats_updated', (data) => {
+        logEvent(`Dashboard stats updated: ${JSON.stringify(data)}`, 'info');
+    });
+    
+    // Connect as admin
+    testClient.connectAsAdmin();
+}
+
+function updateUI() {
+    const isConnected = testClient && testClient.isConnected();
+    
+    document.getElementById('connect-btn').disabled = isConnected;
+    document.getElementById('disconnect-btn').disabled = !isConnected;
+    document.getElementById('test-msg-btn').disabled = !isConnected;
+    
+    const statusBadge = document.getElementById('connection-status');
+    if (isConnected) {
+        statusBadge.textContent = 'Connected';
+        statusBadge.className = 'badge bg-success';
+    } else {
+        statusBadge.textContent = 'Disconnected';
+        statusBadge.className = 'badge bg-secondary';
+    }
+}
+
+function updateConnectionInfo() {
+    const info = testClient ? testClient.getConnectionInfo() : null;
+    const container = document.getElementById('connection-info');
+    
+    if (info && info.connected) {
+        container.innerHTML = `
+            <p><strong>Status:</strong> ${info.connected ? 'Connected' : 'Disconnected'}</p>
+            <p><strong>Connection Type:</strong> ${info.connectionType || 'Unknown'}</p>
+            <p><strong>Socket ID:</strong> ${info.socketId || 'N/A'}</p>
+            <p><strong>Reconnect Attempts:</strong> ${info.reconnectAttempts || 0}</p>
+        `;
+    } else {
+        container.innerHTML = '<p>Not connected</p>';
+    }
+}
+
+function logEvent(message, type = 'info') {
+    const log = document.getElementById('event-log');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    const colors = {
+        success: '#28a745',
+        info: '#17a2b8',
+        warning: '#ffc107',
+        danger: '#dc3545'
+    };
+    
+    const color = colors[type] || '#6c757d';
+    
+    const entry = document.createElement('div');
+    entry.innerHTML = `<span style="color: ${color};">[${timestamp}]</span> ${message}`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('event-log').innerHTML = '<div class="text-muted">Event log cleared...</div>';
+}
+
+// Initialize UI
+updateUI();
+</script>
+{% endblock %}

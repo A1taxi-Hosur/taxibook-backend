@@ -798,6 +798,25 @@ def update_current_location(current_user_data):
         logging.info(f"Car type: {driver.car_type}")
         logging.info(f"Online status: {driver.is_online}")
         
+        # Broadcast location update via WebSocket
+        try:
+            from utils.websocket_manager import broadcast_driver_location_update
+            location_data = {
+                'driver_id': driver.id,
+                'name': driver.name,
+                'latitude': latitude,
+                'longitude': longitude,
+                'timestamp': get_ist_time().isoformat(),
+                'is_online': driver.is_online,
+                'car_type': driver.car_type,
+                'zone': driver.zone.zone_name if driver.zone else None,
+                'out_of_zone': driver.out_of_zone
+            }
+            broadcast_driver_location_update(location_data)
+            logging.debug(f"Broadcasted WebSocket location update for driver {driver.id}")
+        except Exception as e:
+            logging.warning(f"Failed to broadcast location update via WebSocket: {str(e)}")
+        
         return create_success_response({
             'driver_id': driver.id,
             'latitude': latitude,

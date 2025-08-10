@@ -2272,3 +2272,9 @@ def update_ad_analytics(ad_id):
 def advertisements_page():
     """Advertisements management page"""
     return render_template('admin/advertisements.html')
+
+@admin_bp.route('/websocket-test')
+@login_required
+def websocket_test():
+    """WebSocket connection test page"""
+    return render_template('admin/websocket_test.html')

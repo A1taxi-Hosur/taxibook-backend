@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
@@ -29,6 +30,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-placeholder-key"
 app.config['SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY") or "a1taxi-jwt-secret-key"  # JWT secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=False)
+
+# Initialize WebSocket handlers after socketio is created
+from utils.websocket_manager import init_websocket_handlers
+init_websocket_handlers(socketio)
 
 # Configure CORS - Allow all origins and headers for development
 CORS(app, 
