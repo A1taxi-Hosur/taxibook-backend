@@ -134,6 +134,7 @@
                                     <th>Customer</th>
                                     <th>Driver</th>
                                     <th>Pickup</th>
+                                    <th>Ride Type</th>
                                     <th>Status</th>
                                     <th>Fare</th>
                                     <th>Created</th>
@@ -156,6 +157,11 @@
                                             {% endif %}
                                         </td>
                                         <td>{{ ride.pickup_address[:30] }}...</td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ ride.ride_type.title() if ride.ride_type else 'Sedan' }}
+                                            </span>
+                                        </td>
                                         <td>
                                             <span class="badge status-badge 
                                                 {% if ride.status == 'completed' %}bg-success
@@ -283,6 +289,7 @@ function updateRecentRides(rides) {
                         <th>Customer</th>
                         <th>Driver</th>
                         <th>Pickup</th>
+                        <th>Ride Type</th>
                         <th>Status</th>
                         <th>Fare</th>
                         <th>Created</th>
@@ -305,6 +312,11 @@ function updateRecentRides(rides) {
                         '<span class="text-muted">Not assigned</span>'}
                 </td>
                 <td>${ride.pickup_address.substring(0, 30)}...</td>
+                <td>
+                    <span class="badge bg-secondary">
+                        ${ride.ride_type ? ride.ride_type.charAt(0).toUpperCase() + ride.ride_type.slice(1) : 'Sedan'}
+                    </span>
+                </td>
                 <td>
                     <span class="badge ${statusBadgeClass(ride.status)}">
                         ${ride.status.charAt(0).toUpperCase() + ride.status.slice(1)}
