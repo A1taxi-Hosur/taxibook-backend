@@ -13,6 +13,16 @@ from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
+# Import additional history routes
+try:
+    from .admin_history import setup_history_routes
+    setup_history_routes(admin_bp)
+    logging.info("Admin history routes loaded successfully")
+except ImportError as e:
+    logging.warning(f"Could not load admin history routes: {str(e)}")
+except Exception as e:
+    logging.error(f"Error setting up admin history routes: {str(e)}")
+
 def generate_driver_username():
     """Generate unique driver username in format DRVAB12CD"""
     while True:
@@ -237,6 +247,7 @@ def clear_logs():
     return redirect(url_for('admin.dashboard'))
 
 @admin_bp.route('/api/stats')
+@login_required
 def api_stats():
     """API endpoint for dashboard stats"""
     try:
@@ -259,13 +270,15 @@ def api_stats():
             'cancelled_rides': Ride.query.filter_by(status='cancelled').count(),
         }
         
-        return jsonify(stats)
+        logging.info(f"Dashboard stats: {stats}")
+        return create_success_response(stats)
         
     except Exception as e:
         logging.error(f"Error in api_stats: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error loading stats'}), 500
+        return create_error_response('Error loading dashboard statistics')
 
 @admin_bp.route('/api/recent_rides')
+@login_required
 def api_recent_rides():
     """API endpoint for recent rides data"""
     try:
@@ -274,24 +287,29 @@ def api_recent_rides():
         
         rides_data = []
         for ride in recent_rides:
-            ride_data = {
-                'id': ride.id,
-                'customer_name': ride.customer.name if ride.customer else 'Unknown',
-                'customer_phone': ride.customer_phone,
-                'driver_name': ride.driver.name if ride.driver else None,
-                'driver_phone': ride.driver.phone if ride.driver else None,
-                'pickup_address': ride.pickup_address,
-                'status': ride.status,
-                'fare_amount': ride.fare_amount,
-                'created_at': ride.created_at.strftime('%Y-%m-%d %H:%M')
-            }
-            rides_data.append(ride_data)
+            try:
+                ride_data = {
+                    'id': ride.id,
+                    'customer_name': ride.customer.name if ride.customer else 'Unknown',
+                    'customer_phone': ride.customer_phone or '',
+                    'driver_name': ride.driver.name if ride.driver else 'Not Assigned',
+                    'driver_phone': ride.driver.phone if ride.driver else '',
+                    'pickup_address': ride.pickup_address or '',
+                    'drop_address': ride.drop_address or '',
+                    'status': ride.status or 'new',
+                    'fare_amount': float(ride.fare_amount) if ride.fare_amount else 0.0,
+                    'created_at': ride.created_at.strftime('%Y-%m-%d %H:%M') if ride.created_at else 'Unknown'
+                }
+                rides_data.append(ride_data)
+            except Exception as ride_error:
+                logging.error(f"Error processing recent ride {ride.id}: {str(ride_error)}")
         
-        return jsonify({'rides': rides_data})
+        logging.info(f"Retrieved {len(rides_data)} recent rides for dashboard")
+        return create_success_response({'rides': rides_data})
         
     except Exception as e:
         logging.error(f"Error in api_recent_rides: {str(e)}")
-        return jsonify({'success': False, 'message': 'Error loading recent rides'}), 500
+        return create_error_response('Error loading recent rides')
 
 # Removed duplicate api_drivers route - using api_get_drivers instead
 
@@ -657,12 +675,14 @@ def fare_config():
 
 
 @admin_bp.route('/api/fare-config', methods=['GET'])
+@login_required
 def api_get_fare_config():
-    """API endpoint to get all fare configurations - Public endpoint for mobile app"""
+    """API endpoint to get all fare configurations for admin"""
     try:
         fare_configs = FareConfig.query.all()
+        logging.info(f"Found {len(fare_configs)} fare configurations")
         
-        # Convert to dictionary format expected by mobile app
+        # Convert to dictionary format
         config_data = []
         for config in fare_configs:
             config_data.append({
@@ -833,12 +853,34 @@ def assign_driver():
 
 
 @admin_bp.route('/api/special-fares', methods=['GET'])
+@login_required
 def api_get_special_fare_config():
     """API endpoint to get all special fare configurations"""
     try:
         configs = SpecialFareConfig.query.all()
+        logging.info(f"Found {len(configs)} special fare configurations")
+        
+        config_data = []
+        for config in configs:
+            try:
+                config_dict = {
+                    'id': config.id,
+                    'ride_category': config.ride_category or '',
+                    'ride_type': config.ride_type or '',
+                    'base_fare': float(config.base_fare) if config.base_fare else 0.0,
+                    'per_km': float(config.per_km) if config.per_km else 0.0,
+                    'hourly': float(config.hourly) if config.hourly else 0.0,
+                    'flat_rate': float(config.flat_rate) if config.flat_rate else 0.0,
+                    'is_active': bool(config.is_active),
+                    'created_at': config.created_at.isoformat() if config.created_at else None,
+                    'updated_at': config.updated_at.isoformat() if config.updated_at else None
+                }
+                config_data.append(config_dict)
+            except Exception as config_error:
+                logging.error(f"Error processing special fare config {config.id}: {str(config_error)}")
+        
         return create_success_response({
-            'special_fare_configs': [config.to_dict() for config in configs]
+            'special_fare_configs': config_data
         })
     
     except Exception as e:
@@ -912,13 +954,47 @@ def api_create_special_fare_config():
 
 
 @admin_bp.route('/api/zones', methods=['GET'])
+@login_required
 def api_get_zones():
     """API endpoint to get all zones"""
     try:
         zones = Zone.query.all()
-        return create_success_response({
-            'zones': [zone.to_dict() for zone in zones]
-        })
+        logging.info(f"Found {len(zones)} zones")
+        
+        zone_data = []
+        for zone in zones:
+            try:
+                # Safe dict creation
+                zone_dict = {
+                    'id': zone.id,
+                    'zone_name': zone.zone_name or '',
+                    'polygon_coordinates': zone.polygon_coordinates or '[]',
+                    'center_lat': float(zone.center_lat) if zone.center_lat else 0.0,
+                    'center_lng': float(zone.center_lng) if zone.center_lng else 0.0,
+                    'base_fare': float(zone.base_fare) if zone.base_fare else 0.0,
+                    'per_km': float(zone.per_km) if zone.per_km else 0.0,
+                    'is_active': bool(zone.is_active),
+                    'created_at': zone.created_at.isoformat() if zone.created_at else None
+                }
+                zone_data.append(zone_dict)
+                
+            except Exception as zone_error:
+                logging.error(f"Error processing zone {zone.id}: {str(zone_error)}")
+                # Add minimal zone data on error
+                zone_data.append({
+                    'id': getattr(zone, 'id', 0),
+                    'zone_name': 'Error Loading Zone',
+                    'polygon_coordinates': '[]',
+                    'center_lat': 0.0,
+                    'center_lng': 0.0,
+                    'base_fare': 0.0,
+                    'per_km': 0.0,
+                    'is_active': False,
+                    'created_at': None
+                })
+        
+        logging.info(f"Successfully processed {len(zone_data)} zones")
+        return create_success_response({'zones': zone_data})
     
     except Exception as e:
         logging.error(f"Error getting zones: {str(e)}")
@@ -1014,23 +1090,78 @@ def api_create_zone():
 
 
 @admin_bp.route('/api/bookings', methods=['GET'])
+@login_required
 def api_get_all_bookings():
     """API endpoint to get all bookings for admin"""
     try:
         # Get all rides ordered by creation date (newest first)
         rides = Ride.query.order_by(Ride.created_at.desc()).all()
+        logging.info(f"Found {len(rides)} total rides")
         
         # Convert to dictionaries
         bookings = []
         for ride in rides:
-            ride_dict = ride.to_dict()
-            # Add customer and driver names for admin view
-            if ride.customer:
-                ride_dict['customer_name'] = ride.customer.name
-            if ride.driver:
-                ride_dict['driver_name'] = ride.driver.name
-            bookings.append(ride_dict)
+            try:
+                # Safe dict creation for ride data
+                ride_dict = {
+                    'id': ride.id,
+                    'customer_phone': ride.customer_phone or '',
+                    'pickup_address': ride.pickup_address or '',
+                    'drop_address': ride.drop_address or '',
+                    'status': ride.status or 'new',
+                    'ride_type': ride.ride_type or 'sedan',
+                    'ride_category': ride.ride_category or 'regular',
+                    'fare_amount': float(ride.fare_amount) if ride.fare_amount else 0.0,
+                    'final_fare': float(ride.final_fare) if ride.final_fare else 0.0,
+                    'distance_km': float(ride.distance_km) if ride.distance_km else 0.0,
+                    'created_at': ride.created_at.isoformat() if ride.created_at else None,
+                    'accepted_at': ride.accepted_at.isoformat() if ride.accepted_at else None,
+                    'completed_at': ride.completed_at.isoformat() if ride.completed_at else None,
+                    'cancelled_at': ride.cancelled_at.isoformat() if ride.cancelled_at else None
+                }
+                
+                # Add customer and driver names for admin view
+                if ride.customer:
+                    ride_dict['customer_name'] = ride.customer.name or 'Unknown Customer'
+                    ride_dict['customer_id'] = ride.customer.id
+                else:
+                    ride_dict['customer_name'] = 'Unknown Customer'
+                    ride_dict['customer_id'] = None
+                    
+                if ride.driver:
+                    ride_dict['driver_name'] = ride.driver.name or 'Unknown Driver'
+                    ride_dict['driver_id'] = ride.driver.id
+                    ride_dict['driver_phone'] = ride.driver.phone or ''
+                else:
+                    ride_dict['driver_name'] = 'Not Assigned'
+                    ride_dict['driver_id'] = None
+                    ride_dict['driver_phone'] = ''
+                
+                bookings.append(ride_dict)
+                
+            except Exception as ride_error:
+                logging.error(f"Error processing ride {ride.id}: {str(ride_error)}")
+                # Add minimal ride data on error
+                bookings.append({
+                    'id': getattr(ride, 'id', 0),
+                    'customer_phone': 'Error',
+                    'pickup_address': 'Error Loading',
+                    'drop_address': 'Error Loading',
+                    'status': 'error',
+                    'ride_type': 'sedan',
+                    'ride_category': 'regular',
+                    'fare_amount': 0.0,
+                    'final_fare': 0.0,
+                    'distance_km': 0.0,
+                    'customer_name': 'Error Loading',
+                    'driver_name': 'Error Loading',
+                    'created_at': None,
+                    'accepted_at': None,
+                    'completed_at': None,
+                    'cancelled_at': None
+                })
         
+        logging.info(f"Successfully processed {len(bookings)} bookings")
         return create_success_response({
             'bookings': bookings,
             'total_count': len(bookings)
@@ -1346,6 +1477,7 @@ def api_delete_special_fare(fare_id):
 
 
 @admin_bp.route('/api/drivers', methods=['GET'])
+@login_required
 def api_get_drivers():
     """API endpoint to get drivers with filters"""
     try:
@@ -1363,23 +1495,28 @@ def api_get_drivers():
         
         driver_list = []
         for driver in drivers:
-            # Get current active rides count for this driver
-            active_rides = Ride.query.filter_by(driver_id=driver.id).filter(
-                Ride.status.in_(['accepted', 'arrived', 'started'])
-            ).count()
-            
-            driver_data = {
-                'id': driver.id,
-                'name': driver.name,
-                'phone': driver.phone,
-                'car_type': driver.car_type,
-                'car_number': driver.car_number,
-                'is_online': driver.is_online,
-                'zone': driver.zone.zone_name if driver.zone else None,
-                'active_rides': active_rides,
-                'availability_status': 'Online' if driver.is_online else 'Offline'
-            }
-            driver_list.append(driver_data)
+            try:
+                # Get current active rides count for this driver
+                active_rides = Ride.query.filter_by(driver_id=driver.id).filter(
+                    Ride.status.in_(['accepted', 'arrived', 'started'])
+                ).count()
+                
+                driver_data = {
+                    'id': driver.id,
+                    'name': driver.name or '',
+                    'phone': driver.phone or '',
+                    'car_type': driver.car_type or '',
+                    'car_number': driver.car_number or '',
+                    'car_make': driver.car_make or '',
+                    'car_model': driver.car_model or '',
+                    'is_online': bool(driver.is_online),
+                    'zone': driver.zone.zone_name if driver.zone else None,
+                    'active_rides': active_rides,
+                    'availability_status': 'Online' if driver.is_online else 'Offline'
+                }
+                driver_list.append(driver_data)
+            except Exception as driver_error:
+                logging.error(f"Error processing driver {driver.id}: {str(driver_error)}")
         
         logging.info(f"Returning {len(driver_list)} drivers to frontend")
         return create_success_response({
@@ -1524,10 +1661,12 @@ def save_firebase_token():
 
 @admin_bp.route('/api/promo-codes', methods=['GET'])
 @admin_bp.route('/api/promo_codes', methods=['GET'])
+@login_required
 def api_promo_codes():
     """Get all promo codes for admin"""
     try:
         promo_codes = PromoCode.query.order_by(PromoCode.created_at.desc()).all()
+        logging.info(f"Found {len(promo_codes)} promo codes")
         
         promo_data = []
         for promo in promo_codes:
@@ -1535,35 +1674,43 @@ def api_promo_codes():
                 # Manual dict creation to avoid PromoCode.to_dict() issues
                 usage_percentage = (promo.current_uses / promo.max_uses * 100) if promo.max_uses > 0 else 0
                 
-                promo_data.append({
+                promo_dict = {
                     'id': promo.id,
-                    'code': promo.code,
-                    'discount_type': promo.discount_type,
-                    'discount_value': float(promo.discount_value),
-                    'max_uses': promo.max_uses,
-                    'current_uses': promo.current_uses,
-                    'active': promo.active,
+                    'code': promo.code or '',
+                    'discount_type': promo.discount_type or 'percentage',
+                    'discount_value': float(promo.discount_value) if promo.discount_value else 0.0,
+                    'max_uses': promo.max_uses or 0,
+                    'current_uses': promo.current_uses or 0,
+                    'active': bool(promo.active),
                     'usage_percentage': round(usage_percentage, 1),
                     'created_at': promo.created_at.isoformat() if promo.created_at else None,
                     'expiry_date': promo.expiry_date.isoformat() if promo.expiry_date else None,
                     'min_fare': float(promo.min_fare) if promo.min_fare else 0.0,
-                    'ride_type': promo.ride_type,
-                    'ride_category': promo.ride_category
-                })
+                    'ride_type': promo.ride_type or 'all',
+                    'ride_category': promo.ride_category or 'all'
+                }
+                promo_data.append(promo_dict)
+                
             except Exception as promo_error:
                 logging.error(f"Error processing promo {promo.id}: {str(promo_error)}")
-                # Add minimal promo data
+                # Add minimal promo data on error
                 promo_data.append({
-                    'id': promo.id,
-                    'code': promo.code,
-                    'discount_type': promo.discount_type,
-                    'discount_value': float(promo.discount_value),
-                    'max_uses': promo.max_uses,
-                    'current_uses': promo.current_uses,
-                    'active': promo.active,
-                    'usage_percentage': 0.0
+                    'id': getattr(promo, 'id', 0),
+                    'code': getattr(promo, 'code', 'ERROR'),
+                    'discount_type': 'percentage',
+                    'discount_value': 0.0,
+                    'max_uses': 0,
+                    'current_uses': 0,
+                    'active': False,
+                    'usage_percentage': 0.0,
+                    'created_at': None,
+                    'expiry_date': None,
+                    'min_fare': 0.0,
+                    'ride_type': 'all',
+                    'ride_category': 'all'
                 })
         
+        logging.info(f"Successfully processed {len(promo_data)} promo codes")
         return create_success_response(promo_data)
         
     except Exception as e:
@@ -1730,15 +1877,53 @@ def api_advertisements():
     """Get all advertisements for admin"""
     try:
         ads = Advertisement.query.order_by(Advertisement.display_order, Advertisement.created_at.desc()).all()
+        logging.info(f"Found {len(ads)} advertisements")
         
         ads_data = []
         for ad in ads:
-            ad_dict = ad.to_dict()
-            # Add calculated fields
-            if ad.media_filename:
-                ad_dict['media_file_url'] = f"/static/ads/{ad.media_filename}"
-            ads_data.append(ad_dict)
+            try:
+                # Safe dict creation to handle any model issues
+                ad_dict = {
+                    'id': ad.id,
+                    'title': ad.title or '',
+                    'type': ad.type or 'image',
+                    'duration': ad.duration or 5,
+                    'display_order': ad.display_order or 0,
+                    'target_group': ad.target_group or 'all',
+                    'schedule': ad.schedule or '',
+                    'analytics': ad.analytics or '',
+                    'status': ad.status or 'active',
+                    'media_filename': ad.media_filename or '',
+                    'created_at': ad.created_at.isoformat() if ad.created_at else None
+                }
+                
+                # Add calculated fields
+                if ad.media_filename:
+                    ad_dict['media_file_url'] = f"/static/ads/{ad.media_filename}"
+                else:
+                    ad_dict['media_file_url'] = None
+                    
+                ads_data.append(ad_dict)
+                
+            except Exception as ad_error:
+                logging.error(f"Error processing advertisement {ad.id}: {str(ad_error)}")
+                # Add minimal ad data on error
+                ads_data.append({
+                    'id': getattr(ad, 'id', 0),
+                    'title': 'Error Loading Ad',
+                    'type': 'image',
+                    'duration': 5,
+                    'display_order': 0,
+                    'target_group': 'all',
+                    'schedule': '',
+                    'analytics': '',
+                    'status': 'error',
+                    'media_filename': '',
+                    'media_file_url': None,
+                    'created_at': None
+                })
         
+        logging.info(f"Successfully processed {len(ads_data)} advertisements")
         return create_success_response(ads_data)
         
     except Exception as e:
