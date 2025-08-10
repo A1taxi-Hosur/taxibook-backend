@@ -138,6 +138,7 @@
                                     <th>Status</th>
                                     <th>Fare</th>
                                     <th>Created</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="recentRidesBody">
@@ -173,6 +174,13 @@
                                         </td>
                                         <td>₹{{ "%.2f"|format(ride.fare_amount) }}</td>
                                         <td>{{ ride.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            {% if ride.status not in ['completed', 'cancelled'] %}
+                                                <button class="btn btn-sm btn-outline-danger" onclick="cancelRide({{ ride.id }})">Cancel</button>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
