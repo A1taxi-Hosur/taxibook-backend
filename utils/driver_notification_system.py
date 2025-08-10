@@ -33,25 +33,47 @@ def notify_matching_drivers_in_zone(ride_id, pickup_lat, pickup_lng, ride_type):
             }
         
         # Find matching drivers in the zone - use case insensitive matching for car type
-        matching_drivers = Driver.query.filter(
+        # Only include drivers with recent location data (within 30 seconds)
+        from datetime import timedelta
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(seconds=30)
+        
+        all_zone_drivers = Driver.query.filter(
             Driver.zone_id == pickup_zone.id,
             Driver.is_online == True,
             Driver.car_type.ilike(f'%{ride_type}%'),  # Case-insensitive partial match
             Driver.current_lat.isnot(None),
-            Driver.current_lng.isnot(None)
+            Driver.current_lng.isnot(None),
+            Driver.location_updated_at.isnot(None)
         ).all()
         
+        # Filter out drivers with stale location data
+        matching_drivers = []
+        for driver in all_zone_drivers:
+            time_since_update = current_time - driver.location_updated_at
+            if time_since_update <= staleness_threshold:
+                matching_drivers.append(driver)
+            else:
+                logging.debug(f"Excluding driver {driver.name}: location is {time_since_update.total_seconds():.0f}s old")
+        
         # Debug logging
-        all_zone_drivers = Driver.query.filter(Driver.zone_id == pickup_zone.id).all()
+        all_debug_drivers = Driver.query.filter(Driver.zone_id == pickup_zone.id).all()
         logging.info(f"=== DRIVER NOTIFICATION DEBUG ===")
         logging.info(f"Zone: {pickup_zone.zone_name} (ID: {pickup_zone.id})")
         logging.info(f"Looking for ride_type: {ride_type}")
-        logging.info(f"Total drivers in zone: {len(all_zone_drivers)}")
+        logging.info(f"Total drivers in zone: {len(all_debug_drivers)}")
+        logging.info(f"Drivers with fresh location (<30s): {len(matching_drivers)}")
         
-        for driver in all_zone_drivers:
-            logging.info(f"Driver: {driver.name} - Online: {driver.is_online}, Car: {driver.car_type}, Has Location: {bool(driver.current_lat and driver.current_lng)}")
+        for driver in all_debug_drivers:
+            has_location = bool(driver.current_lat and driver.current_lng)
+            location_age = "N/A"
+            if driver.location_updated_at and has_location:
+                age_seconds = (current_time - driver.location_updated_at).total_seconds()
+                location_age = f"{age_seconds:.0f}s ago"
+                
+            logging.info(f"Driver: {driver.name} - Online: {driver.is_online}, Car: {driver.car_type}, Location: {location_age}")
         
-        logging.info(f"Matching drivers found: {len(matching_drivers)}")
+        logging.info(f"Final matching drivers (fresh locations): {len(matching_drivers)}")
         
         if not matching_drivers:
             logging.info(f"No matching {ride_type} drivers found in zone {pickup_zone.zone_name}")

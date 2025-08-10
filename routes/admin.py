@@ -1293,7 +1293,7 @@ def api_live_driver_locations():
         
         # Get current time for staleness check (naive IST time to match stored timestamps)
         current_time_naive = get_ist_time()  # Returns naive IST time
-        staleness_threshold = timedelta(hours=2)  # Consider locations older than 2 hours as stale (more forgiving)
+        staleness_threshold = timedelta(seconds=30)  # Consider locations older than 30 seconds as stale
         
         # Get all drivers with their current locations
         drivers = Driver.query.all()
@@ -1312,13 +1312,17 @@ def api_live_driver_locations():
                 # Debug logging for staleness detection  
                 logging.debug(f"Driver {driver.name}: stored={driver.location_updated_at}, current={current_time_naive}, diff={time_since_update}, stale={is_stale}")
             
-            # Include ALL online drivers regardless of location data
+            # Only include online drivers with recent location data (within 30 seconds)
             if not driver.is_online:
                 logging.debug(f"Skipping offline driver: {driver.name}")
                 continue
+            
+            if not has_location or is_stale:
+                logging.debug(f"Skipping driver {driver.name}: has_location={has_location}, is_stale={is_stale}")
+                continue
                 
-            # Always include online drivers - let frontend handle display logic
-            logging.info(f"Including online driver: {driver.name} (has_location: {has_location}, stale: {is_stale})")
+            # Include only online drivers with fresh location data
+            logging.debug(f"Including active driver: {driver.name} (fresh location data)")
             
             driver_data = {
                 'id': driver.id,

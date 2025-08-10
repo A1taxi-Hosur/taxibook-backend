@@ -558,10 +558,15 @@ class Zone(db.Model):
     def get_ring_drivers(self, ring_number, pickup_lat, pickup_lng, ride_type=None):
         """Get available drivers within a specific ring around pickup location"""
         from utils.distance import haversine_distance
+        from datetime import timedelta
         
         # Use polygon centroid as center for ring calculations
         centroid = self.get_polygon_centroid()
         ring_radius_km = self.ring_radius_km * ring_number
+        
+        # Get current time for staleness check
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(seconds=30)  # 30 second threshold
         
         # Get all online drivers in this zone with valid location data
         query = Driver.query.filter_by(
@@ -569,18 +574,25 @@ class Zone(db.Model):
             is_online=True
         ).filter(
             Driver.current_lat.isnot(None),
-            Driver.current_lng.isnot(None)
+            Driver.current_lng.isnot(None),
+            Driver.location_updated_at.isnot(None)
         )
         
         # Filter by car type if specified
         if ride_type:
             query = query.filter(Driver.car_type.ilike(f'%{ride_type}%'))
         
-        drivers = query.all()
+        all_drivers = query.all()
         
-        # Filter drivers within ring radius from pickup location
+        # Filter out drivers with stale location data and check ring distance
         ring_drivers = []
-        for driver in drivers:
+        for driver in all_drivers:
+            # Check if location is fresh (within 30 seconds)
+            time_since_update = current_time - driver.location_updated_at
+            if time_since_update > staleness_threshold:
+                continue
+                
+            # Check if driver is within ring radius
             distance = haversine_distance(
                 pickup_lat, pickup_lng,
                 driver.current_lat, driver.current_lng
