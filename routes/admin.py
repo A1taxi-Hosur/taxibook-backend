@@ -727,7 +727,25 @@ def get_ride_details(ride_id):
 @login_required
 def fare_config():
     """Fare configuration management page"""
-    return render_template('admin/fare_config.html')
+    try:
+        # Get fare configurations directly in the route
+        fare_configs = FareConfig.query.all()
+        logging.info(f"Found {len(fare_configs)} fare configurations for page")
+        
+        # Convert to list format for template
+        config_data = []
+        for config in fare_configs:
+            config_data.append({
+                'id': config.id,
+                'ride_type': config.ride_type,
+                'base_fare': float(config.base_fare),
+                'per_km_rate': float(config.per_km_rate)
+            })
+        
+        return render_template('admin/fare_config.html', fare_configs=config_data)
+    except Exception as e:
+        logging.error(f"Error loading fare config page: {str(e)}")
+        return render_template('admin/fare_config.html', fare_configs=[])
 
 
 @admin_bp.route('/api/fare-config', methods=['GET'])

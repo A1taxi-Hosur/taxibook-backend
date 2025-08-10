@@ -85,13 +85,18 @@
     </div>
 
     <script>
-        let fareConfigs = null;
+        // Use server-side rendered data instead of AJAX
+        let fareConfigs = {{ fare_configs|tojson|safe }};
         
         // Load fare configurations on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Page loaded, checking authentication and loading fare configs...');
-            // Add a small delay to ensure session is ready
-            setTimeout(loadFareConfigurations, 100);
+            console.log('Page loaded, using server-side fare configs:', fareConfigs);
+            if (fareConfigs && fareConfigs.length > 0) {
+                renderFareConfigCards();
+                updateGlobalSurgeDisplay();
+            } else {
+                showAlert('No fare configurations found', 'warning');
+            }
         });
         
         function showAlert(message, type = 'info') {
@@ -113,44 +118,9 @@
         }
         
         function loadFareConfigurations() {
-            fetch('/admin/api/fare-config', {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache'
-                }
-            })
-                .then(response => {
-                    console.log('Response status:', response.status); // Debug log
-                    console.log('Response headers:', [...response.headers.entries()]); // Debug log
-                    if (response.status === 302) {
-                        // Redirect means not authenticated
-                        console.log('Got redirect - user not authenticated');
-                        window.location.href = '/admin/login';
-                        return;
-                    }
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Fare config API response:', data); // Debug log
-                    if (data.status === 'success' && data.data) {
-                        fareConfigs = data.data;
-                        console.log('Loaded fare configs:', fareConfigs); // Debug log
-                        renderFareConfigCards();
-                        updateGlobalSurgeDisplay();
-                    } else {
-                        console.error('API response structure:', data); // Debug log
-                        showAlert('Failed to load fare configurations: ' + (data.message || 'Invalid response structure'), 'danger');
-                        fareConfigs = [];
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error); // Debug log
-                    showAlert('Error loading fare configurations: ' + error.message, 'danger');
-                });
+            // This function is no longer needed since we use server-side data
+            // But keeping it for potential future use
+            console.log('loadFareConfigurations called, but using server-side data');
         }
         
         function renderFareConfigCards() {
