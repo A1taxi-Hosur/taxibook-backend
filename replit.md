@@ -29,6 +29,13 @@ Preferred communication style: Simple, everyday language.
 - **Customer API**: Working endpoints at `/customer/*` (not `/api/customer/*`) with proper JWT authentication
 - **API Documentation**: Complete customer API documentation created with working examples and field formats
 
+### GPS Tracking Implementation
+- **Unified Location Service**: Single GPS implementation serves all location tracking needs across mobile apps
+- **Intelligent Frequency**: 30-60 seconds for general availability, 10-15 seconds during active rides
+- **Dual Purpose Updates**: Always updates general location (`/driver/update_current_location`), adds ride tracking (`/driver/update_location`) when on active rides
+- **Battery Optimized**: Automatic frequency adjustment based on driver state to minimize battery drain
+- **Centralized Architecture**: Eliminates duplicate GPS systems, provides consistent behavior across all features
+
 ### Dispatch Engine
 - **Zone-Based Assignment**: Drivers are automatically assigned to zones based on their GPS location
 - **Concentric Ring Logic**: Ride requests expand through configurable rings within zones when no drivers accept
