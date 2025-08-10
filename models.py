@@ -555,33 +555,41 @@ class Zone(db.Model):
         from utils.distance import get_polygon_centroid
         return get_polygon_centroid(self.polygon_coordinates)
     
-    def get_ring_drivers(self, ring_number, pickup_lat, pickup_lng):
+    def get_ring_drivers(self, ring_number, pickup_lat, pickup_lng, ride_type=None):
         """Get available drivers within a specific ring around pickup location"""
         from utils.distance import haversine_distance
         
         # Use polygon centroid as center for ring calculations
         centroid = self.get_polygon_centroid()
-        ring_radius_km = (self.ring_radius_meters * ring_number) / 1000.0
+        ring_radius_km = self.ring_radius_km * ring_number
         
-        # Get all online drivers in this zone
-        drivers = Driver.query.filter_by(
+        # Get all online drivers in this zone with valid location data
+        query = Driver.query.filter_by(
             zone_id=self.id,
             is_online=True
-        ).all()
+        ).filter(
+            Driver.current_lat.isnot(None),
+            Driver.current_lng.isnot(None)
+        )
+        
+        # Filter by car type if specified
+        if ride_type:
+            query = query.filter(Driver.car_type.ilike(f'%{ride_type}%'))
+        
+        drivers = query.all()
         
         # Filter drivers within ring radius from pickup location
         ring_drivers = []
         for driver in drivers:
-            if driver.current_lat and driver.current_lng:
-                distance = haversine_distance(
-                    pickup_lat, pickup_lng,
-                    driver.current_lat, driver.current_lng
-                )
-                if distance <= ring_radius_km:
-                    ring_drivers.append({
-                        'driver': driver,
-                        'distance': distance
-                    })
+            distance = haversine_distance(
+                pickup_lat, pickup_lng,
+                driver.current_lat, driver.current_lng
+            )
+            if distance <= ring_radius_km:
+                ring_drivers.append({
+                    'driver': driver,
+                    'distance': distance
+                })
         
         # Sort by distance
         ring_drivers.sort(key=lambda x: x['distance'])

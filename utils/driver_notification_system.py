@@ -32,14 +32,26 @@ def notify_matching_drivers_in_zone(ride_id, pickup_lat, pickup_lng, ride_type):
                 'drivers_count': 0
             }
         
-        # Find matching drivers in the zone
+        # Find matching drivers in the zone - use case insensitive matching for car type
         matching_drivers = Driver.query.filter(
             Driver.zone_id == pickup_zone.id,
             Driver.is_online == True,
-            Driver.car_type == ride_type,
+            Driver.car_type.ilike(f'%{ride_type}%'),  # Case-insensitive partial match
             Driver.current_lat.isnot(None),
             Driver.current_lng.isnot(None)
         ).all()
+        
+        # Debug logging
+        all_zone_drivers = Driver.query.filter(Driver.zone_id == pickup_zone.id).all()
+        logging.info(f"=== DRIVER NOTIFICATION DEBUG ===")
+        logging.info(f"Zone: {pickup_zone.zone_name} (ID: {pickup_zone.id})")
+        logging.info(f"Looking for ride_type: {ride_type}")
+        logging.info(f"Total drivers in zone: {len(all_zone_drivers)}")
+        
+        for driver in all_zone_drivers:
+            logging.info(f"Driver: {driver.name} - Online: {driver.is_online}, Car: {driver.car_type}, Has Location: {bool(driver.current_lat and driver.current_lng)}")
+        
+        logging.info(f"Matching drivers found: {len(matching_drivers)}")
         
         if not matching_drivers:
             logging.info(f"No matching {ride_type} drivers found in zone {pickup_zone.zone_name}")

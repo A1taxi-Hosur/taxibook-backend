@@ -784,11 +784,20 @@ def update_current_location(current_user_data):
         driver.location_updated_at = get_ist_time()
         
         # Update zone assignment based on new location
+        old_zone = driver.zone.zone_name if driver.zone else None
         driver.update_zone_assignment()
+        new_zone = driver.zone.zone_name if driver.zone else None
         
         db.session.commit()
         
-        logging.info(f"Driver current location updated: {driver.name} at ({latitude}, {longitude})")
+        logging.info(f"=== DRIVER LOCATION UPDATE ===")
+        logging.info(f"Driver: {driver.name} ({driver.phone})")
+        logging.info(f"Location: ({latitude}, {longitude})")
+        logging.info(f"Zone change: {old_zone} -> {new_zone}")
+        logging.info(f"Out of zone: {driver.out_of_zone}")
+        logging.info(f"Car type: {driver.car_type}")
+        logging.info(f"Online status: {driver.is_online}")
+        
         return create_success_response({
             'driver_id': driver.id,
             'latitude': latitude,

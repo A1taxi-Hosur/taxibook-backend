@@ -74,8 +74,8 @@ class EnhancedDispatchEngine:
         for ring_number in range(1, zone.number_of_rings + 1):
             self.dispatch_log.append(f"Searching Ring {ring_number}")
             
-            # Get drivers in this ring
-            ring_drivers = zone.get_ring_drivers(ring_number, pickup_lat, pickup_lng)
+            # Get drivers in this ring with matching car type
+            ring_drivers = zone.get_ring_drivers(ring_number, pickup_lat, pickup_lng, self.ride.ride_type)
             
             if ring_drivers:
                 # Try to assign to the nearest driver
@@ -130,8 +130,8 @@ class EnhancedDispatchEngine:
         for zone_info in expansion_zones[:3]:  # Check top 3 nearest zones
             zone = zone_info['zone']
             
-            # Get drivers from this zone
-            ring_drivers = zone.get_ring_drivers(1, pickup_lat, pickup_lng)
+            # Get drivers from this zone with matching car type
+            ring_drivers = zone.get_ring_drivers(1, pickup_lat, pickup_lng, self.ride.ride_type)
             
             if ring_drivers:
                 driver_info = ring_drivers[0]  # Closest driver
@@ -186,10 +186,18 @@ class EnhancedDispatchEngine:
         if not driver.is_online:
             return False
         
-        # Check if driver is already assigned to another ride
-        active_ride = Ride.query.filter_by(
-            driver_id=driver.id,
-            status='assigned'
+        # Check if driver has current location data
+        if not (driver.current_lat and driver.current_lng):
+            return False
+        
+        # Check if driver matches the required car type
+        if self.ride.ride_type and driver.car_type:
+            if driver.car_type.lower() != self.ride.ride_type.lower():
+                return False
+        
+        # Check if driver is already assigned to an active ride
+        active_ride = Ride.query.filter_by(driver_id=driver.id).filter(
+            Ride.status.in_(['pending', 'accepted', 'arrived', 'started'])
         ).first()
         
         return active_ride is None
@@ -198,7 +206,7 @@ class EnhancedDispatchEngine:
         """Assign ride to driver and update database"""
         try:
             self.ride.driver_id = driver.id
-            self.ride.status = 'assigned'
+            self.ride.status = 'accepted'
             self.ride.dispatched_ring = ring_number
             self.ride.assigned_time = get_ist_time()
             
@@ -225,7 +233,7 @@ class EnhancedDispatchEngine:
             
             # Assign ride to driver
             self.ride.driver_id = driver_id
-            self.ride.status = 'assigned'
+            self.ride.status = 'accepted'
             self.ride.zone_expansion_approved = True
             self.ride.extra_fare = extra_fare
             self.ride.final_fare = self.ride.fare_amount + extra_fare
@@ -260,16 +268,39 @@ def dispatch_ride_with_enhanced_system(ride_id):
     Returns:
         Dict with dispatch result
     """
+    logging.info(f"=== DISPATCH SYSTEM ACTIVATED ===")
+    logging.info(f"Starting dispatch for ride ID: {ride_id}")
+    
     engine = EnhancedDispatchEngine(ride_id)
     ride = Ride.query.get(ride_id)
     
     if not ride:
+        logging.error(f"Ride {ride_id} not found in database!")
         return {
             'success': False,
             'error': 'Ride not found'
         }
     
-    return engine.dispatch_ride(ride.pickup_lat, ride.pickup_lng)
+    logging.info(f"Ride details: pickup=({ride.pickup_lat},{ride.pickup_lng}), type={ride.ride_type}, status={ride.status}")
+    
+    # Check for available drivers in the pickup zone
+    pickup_zone = Zone.find_zone_for_location(ride.pickup_lat, ride.pickup_lng)
+    if pickup_zone:
+        logging.info(f"Pickup zone found: {pickup_zone.zone_name} (ID: {pickup_zone.id})")
+        ring_drivers = pickup_zone.get_ring_drivers(1, ride.pickup_lat, ride.pickup_lng, ride.ride_type)
+        logging.info(f"Available drivers in Ring 1: {len(ring_drivers)}")
+        
+        for i, driver_info in enumerate(ring_drivers):
+            driver = driver_info['driver']
+            distance = driver_info['distance']
+            logging.info(f"Driver {i+1}: {driver.name} (ID: {driver.id}), Car: {driver.car_type}, Distance: {distance:.2f}km, Online: {driver.is_online}")
+    else:
+        logging.error(f"No zone found for pickup location: ({ride.pickup_lat},{ride.pickup_lng})")
+    
+    result = engine.dispatch_ride(ride.pickup_lat, ride.pickup_lng)
+    logging.info(f"Dispatch result: {result}")
+    
+    return result
 
 
 def approve_zone_expansion_for_ride(ride_id, driver_id, zone_id, extra_fare):
