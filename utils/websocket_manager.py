@@ -312,3 +312,32 @@ def broadcast_driver_location_update(location_data):
             logging.debug(f"Broadcasted location update for driver {location_data.get('driver_id')}")
     except Exception as e:
         logging.error(f"Error broadcasting driver location: {str(e)}")
+
+def broadcast_ride_status_update(ride_data):
+    """Broadcast ride status updates to relevant clients"""
+    try:
+        if socketio:
+            # Broadcast to admin dashboard
+            socketio.emit('ride_status_updated', ride_data, room='admin')
+            
+            # Broadcast to specific driver if assigned
+            if ride_data.get('driver_id'):
+                socketio.emit('ride_status_updated', ride_data, room=f'driver_{ride_data["driver_id"]}')
+            
+            # Broadcast to specific customer
+            if ride_data.get('customer_id'):
+                socketio.emit('ride_status_updated', ride_data, room=f'customer_{ride_data["customer_id"]}')
+            
+            logging.debug(f"Broadcasted ride status update for ride {ride_data.get('ride_id')}")
+    except Exception as e:
+        logging.error(f"Error broadcasting ride status: {str(e)}")
+
+def broadcast_new_ride_request(ride_data, target_drivers=None):
+    """Broadcast new ride request to available drivers"""
+    try:
+        if socketio and target_drivers:
+            for driver_id in target_drivers:
+                socketio.emit('new_ride_request', ride_data, room=f'driver_{driver_id}')
+            logging.debug(f"Broadcasted new ride request to {len(target_drivers)} drivers")
+    except Exception as e:
+        logging.error(f"Error broadcasting new ride request: {str(e)}")

@@ -479,6 +479,38 @@ function applyFilters() {
     displayDriversOnMap(filteredDrivers);
 }
 
+function updateDriverLocationOnMap(locationData) {
+    // Find existing marker for this driver
+    const marker = markers.find(m => m.getTitle().includes(`Driver ID: ${locationData.driver_id}`));
+    
+    if (marker) {
+        // Update existing marker position
+        const newPosition = { lat: locationData.latitude, lng: locationData.longitude };
+        marker.setPosition(newPosition);
+        
+        // Update marker info window content if it exists
+        if (marker.infoWindow) {
+            const driver = driversData.find(d => d.id === locationData.driver_id);
+            if (driver) {
+                // Update driver data
+                driver.current_lat = locationData.latitude;
+                driver.current_lng = locationData.longitude;
+                driver.location_updated_at = locationData.timestamp;
+                driver.is_online = locationData.is_online;
+                driver.zone = locationData.zone;
+                
+                // Update info window content
+                marker.infoWindow.setContent(createInfoWindowContent(driver));
+            }
+        }
+        
+        console.log(`📍 Updated driver ${locationData.driver_id} location on map`);
+    } else {
+        // Driver not currently visible, refresh full list
+        refreshDrivers();
+    }
+}
+
 function showDriverDetails(driverId) {
     const driver = driversData.find(d => d.id === driverId);
     if (!driver) {
@@ -575,9 +607,24 @@ function toggleAutoRefresh() {
 }
 
 function startAutoRefresh() {
+    // Initialize WebSocket for real-time updates
+    initLiveMapWebSocket();
+    
+    // Setup WebSocket event handlers for real-time driver updates
+    window.wsClient.on('driver_location_updated', (data) => {
+        console.log('📍 Driver location updated via WebSocket:', data);
+        updateDriverLocationOnMap(data);
+    });
+    
+    window.wsClient.on('driver_list_updated', (data) => {
+        console.log('👥 Driver list updated via WebSocket:', data);
+        displayDriversOnMap(data.drivers);
+    });
+    
+    // Fallback: Refresh every 10 seconds (reduced since WebSocket handles real-time updates)
     autoRefreshInterval = setInterval(() => {
         refreshDrivers();
-    }, 3000); // Refresh every 3 seconds
+    }, 10000);
 }
 
 function loadZones() {

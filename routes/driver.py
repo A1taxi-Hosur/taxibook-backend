@@ -256,6 +256,23 @@ def accept_ride(current_user_data):
         
         db.session.commit()
         
+        # Broadcast ride status update via WebSocket
+        try:
+            from utils.websocket_manager import broadcast_ride_status_update
+            ride_data = {
+                'ride_id': ride.id,
+                'status': 'accepted',
+                'driver_id': driver.id,
+                'customer_id': ride.customer_id,
+                'driver_name': driver.name,
+                'customer_name': ride.customer.name,
+                'pickup_address': ride.pickup_address,
+                'drop_address': ride.drop_address
+            }
+            broadcast_ride_status_update(ride_data)
+        except Exception as e:
+            logging.warning(f"Failed to broadcast ride accepted via WebSocket: {str(e)}")
+        
         logging.info(f"Ride accepted: {ride.id} by driver {driver.name}")
         return create_success_response({
             'ride_id': ride.id,
@@ -351,6 +368,21 @@ def arrived(current_user_data):
         
         db.session.commit()
         
+        # Broadcast ride status update via WebSocket
+        try:
+            from utils.websocket_manager import broadcast_ride_status_update
+            ride_data = {
+                'ride_id': ride.id,
+                'status': 'arrived',
+                'driver_id': driver.id,
+                'customer_id': ride.customer_id,
+                'driver_name': driver.name,
+                'customer_name': ride.customer.name
+            }
+            broadcast_ride_status_update(ride_data)
+        except Exception as e:
+            logging.warning(f"Failed to broadcast ride arrived via WebSocket: {str(e)}")
+        
         logging.info(f"Driver arrived: {driver.name} for ride {ride.id}")
         return create_success_response({
             'ride_id': ride.id,
@@ -426,6 +458,21 @@ def start_ride(current_user_data):
         
         db.session.commit()
         
+        # Broadcast ride status update via WebSocket
+        try:
+            from utils.websocket_manager import broadcast_ride_status_update
+            ride_data = {
+                'ride_id': ride.id,
+                'status': 'started',
+                'driver_id': driver.id,
+                'customer_id': ride.customer_id,
+                'driver_name': driver.name,
+                'customer_name': ride.customer.name
+            }
+            broadcast_ride_status_update(ride_data)
+        except Exception as e:
+            logging.warning(f"Failed to broadcast ride started via WebSocket: {str(e)}")
+        
         logging.info(f"Ride started: {ride.id} by driver {ride.driver.name} with OTP verification")
         return create_success_response({
             'ride_id': ride.id,
@@ -461,6 +508,22 @@ def complete_ride(current_user_data):
         ride.completed_at = get_ist_time()
         
         db.session.commit()
+        
+        # Broadcast ride status update via WebSocket
+        try:
+            from utils.websocket_manager import broadcast_ride_status_update
+            ride_data = {
+                'ride_id': ride.id,
+                'status': 'completed',
+                'driver_id': driver.id,
+                'customer_id': ride.customer_id,
+                'driver_name': driver.name,
+                'customer_name': ride.customer.name,
+                'fare_amount': ride.fare_amount
+            }
+            broadcast_ride_status_update(ride_data)
+        except Exception as e:
+            logging.warning(f"Failed to broadcast ride completed via WebSocket: {str(e)}")
         
         logging.info(f"Ride completed: {ride.id} by driver {driver.name}")
         return create_success_response({

@@ -403,8 +403,23 @@ function refreshStats() {
     });
 }
 
-// Auto-refresh every 30 seconds (non-blocking)
-setInterval(refreshStats, 30000);
+// Initialize WebSocket for real-time updates
+initAdminWebSocket();
+
+// Setup WebSocket event handlers for dashboard updates
+window.wsClient.on('dashboard_stats_updated', (data) => {
+    console.log('📊 Dashboard stats updated via WebSocket:', data);
+    updateStats(data.stats, data.rides);
+});
+
+// Setup WebSocket handlers for ride status updates
+window.wsClient.on('ride_status_updated', (data) => {
+    console.log('🚗 Ride status updated:', data);
+    refreshStats(); // Refresh to show latest changes
+});
+
+// Fallback: Auto-refresh every 60 seconds (reduced since WebSocket handles real-time updates)
+setInterval(refreshStats, 60000);
 
 // Refresh on page visibility change
 document.addEventListener('visibilitychange', () => {

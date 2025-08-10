@@ -42,8 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Proximity Filtering**: Haversine distance calculation to ensure drivers are within service radius (configurable per zone)
 - **Car Type Matching**: Ride requests are filtered by compatible vehicle types (sedan, SUV, hatchback)
 
-### Real-Time Features
-- **Driver Location Tracking**: Continuous GPS updates with database persistence and zone reassignment
+ Tracking**: Continuous GPS updates with database persistence and zone reassignment
 - **Live Ride Status**: Real-time status updates throughout the ride lifecycle
 - **Driver Availability**: Automatic online/offline status management based on login state
 

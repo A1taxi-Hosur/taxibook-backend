@@ -358,12 +358,47 @@ function showInfo(message) {
     main.insertBefore(alert, main.firstChild);
 }
 
+function updateDriverLocationInOngoingRides(locationData) {
+    // Find ongoing rides with this driver and update location info if displayed
+    const rideCards = document.querySelectorAll('.card[data-ride-id]');
+    
+    rideCards.forEach(card => {
+        const driverIdElement = card.querySelector('[data-driver-id]');
+        if (driverIdElement && driverIdElement.dataset.driverId == locationData.driver_id) {
+            // Update last seen time or location info if displayed
+            const locationElement = card.querySelector('.driver-location-info');
+            if (locationElement) {
+                locationElement.innerHTML = `
+                    <small class="text-muted">
+                        <i class="bi bi-geo-alt"></i> Last updated: Just now
+                    </small>
+                `;
+            }
+        }
+    });
+}
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     refreshOngoingRides();
     
-    // Auto-refresh every 30 seconds
-    setInterval(refreshOngoingRides, 3000);
+    // Initialize WebSocket for real-time updates
+    initAdminWebSocket();
+    
+    // Setup WebSocket event handlers for ride updates
+    window.wsClient.on('ride_status_updated', (data) => {
+        console.log('🚗 Ride status updated via WebSocket:', data);
+        refreshOngoingRides();
+    });
+    
+    window.wsClient.on('driver_location_updated', (data) => {
+        console.log('📍 Driver location updated via WebSocket:', data);
+        // Update driver location in ongoing rides if needed
+        updateDriverLocationInOngoingRides(data);
+    });
+    
+    // Fallback: Auto-refresh every 30 seconds (reduced since WebSocket handles real-time updates)
+    setInterval(refreshOngoingRides, 30000);
 });
 </script>
 
