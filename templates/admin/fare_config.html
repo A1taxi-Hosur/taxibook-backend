@@ -89,7 +89,9 @@
         
         // Load fare configurations on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadFareConfigurations();
+            console.log('Page loaded, checking authentication and loading fare configs...');
+            // Add a small delay to ensure session is ready
+            setTimeout(loadFareConfigurations, 100);
         });
         
         function showAlert(message, type = 'info') {
@@ -113,10 +115,20 @@
         function loadFareConfigurations() {
             fetch('/admin/api/fare-config', {
                 method: 'GET',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
             })
                 .then(response => {
                     console.log('Response status:', response.status); // Debug log
+                    console.log('Response headers:', [...response.headers.entries()]); // Debug log
+                    if (response.status === 302) {
+                        // Redirect means not authenticated
+                        console.log('Got redirect - user not authenticated');
+                        window.location.href = '/admin/login';
+                        return;
+                    }
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
