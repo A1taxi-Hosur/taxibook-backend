@@ -124,7 +124,7 @@
                 })
                 .then(data => {
                     console.log('Fare config API response:', data); // Debug log
-                    if (data.success && data.data) {
+                    if (data.status === 'success' && data.data) {
                         fareConfigs = data.data;
                         console.log('Loaded fare configs:', fareConfigs); // Debug log
                         renderFareConfigCards();

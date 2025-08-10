@@ -748,21 +748,15 @@ def api_get_fare_config():
                 'per_km_rate': float(config.per_km_rate)
             })
         
-        return jsonify({
-            'success': True,
-            'message': 'Fare configurations retrieved successfully',
-            'data': config_data
-        })
+        return create_success_response(config_data, 'Fare configurations retrieved successfully')
     
     except Exception as e:
         logging.error(f"Error getting fare configurations: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Failed to load fare configurations'
-        }), 500
+        return create_error_response('Failed to load fare configurations', 500)
 
 
 @admin_bp.route('/api/fare-config', methods=['POST'])
+@login_required
 def api_update_fare_config():
     """API endpoint to update fare configuration for a specific ride type"""
     # Authentication handled by @login_required decorator
