@@ -1291,8 +1291,8 @@ def api_live_driver_locations():
     try:
         from datetime import timedelta
         
-        # Get current time for staleness check
-        current_time = get_ist_time()
+        # Get current time for staleness check (naive IST time to match stored timestamps)
+        current_time_naive = get_ist_time()  # Returns naive IST time
         staleness_threshold = timedelta(minutes=15)  # Consider locations older than 15 minutes as stale
         
         # Get all drivers with their current locations
@@ -1305,15 +1305,12 @@ def api_live_driver_locations():
             has_location = bool(driver.current_lat and driver.current_lng)
             
             if driver.location_updated_at and has_location:
-                # Convert location_updated_at to IST timezone if it's offset-naive
-                if driver.location_updated_at.tzinfo is None:
-                    from app import IST
-                    location_time = IST.localize(driver.location_updated_at)
-                else:
-                    location_time = driver.location_updated_at.astimezone(IST)
-                
-                time_since_update = current_time - location_time
+                # Both stored and current times are naive IST times - direct comparison
+                time_since_update = current_time_naive - driver.location_updated_at
                 is_stale = time_since_update > staleness_threshold
+                
+                # Debug logging for staleness detection  
+                logging.debug(f"Driver {driver.name}: stored={driver.location_updated_at}, current={current_time_naive}, diff={time_since_update}, stale={is_stale}")
             
             # Skip offline drivers with stale or no location data
             if not driver.is_online and (is_stale or not has_location):

@@ -53,7 +53,10 @@ login_manager.login_view = 'admin.login'  # Only for admin panel
 IST = pytz.timezone('Asia/Kolkata')
 
 def get_ist_time():
-    return datetime.now(IST)
+    """Return current time in IST timezone as naive datetime"""
+    # Return naive IST time (without timezone info) since SQLAlchemy strips timezone
+    # This ensures stored times match the IST timezone expectation in staleness detection
+    return datetime.now(IST).replace(tzinfo=None)
 
 # Import enhanced authentication helpers
 from utils.auth_helpers import enhanced_token_required, standardized_auth_response, handle_auth_error
