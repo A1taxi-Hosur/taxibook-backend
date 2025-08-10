@@ -165,7 +165,7 @@ function initMap() {
 
 function refreshDrivers() {
     console.log('🚀 Refreshing drivers...');
-    fetch('/admin/api/drivers')
+    fetch('/admin/api/live_driver_locations')
         .then(response => {
             console.log('📡 Response status:', response.status);
             if (!response.ok) {
