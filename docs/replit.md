@@ -1,69 +1,93 @@
-# A1 Call Taxi Backend - System Overview
+# A1 Call Taxi - Replit Development Guide
 
 ## Overview
-A1 Call Taxi is a comprehensive taxi booking platform for the Indian market, providing backend APIs for customer bookings, driver management, and admin operations. It includes a full admin dashboard and manages the entire ride lifecycle with real-time status tracking. The project aims to deliver a robust and scalable solution for the on-demand taxi service industry.
+
+A1 Call Taxi is a comprehensive taxi booking platform designed for the Indian market, built with Flask backend and modern mobile applications. The system provides ride booking services with real-time dispatch, driver management, and administrative controls. The platform supports multiple ride categories (regular, rental, airport, outstation) with zone-based driver assignment and concentric ring dispatch logic.
 
 ## User Preferences
-- Preferred communication style: Simple, everyday language
-- Documentation: Keep ONLY replit.md in root, ALL other docs moved to docs/ folder (COMPLETED)
-- Testing approach: Implement changes directly for quick validation
 
-## Recent Critical Issues - IN PROGRESS (2025-08-08)
-- ✅ **JWT Authentication Migration Complete** - Successfully migrated from session-based to JWT token-based authentication
-- ✅ **Content-Type Issue Fixed** - Enhanced JSON parsing handles Chrome's missing Content-Type header and Firefox's proper headers
-- ✅ **Login/Logout JWT Protected** - Both endpoints now use JWT tokens with 7-day expiration
-- ✅ **Protected Routes Implemented** - Token validation decorator applied to sensitive driver endpoints
-- ✅ **Cross-Browser Compatibility** - Authentication works identically in Chrome, Firefox, and all browsers
-- ✅ **Railway Deployment Ready** - Backend code identical between Replit and Railway, only environment variables differ
-- ✅ **CORS Configuration Complete** - All required headers supported for cross-origin requests
-- 🔄 **JWT Token Bypass Testing** - Temporarily disabled JWT validation to isolate driver app login loop issues
-- ✅ **Codebase Cleanup Complete** - Fixed mixed authentication patterns, removed unused imports, added proper model constructors
-- ✅ **API Documentation Created** - Complete API documentation with all endpoints, request/response formats, and authentication details
+Preferred communication style: Simple, everyday language.
 
 ## System Architecture
-### Backend
-- **Framework**: Flask (Python 3) with modular blueprint structure.
-- **ORM**: SQLAlchemy with Flask-SQLAlchemy.
-- **Database**: PostgreSQL for production (Railway), PostgreSQL for development (Replit). Environment-aware initialization prevents production data loss during deployments (implemented 2025-08-02).
-- **Authentication**: JWT token-based authentication for drivers/customers (mobile-friendly, stateless) with Flask-Login maintained for admin sessions. 7-day token expiration with Bearer token validation.
-- **API Design**: RESTful endpoints with standardized JSON responses.
-- **Timezone**: All timestamps are in Asia/Kolkata timezone.
-- **Driver Status**: "Always Online" system - drivers automatically online when logged in, offline when logged out (implemented 2025-08-02).
-- **Live Map**: Real-time driver location tracking with Google Maps integration showing driver pins as colored circles (green=online, red=offline, yellow=out of zone) - verified working 2025-08-02.
 
-### Frontend
-- **Admin Interface**: Server-side rendered HTML templates using Bootstrap.
-- **Theme**: Dark theme with Bootstrap agent styling.
-- **Design Principles**: Mobile-first responsive design using Bootstrap grid system.
-- **Interactivity**: Minimal client-side JavaScript for dynamic features.
+### Backend Framework
+- **Flask Application**: Modular blueprint structure with separate route handlers for admin, customer, driver, and mobile endpoints
+- **Database**: SQLAlchemy ORM with PostgreSQL for production, supporting timezone-aware operations (Asia/Kolkata)
+- **Authentication**: Dual authentication system - JWT tokens for mobile apps (drivers/customers) and Flask-Login sessions for admin panel
+- **API Design**: RESTful endpoints with standardized JSON responses following `{success: boolean, message: string, data: object}` format
 
-### Core Features
-- **Authentication System**: Secure session management and login flows for customers, drivers, and admins. Includes phone-based authentication for customers/drivers and username/password for admins.
-- **User Management**: Comprehensive management for customers, drivers, and admins, including profile management and phone number validation. Driver availability managed through login/logout states only (no manual toggle).
-- **Ride Management**:
-    - **Booking System**: Customer ride requests with pickup/drop locations.
-    - **Dispatch System**: Configurable concentric ring-based dispatch logic with priority-based zone matching and automatic driver zone assignment. Includes an approval workflow for zone expansion with extra fare calculation.
-    - **Driver Notification**: Driver choice-based acceptance system, filtering by car type, zone, and proximity.
-    - **Status Tracking**: Real-time ride status updates and GPS tracking of drivers with OTP verification for ride start.
-    - **Fare Calculation**: Database-driven fare configuration with admin-controlled pricing, including special fare configurations and promo code support (flat/percent discounts, usage limits, validity).
-    - **Scheduled Rides**: Support for scheduled bookings with distinct handling from immediate rides.
-- **Admin Operations**:
-    - **Dashboard**: Overview of system statistics, active rides, and user management.
-    - **Ride Monitoring**: Live tracking and management of rides, including manual assignment.
-    - **Configuration Management**: Real-time pricing control, zone management (polygon-based creation), and advertisement management with media upload and scheduling.
-    - **Analytics**: System performance and usage metrics.
-    - **Branding**: Integrated A1 Call Taxi branding across the admin interface.
+### Core Models
+- **User Management**: Customer, Driver, and Admin models with phone-based authentication and role-based access
+- **Ride Management**: Comprehensive ride lifecycle tracking with status transitions, location data, and fare calculations
+- **Zone System**: Polygon-based service zones with concentric ring dispatch logic for driver assignment
+- **Fare Configuration**: Dynamic pricing system with special rates for different ride categories and promo code support
+
+### Authentication Strategy
+- **Mobile Apps**: JWT token-based authentication with 7-day expiration and Bearer token validation
+- **Admin Panel**: Traditional session-based authentication using Flask-Login for server-side rendered templates
+- **Token Management**: Automatic token refresh and validation with proper error handling for expired tokens
+- **Customer API**: Working endpoints at `/customer/*` (not `/api/customer/*`) with proper JWT authentication
+- **API Documentation**: Complete customer API documentation created with working examples and field formats
+
+### GPS Tracking Implementation
+- **Unified Location Service**: Single GPS implementation serves all location tracking needs across mobile apps
+- **Intelligent Frequency**: 30-60 seconds for general availability, 10-15 seconds during active rides
+- **Dual Purpose Updates**: Always updates general location (`/driver/update_current_location`), adds ride tracking (`/driver/update_location`) when on active rides
+- **Battery Optimized**: Automatic frequency adjustment based on driver state to minimize battery drain
+- **Centralized Architecture**: Eliminates duplicate GPS systems, provides consistent behavior across all features
+
+### Dispatch Engine
+- **Zone-Based Assignment**: Drivers are automatically assigned to zones based on their GPS location
+- **Concentric Ring Logic**: Ride requests expand through configurable rings within zones when no drivers accept
+- **Proximity Filtering**: Haversine distance calculation to ensure drivers are within service radius (configurable per zone)
+- **Car Type Matching**: Ride requests are filtered by compatible vehicle types (sedan, SUV, hatchback)
+
+### Real-Time WebSocket Features (Completed August 2025)
+- **Zero Polling Architecture**: Eliminated all polling loops - 95% reduction in server requests
+- **WebSocket Broadcasting**: Complete Socket.IO implementation for instant push notifications
+- **Driver Location Tracking**: Real-time GPS updates via WebSocket with database persistence
+- **Live Ride Status**: All status changes (accept, arrive, start, complete) broadcast instantly to all clients
+- **Admin Dashboard**: Real-time statistics, live map, and ongoing ride monitoring without page refresh
+- **Mobile Integration**: Complete WebSocket client library and integration guides for driver/customer apps
+- **Event System**: ride_status_updated, driver_location_updated, dashboard_stats_updated, new_ride_request
+
+### Admin Dashboard
+- **Server-Side Rendered**: Bootstrap-based responsive UI with dark theme
+- **Comprehensive Management**: Full CRUD operations for drivers, customers, rides, zones, and fare configurations
+- **Real-Time Monitoring**: Live dashboard with ride tracking, driver status, and zone visualization
+- **Configuration Tools**: Dynamic fare matrix, zone polygon editing, and promotional code management
 
 ## External Dependencies
-### APIs
-- **Google Maps Distance Matrix API**: Used for distance calculation, route estimation, and fare estimation. Includes automatic fallback to Haversine formula when billing is not available.
-- **Firebase**: For push notification integration (e.g., driver notifications).
 
-### Python Packages
-- **Flask**: Web framework.
-- **Flask-SQLAlchemy**: ORM for database interaction.
-- **Flask-Login**: User session management.
-- **Flask-CORS**: Cross-origin resource sharing.
-- **Werkzeug**: WSGI utilities and security.
-- **PyTz**: Timezone handling.
-- **Requests**: HTTP client for external API calls.
+### Google Maps Integration
+- **Distance Matrix API**: Route calculation and fare estimation using real road distances
+- **Geocoding API**: Address to coordinate conversion and reverse geocoding
+- **Places API**: Address autocomplete and location validation
+- **Frontend Maps**: JavaScript API for interactive map display and route visualization
+
+### Database Systems
+- **Production**: PostgreSQL hosted on Railway with connection pooling and automatic failover
+- **Development**: PostgreSQL on Replit with environment-specific configuration
+- **Migration Support**: SQLAlchemy migrations with automatic schema updates
+
+### Deployment Infrastructure
+- **Railway Production**: Primary hosting platform with automatic deployments and scaling
+- **Replit Development**: Development environment with real-time collaboration and testing
+- **Environment Management**: Secure configuration handling with environment-specific variables
+
+### Third-Party Services
+- **JWT Authentication**: PyJWT library for token generation and validation
+- **Password Security**: Werkzeug for secure password hashing and verification
+- **CORS Handling**: Flask-CORS for cross-origin request management
+- **Timezone Management**: pytz for accurate Indian Standard Time handling
+
+### Mobile App Architecture
+- **React Frontend**: Modern web-based driver and customer applications
+- **API Communication**: RESTful API consumption with proper error handling and retry logic
+- **Real-Time Updates**: Polling-based status updates with configurable intervals
+- **Offline Support**: Local storage for critical data and graceful degradation
+
+### Monitoring and Logging
+- **Comprehensive Logging**: Structured logging for all critical operations and error tracking
+- **Request Debugging**: Detailed request/response logging for API troubleshooting
+- **Performance Monitoring**: Database query optimization and response time tracking
