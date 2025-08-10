@@ -1,114 +1,79 @@
-# A1 Call Taxi - Replit Development Guide
+# A1 Call Taxi - Platform Architecture Guide
 
 ## Overview
 
-A1 Call Taxi is a comprehensive taxi booking platform designed for the Indian market, built with Flask backend and modern mobile applications. The system provides ride booking services with real-time dispatch, driver management, and administrative controls. The platform supports multiple ride categories (regular, rental, airport, outstation) with zone-based driver assignment and WebSocket-powered real-time communication.
+A1 Call Taxi is a comprehensive taxi booking platform built for the Indian market, featuring real-time ride dispatch, GPS tracking, and zone-based service management. The system consists of a Flask backend with modern WebSocket capabilities, supporting web admin panels and mobile applications for customers and drivers.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Current Status - WebSocket Migration Complete (August 2025)
-
-✅ **MAJOR MILESTONE ACHIEVED**: Complete transformation from polling-based to real-time WebSocket system
-- All polling loops eliminated (95% reduction in server requests)
-- Real-time GPS tracking via WebSocket
-- Instant ride status updates across all clients
-- Live admin dashboard without page refresh
-- Mobile app WebSocket integration guides provided
-
 ## System Architecture
 
 ### Backend Framework
-- **Flask Application**: Modular blueprint structure with separate route handlers for admin, customer, driver, and mobile endpoints
-- **Database**: SQLAlchemy ORM with PostgreSQL for production, supporting timezone-aware operations (Asia/Kolkata)
-- **Authentication**: Dual authentication system - JWT tokens for mobile apps (drivers/customers) and Flask-Login sessions for admin panel
-- **API Design**: RESTful endpoints with standardized JSON responses following `{success: boolean, message: string, data: object}` format
+The platform uses a **Flask-based modular architecture** with blueprint-based route organization. The core application (`app.py`) initializes SQLAlchemy with PostgreSQL for production and SQLite for development, configured for the Asia/Kolkata timezone. The system implements dual authentication strategies and real-time WebSocket communication through Socket.IO.
 
-### Real-Time WebSocket Architecture (Completed August 2025)
-- **Zero Polling System**: Complete elimination of all polling intervals across the platform
-- **WebSocket Broadcasting**: Socket.IO implementation with instant push notifications for all real-time events
-- **Event System**: ride_status_updated, driver_location_updated, dashboard_stats_updated, new_ride_request
-- **Performance**: 95% reduction in server requests, 90% reduction in database load
-- **Mobile Ready**: Complete WebSocket client library and integration documentation provided
+### Authentication Architecture
+The system employs a **dual authentication strategy** to serve different client types:
+- **JWT Token Authentication**: Used for mobile applications (driver and customer apps) with 7-day token expiration and Bearer token validation
+- **Flask-Login Sessions**: Traditional session-based authentication for the admin panel's server-rendered templates
+- **Token Management**: Automatic token refresh, validation middleware, and proper error handling for expired tokens
 
-### Core Models
-- **User Management**: Customer, Driver, and Admin models with phone-based authentication and role-based access
-- **Ride Management**: Comprehensive ride lifecycle tracking with status transitions, location data, and fare calculations
-- **Zone System**: Polygon-based service zones with concentric ring dispatch logic for driver assignment
-- **Fare Configuration**: Dynamic pricing system with special rates for different ride categories and promo code support
+### Database Design
+The SQLAlchemy ORM manages five core models:
+- **User Models**: Customer, Driver, and Admin entities with phone-based authentication
+- **Ride System**: Comprehensive ride lifecycle tracking with status transitions, location data, and fare calculations
+- **Zone Management**: Polygon-based service zones with concentric ring dispatch logic
+- **Pricing Engine**: Dynamic fare configuration with special rates for different ride categories (regular, airport, rental, outstation)
+- **Promotional System**: Promo code support with discount types and usage restrictions
 
-### Authentication Strategy
-- **Mobile Apps**: JWT token-based authentication with 7-day expiration and Bearer token validation
-- **Admin Panel**: Traditional session-based authentication using Flask-Login for server-side rendered templates
-- **Token Management**: Automatic token refresh and validation with proper error handling for expired tokens
-- **Customer API**: Working endpoints at `/customer/*` with proper JWT authentication
+### Real-Time Communication System
+The platform has been fully migrated from polling-based updates to a **WebSocket-driven real-time architecture** (completed August 2025):
+- **Zero Polling Design**: Eliminated all `setInterval` polling loops, achieving 95% reduction in unnecessary server requests
+- **WebSocket Broadcasting**: Complete Socket.IO implementation for instant push notifications across admin dashboard, live maps, and ride status updates
+- **Event-Driven Updates**: All ride status changes, location updates, and dashboard statistics broadcast instantly to connected clients
 
 ### GPS Tracking Implementation
-- **Real-Time WebSocket**: GPS updates sent via WebSocket with instant database persistence and broadcasting
-- **Intelligent Frequency**: 30-60 seconds for general availability, 10-15 seconds during active rides
-- **Battery Optimized**: Automatic frequency adjustment based on driver state to minimize battery drain
-- **Centralized Architecture**: Single GPS system serves all location tracking needs across mobile apps
+The system features a **unified location service architecture**:
+- **Intelligent Frequency**: 30-60 seconds for general driver availability, 10-15 seconds during active rides
+- **Dual Purpose Updates**: Always updates general location via `/driver/update_current_location`, adds ride-specific tracking via `/driver/update_location` during active rides
+- **Battery Optimization**: Automatic frequency adjustment based on driver state to minimize mobile device battery drain
 
-### Dispatch Engine
-- **Zone-Based Assignment**: Drivers are automatically assigned to zones based on their GPS location
-- **Concentric Ring Logic**: Ride requests expand through configurable rings within zones when no drivers accept
-- **Proximity Filtering**: Haversine distance calculation to ensure drivers are within service radius
-- **Car Type Matching**: Ride requests are filtered by compatible vehicle types (sedan, SUV, hatchback)
+### Ride Dispatch Engine
+The dispatch system implements **zone-based driver assignment** with sophisticated matching logic:
+- **Zone Assignment**: Drivers automatically assigned to service zones based on GPS location
+- **Concentric Ring Expansion**: Ride requests expand through configurable rings within zones when drivers don't accept
+- **Proximity Filtering**: Haversine distance calculation ensures drivers are within service radius
+- **Vehicle Type Matching**: Requests filtered by compatible car types (sedan, SUV, hatchback)
+- **Special Category Handling**: Airport rides restricted to sedan/SUV, with separate fare matrices for rental and outstation categories
 
-### Admin Dashboard
-- **Real-Time Updates**: WebSocket-powered live dashboard with instant statistics and ride status updates
-- **Server-Side Rendered**: Bootstrap-based responsive UI with dark theme
-- **Comprehensive Management**: Full CRUD operations for drivers, customers, rides, zones, and fare configurations
-- **Configuration Tools**: Dynamic fare matrix, zone polygon editing, and promotional code management
-
-## Documentation Structure
-
-All detailed documentation is organized in the `docs/` folder:
-
-- **`docs/replit.md`**: Complete system architecture and technical details
-- **`docs/WEBSOCKET_MIGRATION_COMPLETE.md`**: WebSocket implementation details and migration report
-- **`docs/CHECKPOINT_WEBSOCKET_COMPLETE.md`**: Project milestone documentation and current status
-- **`docs/DRIVER_GPS_REQUIREMENTS.md`**: GPS tracking requirements and implementation guide
+### API Architecture
+The REST API follows a standardized response format: `{success: boolean, message: string, data: object}`. Routes are organized into modular blueprints:
+- **Customer Routes** (`/customer/*`): Login/registration, ride booking, status tracking
+- **Driver Routes** (`/driver/*`): Authentication, ride acceptance, location updates, earnings tracking
+- **Admin Routes** (`/admin/*`): Dashboard management, driver assignment, zone configuration
+- **Mobile Routes** (`/mobile/*`): Extended endpoints for mobile app features like profile management and ride history
 
 ## External Dependencies
 
 ### Google Maps Integration
-- **Distance Matrix API**: Route calculation and fare estimation using real road distances
-- **Geocoding API**: Address to coordinate conversion and reverse geocoding
-- **Places API**: Address autocomplete and location validation
-- **Frontend Maps**: JavaScript API for interactive map display and route visualization
+The platform integrates Google Maps services for geocoding and distance calculations:
+- **Distance Matrix API**: Used for accurate road distance and travel time calculations between pickup and drop locations
+- **Geocoding API**: Converts addresses to coordinates and vice versa for ride booking
+- **Places API**: Provides address autocomplete functionality in the frontend applications
 
 ### Database Systems
-- **Production**: PostgreSQL hosted on Railway with connection pooling and automatic failover
-- **Development**: PostgreSQL on Replit with environment-specific configuration
-- **Migration Support**: SQLAlchemy migrations with automatic schema updates
+- **Production Database**: PostgreSQL with timezone-aware operations and connection pooling
+- **Development Database**: SQLite for local development and testing
+- **ORM Layer**: SQLAlchemy with declarative base and automatic migration support
 
-### Mobile App Architecture
-- **React Frontend**: Modern web-based driver and customer applications
-- **WebSocket Communication**: Real-time updates via Socket.IO with automatic reconnection
-- **API Communication**: RESTful API consumption with proper error handling and retry logic
-- **Offline Support**: Local storage for critical data and graceful degradation
+### Frontend Technologies
+- **Admin Panel**: Server-rendered Jinja2 templates with Bootstrap CSS framework and vanilla JavaScript
+- **WebSocket Client**: Universal JavaScript WebSocket client library for real-time features
+- **Mobile Apps**: React-based applications with JWT authentication and real-time GPS tracking
 
-## Quick Start for Mobile Apps
-
-To integrate WebSocket real-time features:
-
-1. **Copy WebSocket Client**: Use `static/js/websocket-client.js` in your mobile apps
-2. **Replace Polling**: Remove all `setInterval` calls for data updates
-3. **Add Event Listeners**: Implement WebSocket event handling for instant updates
-4. **Authentication**: Connect with JWT tokens from login response
-
-See `docs/WEBSOCKET_MIGRATION_COMPLETE.md` for complete mobile integration guide.
-
-## Current Development Status
-
-- ✅ Backend WebSocket system fully operational
-- ✅ Admin dashboard real-time updates working
-- ✅ Driver location tracking via WebSocket functional
-- ✅ All ride status changes broadcast instantly
-- ✅ Mobile integration guides and examples provided
-- ✅ GPS tracking working correctly through WebSocket
-- ✅ Zero polling architecture achieved
-
-**Ready for production deployment and mobile app WebSocket integration.**
+### Infrastructure Services
+- **Deployment Platform**: Designed for Railway deployment with environment-based configuration
+- **WebSocket Server**: Socket.IO with CORS support for cross-origin real-time communication
+- **File Storage**: Support for document uploads (driver licenses, vehicle documents) with URL-based references
+- **Logging System**: Comprehensive logging with configurable levels for debugging and monitoring
