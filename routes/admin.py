@@ -810,7 +810,7 @@ def api_update_fare_config():
         return create_error_response("Failed to update fare configuration")
 
 
-@admin_bp.route('/api/fare_config/surge', methods=['POST'])
+@admin_bp.route('/api/fare-config/surge', methods=['POST'])
 @login_required
 def api_update_surge_multiplier():
     """API endpoint to update global surge multiplier for all ride types"""

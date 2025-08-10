@@ -165,7 +165,7 @@ function initMap() {
 
 function refreshDrivers() {
     console.log('🚀 Refreshing drivers...');
-    fetch('/admin/api/live_driver_locations')
+    fetch('/admin/api/drivers')
         .then(response => {
             console.log('📡 Response status:', response.status);
             if (!response.ok) {
@@ -175,8 +175,8 @@ function refreshDrivers() {
         })
         .then(data => {
             console.log('📊 Driver data received:', data);
-            if (data.success) {
-                driversData = data.drivers;
+            if (data.status === 'success') {
+                driversData = data.data.drivers;
                 console.log('👥 Total drivers:', driversData.length);
                 
                 // Clear any existing error messages on successful load
