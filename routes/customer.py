@@ -5,6 +5,7 @@ from utils.validators import validate_phone, validate_required_fields, validate_
 from utils.maps import get_distance_and_fare
 from utils.distance import haversine_distance, filter_drivers_by_proximity
 from utils.ride_dispatch_engine import RideDispatchEngine
+from utils.auth_helpers import standardized_auth_response, handle_auth_error
 import logging
 from datetime import datetime, date, time
 

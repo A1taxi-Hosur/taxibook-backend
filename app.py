@@ -55,73 +55,11 @@ IST = pytz.timezone('Asia/Kolkata')
 def get_ist_time():
     return datetime.now(IST)
 
-# JWT Token Authentication Decorator
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = None
-        
-        # Check for token in Authorization header (Bearer token)
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            try:
-                token = auth_header.split(" ")[1]  # Remove "Bearer " prefix
-            except IndexError:
-                return jsonify({
-                    'success': False, 
-                    'message': 'Invalid token format. Use: Bearer <token>'
-                }), 401
-        
-        # Check for token in request body (fallback for mobile apps)
-        elif request.is_json:
-            data = request.get_json()
-            if data and 'token' in data:
-                token = data['token']
-        
-        # Check for token in form data (fallback)
-        elif request.form and 'token' in request.form:
-            token = request.form['token']
-        
-        if not token:
-            return jsonify({
-                'success': False,
-                'message': 'Token is required. Please login first.'
-            }), 401
-        
-        try:
-            # Decode JWT token
-            payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user_data = {
-                'user_id': payload['user_id'],
-                'username': payload['username'],
-                'user_type': payload['user_type'],
-                'exp': payload['exp'],
-                'iat': payload['iat']
-            }
-            
-            # Log successful token validation
-            logging.info(f"JWT token validated for {current_user_data['user_type']} {current_user_data['username']}")
-            
-            return f(current_user_data, *args, **kwargs)
-            
-        except jwt.ExpiredSignatureError:
-            return jsonify({
-                'success': False,
-                'message': 'Token has expired. Please login again.'
-            }), 401
-        except jwt.InvalidTokenError:
-            return jsonify({
-                'success': False,
-                'message': 'Invalid token. Please login again.'
-            }), 401
-        except Exception as e:
-            logging.error(f"JWT token validation error: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Token validation failed'
-            }), 401
-    
-    return decorated
+# Import enhanced authentication helpers
+from utils.auth_helpers import enhanced_token_required, standardized_auth_response, handle_auth_error
+
+# JWT Token Authentication Decorator (Enhanced)
+token_required = enhanced_token_required
 
 # Generate JWT Token
 def generate_jwt_token(user_data):
