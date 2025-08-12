@@ -1603,27 +1603,71 @@ def api_delete_special_fare(fare_id):
 @admin_bp.route('/api/drivers', methods=['GET'])
 @login_required
 def api_get_drivers():
-    """API endpoint to get drivers with filters"""
+    """API endpoint to get drivers with filters (updated for new session management)"""
     try:
         available_only = request.args.get('available', 'false').lower() == 'true'
         
+        from utils.session_manager import get_driver_sessions
+        from datetime import timedelta
+        from app import get_ist_time
+        
+        # Get session-based online status
+        driver_sessions = get_driver_sessions()
+        online_driver_ids = {session['driver_id'] for session in driver_sessions if session['is_online']}
+        
         query = Driver.query
         
-        # For manual assignment, show all drivers regardless of availability
-        # Admin can assign to any driver
+        # For available_only filter, use session-based online status
         if available_only:
-            query = query.filter_by(is_online=True)
+            if online_driver_ids:
+                query = query.filter(Driver.id.in_(online_driver_ids))
+            else:
+                # No online drivers based on sessions
+                logging.info("No drivers currently online based on session management")
+                return create_success_response({
+                    'drivers': [],
+                    'total_count': 0
+                })
         
         drivers = query.all()
-        logging.info(f"Found {len(drivers)} drivers in database")
+        logging.info(f"Found {len(drivers)} drivers in database, {len(online_driver_ids)} online with active sessions")
+        
+        # For location tracking, check location staleness
+        current_time = get_ist_time()
+        staleness_threshold = timedelta(minutes=15)
         
         driver_list = []
         for driver in drivers:
             try:
+                # Check session-based online status
+                is_session_online = driver.id in online_driver_ids
+                
+                # Check location freshness
+                has_recent_location = False
+                if driver.current_lat and driver.current_lng and driver.location_updated_at:
+                    if driver.location_updated_at.tzinfo is None:
+                        from app import IST
+                        location_time = IST.localize(driver.location_updated_at)
+                    else:
+                        location_time = driver.location_updated_at.astimezone(IST)
+                    
+                    time_since_update = current_time - location_time
+                    has_recent_location = time_since_update <= staleness_threshold
+                
                 # Get current active rides count for this driver
                 active_rides = Ride.query.filter_by(driver_id=driver.id).filter(
                     Ride.status.in_(['accepted', 'arrived', 'started'])
                 ).count()
+                
+                # Determine availability status
+                if is_session_online and has_recent_location:
+                    availability_status = 'Online & Available'
+                elif is_session_online:
+                    availability_status = 'Online (No Location)'
+                elif has_recent_location:
+                    availability_status = 'Location Only (Offline)'
+                else:
+                    availability_status = 'Offline'
                 
                 driver_data = {
                     'id': driver.id,
@@ -1633,16 +1677,23 @@ def api_get_drivers():
                     'car_number': driver.car_number or '',
                     'car_make': driver.car_make or '',
                     'car_model': driver.car_model or '',
-                    'is_online': bool(driver.is_online),
+                    'is_online': is_session_online,  # Use session-based status
+                    'has_recent_location': has_recent_location,
+                    'latitude': float(driver.current_lat) if driver.current_lat else None,
+                    'longitude': float(driver.current_lng) if driver.current_lng else None,
+                    'location_updated_at': driver.location_updated_at.isoformat() if driver.location_updated_at else None,
                     'zone': driver.zone.zone_name if driver.zone else None,
                     'active_rides': active_rides,
-                    'availability_status': 'Online' if driver.is_online else 'Offline'
+                    'availability_status': availability_status
                 }
                 driver_list.append(driver_data)
+                
+                logging.debug(f"Driver {driver.name}: session_online={is_session_online}, recent_location={has_recent_location}, status={availability_status}")
+                
             except Exception as driver_error:
                 logging.error(f"Error processing driver {driver.id}: {str(driver_error)}")
         
-        logging.info(f"Returning {len(driver_list)} drivers to frontend")
+        logging.info(f"Returning {len(driver_list)} drivers to frontend ({len([d for d in driver_list if d['is_online']])} online, {len([d for d in driver_list if d['has_recent_location']])} with recent location)")
         return create_success_response({
             'drivers': driver_list,
             'total_count': len(driver_list)
