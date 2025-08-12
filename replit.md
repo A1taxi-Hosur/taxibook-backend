@@ -20,6 +20,7 @@ The system employs a **comprehensive dual authentication strategy** with enhance
 - **Session Management System**: Implemented single-session-per-user policy with database-backed session tracking, automatic session expiration, and background cleanup processes (August 2025)
 - **Lenient Heartbeat System**: 60-second heartbeat interval for mobile apps with 30-minute timeout (increased from 10 minutes) for inactive connections to prevent drivers from logging out easily
 - **Location-Based Session Recovery**: Location updates automatically mark drivers online and refresh their heartbeat, ensuring continuous availability even with temporary network issues
+- **Frontend Session Fix (August 2025)**: Disabled aggressive 5-minute frontend session validation that was causing premature "An Error has Occurred" logouts. Backend 30-minute timeout now handles session management properly
 - **Security Features**: Session token validation, automatic cleanup of expired sessions, protection against multiple login abuse
 
 ### Database Design
