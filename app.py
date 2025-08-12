@@ -76,7 +76,9 @@ token_required = enhanced_token_required
 def generate_jwt_token(user_data):
     payload = {
         'user_id': user_data.get('user_id'),
+        'driver_id': user_data.get('driver_id'),  # Mobile apps expect this
         'username': user_data.get('username'),
+        'phone': user_data.get('phone'),          # Mobile apps expect this
         'user_type': user_data.get('user_type'),  # 'driver', 'customer', 'admin'
         'session_token': user_data.get('session_token'),  # Session token for validation
         'exp': datetime.utcnow() + timedelta(days=7),

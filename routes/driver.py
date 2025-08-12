@@ -118,10 +118,12 @@ def login():
         from utils.session_manager import create_driver_session
         session_token = create_driver_session(driver)
         
-        # Generate JWT token for API authentication
+        # Generate JWT token for mobile app authentication  
         token_data = {
-            'user_id': driver.id,
+            'driver_id': str(driver.id),  # Mobile apps expect 'driver_id' as string
+            'user_id': driver.id,         # Keep for backward compatibility
             'username': driver.username,
+            'phone': driver.phone,
             'user_type': 'driver',
             'session_token': session_token
         }
@@ -133,17 +135,19 @@ def login():
             'success': True,
             'token': token,
             'driver': {
-                'id': driver.id,
-                'driver_id': driver.username,
+                'id': str(driver.id),           # Mobile apps expect string
+                'driver_id': str(driver.id),    # Use numeric ID as driver_id
                 'name': driver.name,
                 'phone': driver.phone,
+                'username': driver.username,    # Include username for reference
                 'car_type': driver.car_type,
                 'status': 'online',
                 'zone_id': driver.zone_id,
                 'car_make': driver.car_make,
                 'car_model': driver.car_model,
                 'car_year': driver.car_year,
-                'car_number': driver.car_number
+                'car_number': driver.car_number,
+                'email': f"{driver.username}@driver.local"  # Mock email for mobile apps
             }
         })
         
@@ -187,10 +191,15 @@ def heartbeat(current_user_data):
         if not success:
             return create_error_response("Driver not found or session invalid")
         
-        return create_success_response({
-            'timestamp': get_ist_time().isoformat(),
-            'status': 'active'
-        }, "Heartbeat updated")
+        return jsonify({
+            'success': True,
+            'message': "Session valid",
+            'data': {
+                'driver_id': str(current_user_data['user_id']),
+                'session_expires': get_ist_time().isoformat(),
+                'status': 'active'
+            }
+        })
         
     except Exception as e:
         logging.error(f"Error in driver heartbeat: {str(e)}")
@@ -856,19 +865,6 @@ def update_current_location(current_user_data):
             logging.error(f"Missing latitude/longitude fields in data: {data}")
             return create_error_response("Missing latitude and longitude fields")
         
-        # Phone can come from JWT or request data
-        phone = data.get('phone') or current_user_data.get('phone')
-        if not phone:
-            logging.error(f"No phone number found in JWT or request data")
-            return create_error_response("Phone number required")
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(phone)
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        
         try:
             latitude = float(data[lat_field])
             longitude = float(data[lng_field])
@@ -882,8 +878,8 @@ def update_current_location(current_user_data):
         if not (-180 <= longitude <= 180):
             return create_error_response("Invalid longitude value")
         
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
+        # Get driver from JWT token (more reliable than phone lookup)
+        driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
