@@ -14,10 +14,12 @@ Preferred communication style: Simple, everyday language.
 The platform uses a **Flask-based modular architecture** with blueprint-based route organization. The core application (`app.py`) initializes SQLAlchemy with PostgreSQL for production and SQLite for development, configured for the Asia/Kolkata timezone. The system implements dual authentication strategies and real-time WebSocket communication through Socket.IO.
 
 ### Authentication Architecture
-The system employs a **dual authentication strategy** to serve different client types:
+The system employs a **comprehensive dual authentication strategy** with enhanced session management:
 - **JWT Token Authentication**: Used for mobile applications (driver and customer apps) with 7-day token expiration and Bearer token validation
 - **Flask-Login Sessions**: Traditional session-based authentication for the admin panel's server-rendered templates
-- **Token Management**: Automatic token refresh, validation middleware, and proper error handling for expired tokens
+- **Session Management System**: Implemented single-session-per-user policy with database-backed session tracking, automatic session expiration, and background cleanup processes (August 2025)
+- **Heartbeat System**: 60-second heartbeat interval for mobile apps to maintain session validity, with 10-minute timeout for inactive connections
+- **Security Features**: Session token validation, automatic cleanup of expired sessions, protection against multiple login abuse
 
 ### Database Design
 The SQLAlchemy ORM manages five core models:

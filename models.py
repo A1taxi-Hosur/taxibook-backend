@@ -11,6 +11,12 @@ class Customer(UserMixin, db.Model):
     phone = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=get_ist_time)
     
+    # Session management fields
+    session_token = db.Column(db.String(255), nullable=True, unique=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
+    session_expires = db.Column(db.DateTime, nullable=True)
+    is_online = db.Column(db.Boolean, default=False)
+    
     # Relationship with rides
     rides = db.relationship('Ride', backref='customer', lazy=True)
     
@@ -20,6 +26,17 @@ class Customer(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<Customer {self.name}>'
+    
+    def is_session_valid(self):
+        """Check if current session is valid"""
+        if not self.session_token or not self.session_expires:
+            return False
+        return datetime.now() < self.session_expires
+    
+    def update_last_seen(self):
+        """Update last seen timestamp"""
+        self.last_seen = get_ist_time()
+        db.session.commit()
 
 class Driver(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -27,8 +44,14 @@ class Driver(UserMixin, db.Model):
     phone = db.Column(db.String(10), unique=True, nullable=False)
     username = db.Column(db.String(50), unique=True, nullable=True)  # Auto-generated username
     password_hash = db.Column(db.String(256), nullable=True)  # Hashed password
-    is_online = db.Column(db.Boolean, default=True)
+    is_online = db.Column(db.Boolean, default=False)  # Changed default to False
     created_at = db.Column(db.DateTime, default=get_ist_time)
+    
+    # Session management fields
+    session_token = db.Column(db.String(255), nullable=True, unique=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
+    session_expires = db.Column(db.DateTime, nullable=True)
+    websocket_id = db.Column(db.String(255), nullable=True)
     
     # Vehicle details
     car_make = db.Column(db.String(50), nullable=True)
@@ -72,6 +95,17 @@ class Driver(UserMixin, db.Model):
         else:
             self.zone_id = None
             self.out_of_zone = True
+    
+    def is_session_valid(self):
+        """Check if current session is valid"""
+        if not self.session_token or not self.session_expires:
+            return False
+        return datetime.now() < self.session_expires
+    
+    def update_last_seen(self):
+        """Update last seen timestamp"""
+        self.last_seen = get_ist_time()
+        db.session.commit()
 
 class Admin(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)

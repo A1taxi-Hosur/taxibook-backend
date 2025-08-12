@@ -91,9 +91,27 @@ def enhanced_token_required(f):
                 'user_id': payload['user_id'],
                 'username': payload['username'],
                 'user_type': payload['user_type'],
+                'session_token': payload.get('session_token'),
                 'exp': payload.get('exp'),
                 'iat': payload.get('iat')
             }
+            
+            # Validate session if session_token is present
+            if current_user_data['session_token']:
+                from utils.session_manager import validate_driver_session, validate_customer_session
+                
+                user_type = current_user_data['user_type']
+                session_token = current_user_data['session_token']
+                
+                if user_type == 'driver':
+                    user = validate_driver_session(session_token)
+                elif user_type == 'customer':
+                    user = validate_customer_session(session_token)
+                else:
+                    user = None
+                
+                if not user:
+                    return handle_auth_error("token_expired")  # Session expired or invalid
             
             # Log successful token validation
             logging.info(f"JWT token validated for {current_user_data['user_type']} {current_user_data['username']}")

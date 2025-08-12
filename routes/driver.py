@@ -114,15 +114,16 @@ def login():
         if not check_password_hash(driver.password_hash, password):
             return create_error_response("Invalid username or password")
         
-        # Login successful - automatically set driver online
-        driver.is_online = True
-        db.session.commit()
+        # Login successful - create session and set driver online
+        from utils.session_manager import create_driver_session
+        session_token = create_driver_session(driver)
         
-        # Generate JWT token instead of session-based login
+        # Generate JWT token for API authentication
         token_data = {
             'user_id': driver.id,
             'username': driver.username,
-            'user_type': 'driver'
+            'user_type': 'driver',
+            'session_token': session_token
         }
         token = generate_jwt_token(token_data)
         
@@ -148,6 +149,51 @@ def login():
         
     except Exception as e:
         logging.error(f"Error in driver login: {str(e)}")
+        return create_error_response("Internal server error")
+
+@driver_bp.route('/logout', methods=['POST'])
+@token_required
+def driver_logout(current_user_data):
+    """Driver logout - invalidates session and JWT token"""
+    try:
+        from utils.session_manager import invalidate_driver_sessions
+        
+        # Get driver
+        driver = Driver.query.get(current_user_data['user_id'])
+        if not driver:
+            return create_error_response("Driver not found")
+        
+        # Invalidate all sessions for this driver
+        invalidate_driver_sessions(driver.id)
+        
+        logging.info(f"Driver logged out: {driver.name} ({driver.username})")
+        
+        return create_success_response({}, "Logged out successfully")
+        
+    except Exception as e:
+        logging.error(f"Error in driver logout: {str(e)}")
+        return create_error_response("Internal server error")
+
+@driver_bp.route('/heartbeat', methods=['POST'])
+@token_required
+def heartbeat(current_user_data):
+    """Driver heartbeat to keep session alive"""
+    try:
+        from utils.session_manager import update_driver_heartbeat
+        
+        # Update heartbeat
+        success = update_driver_heartbeat(current_user_data['user_id'])
+        
+        if not success:
+            return create_error_response("Driver not found or session invalid")
+        
+        return create_success_response({
+            'timestamp': get_ist_time().isoformat(),
+            'status': 'active'
+        }, "Heartbeat updated")
+        
+    except Exception as e:
+        logging.error(f"Error in driver heartbeat: {str(e)}")
         return create_error_response("Internal server error")
 
 

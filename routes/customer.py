@@ -39,11 +39,15 @@ def login_or_register():
         customer = Customer.query.filter_by(phone=phone).first()
         
         if customer:
-            # Login existing customer - generate JWT token
+            # Login existing customer - create session and generate JWT token
+            from utils.session_manager import create_customer_session
+            session_token = create_customer_session(customer)
+            
             token_data = {
                 'user_id': customer.id,
                 'username': customer.phone,
-                'user_type': 'customer'
+                'user_type': 'customer',
+                'session_token': session_token
             }
             token = generate_jwt_token(token_data)
             logging.info(f"Customer logged in: {customer.name} ({customer.phone})")
@@ -57,15 +61,19 @@ def login_or_register():
                 }
             })
         else:
-            # Register new customer - generate JWT token
+            # Register new customer - create session and generate JWT token
             customer = Customer(name=name, phone=phone)
             db.session.add(customer)
             db.session.commit()
             
+            from utils.session_manager import create_customer_session
+            session_token = create_customer_session(customer)
+            
             token_data = {
                 'user_id': customer.id,
                 'username': customer.phone,
-                'user_type': 'customer'
+                'user_type': 'customer',
+                'session_token': session_token
             }
             token = generate_jwt_token(token_data)
             logging.info(f"New customer registered: {customer.name} ({customer.phone})")
@@ -802,14 +810,47 @@ def get_customer_bookings(current_user, customer_id):
 
 
 @customer_bp.route('/logout', methods=['POST'])
-def logout():
-    """Logout customer"""
+@token_required
+def customer_logout(current_user_data):
+    """Customer logout - invalidates session and JWT token"""
     try:
-        # Customer logout - clear any session data if needed
-        pass
-        return create_success_response(message="Logout successful")
+        from utils.session_manager import invalidate_customer_sessions
+        
+        # Get customer
+        customer = Customer.query.get(current_user_data['user_id'])
+        if not customer:
+            return create_error_response("Customer not found")
+        
+        # Invalidate all sessions for this customer
+        invalidate_customer_sessions(customer.id)
+        
+        logging.info(f"Customer logged out: {customer.name} ({customer.phone})")
+        
+        return create_success_response({}, "Logged out successfully")
     except Exception as e:
         logging.error(f"Error in logout: {str(e)}")
+        return create_error_response("Internal server error")
+
+@customer_bp.route('/heartbeat', methods=['POST'])
+@token_required
+def heartbeat(current_user_data):
+    """Customer heartbeat to keep session alive"""
+    try:
+        from utils.session_manager import update_customer_heartbeat
+        
+        # Update heartbeat
+        success = update_customer_heartbeat(current_user_data['user_id'])
+        
+        if not success:
+            return create_error_response("Customer not found or session invalid")
+        
+        return create_success_response({
+            'timestamp': get_ist_time().isoformat(),
+            'status': 'active'
+        }, "Heartbeat updated")
+        
+    except Exception as e:
+        logging.error(f"Error in customer heartbeat: {str(e)}")
         return create_error_response("Internal server error")
 
 

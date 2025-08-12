@@ -78,6 +78,7 @@ def generate_jwt_token(user_data):
         'user_id': user_data.get('user_id'),
         'username': user_data.get('username'),
         'user_type': user_data.get('user_type'),  # 'driver', 'customer', 'admin'
+        'session_token': user_data.get('session_token'),  # Session token for validation
         'exp': datetime.utcnow() + timedelta(days=7),
         'iat': datetime.utcnow()
     }
@@ -108,6 +109,15 @@ with app.app_context():
     from routes.driver import driver_bp
     from routes.admin import admin_bp
     from routes.mobile import mobile_bp
+    
+    # Initialize background tasks for session management
+    from utils.background_tasks import initialize_background_tasks
+    initialize_background_tasks()
+    
+    # Register testing blueprint for development
+    if os.environ.get('ENV', 'development') == 'development':
+        from routes.auth_test import auth_test_bp
+        app.register_blueprint(auth_test_bp, url_prefix='/auth_test')
     
     # Register blueprints
     app.register_blueprint(customer_bp, url_prefix='/customer')
