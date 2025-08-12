@@ -888,6 +888,13 @@ def update_current_location(current_user_data):
         driver.current_lng = longitude
         driver.location_updated_at = get_ist_time()
         
+        # CRITICAL FIX: Mark driver online and update heartbeat when they send location
+        # This keeps drivers online even if they miss heartbeat calls
+        if driver.session_token:
+            driver.is_online = True
+            driver.last_seen = get_ist_time()
+            logging.debug(f"Location update auto-marking driver {driver.name} as online")
+        
         # Update zone assignment based on new location
         old_zone = driver.zone.zone_name if driver.zone else None
         driver.update_zone_assignment()

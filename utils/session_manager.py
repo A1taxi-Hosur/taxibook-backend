@@ -10,9 +10,9 @@ from app import db, get_ist_time
 from models import Driver, Customer
 import logging
 
-# Session configuration
+# Session configuration - More lenient settings to keep drivers online longer
 SESSION_DURATION_HOURS = 24 * 7  # 7 days
-HEARTBEAT_TIMEOUT_MINUTES = 10  # Mark offline if no activity for 10 minutes
+HEARTBEAT_TIMEOUT_MINUTES = 30  # Mark offline if no activity for 30 minutes (was 10)
 
 def generate_session_token():
     """Generate a secure random session token"""
@@ -185,11 +185,19 @@ def cleanup_stale_connections():
         logging.info(f"Marked {len(stale_drivers)} drivers and {len(stale_customers)} customers offline due to inactivity")
 
 def update_driver_heartbeat(driver_id):
-    """Update driver's last seen timestamp (heartbeat)"""
+    """Update driver's last seen timestamp (heartbeat) - More lenient validation"""
     driver = Driver.query.get(driver_id)
-    if driver and driver.is_online:
+    if driver:
+        # Update heartbeat even if driver appears offline due to stale connection
+        # This helps keep drivers online who have temporary network issues
         driver.last_seen = get_ist_time()
+        
+        # If driver has a session token, make sure they're marked online
+        if driver.session_token:
+            driver.is_online = True
+            
         db.session.commit()
+        logging.debug(f"Updated heartbeat for driver {driver.name} - marked online: {driver.is_online}")
         return True
     return False
 
