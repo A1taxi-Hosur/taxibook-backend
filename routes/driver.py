@@ -760,88 +760,11 @@ def get_status():
 
 
 @driver_bp.route('/update_location', methods=['POST'])
+@driver_bp.route('/update_current_location', methods=['POST'])  # Keep both for backward compatibility
 @token_required
 def update_location(current_user_data):
-    """Update driver's GPS location for active ride (JWT protected)"""
+    """Unified location update endpoint - handles both driver availability and ride tracking (JWT protected)"""
     try:
-        data = request.get_json()
-        if not data:
-            return create_error_response("Invalid JSON data")
-        
-        # Validate required fields
-        required_fields = ['driver_phone', 'ride_id', 'latitude', 'longitude']
-        valid, error = validate_required_fields(data, required_fields)
-        if not valid:
-            return create_error_response(error)
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(data['driver_phone'])
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        ride_id = data['ride_id']
-        
-        try:
-            latitude = float(data['latitude'])
-            longitude = float(data['longitude'])
-        except (ValueError, TypeError):
-            return create_error_response("Invalid latitude or longitude format")
-        
-        # Validate coordinates
-        if not (-90 <= latitude <= 90):
-            return create_error_response("Invalid latitude. Must be between -90 and 90")
-        if not (-180 <= longitude <= 180):
-            return create_error_response("Invalid longitude. Must be between -180 and 180")
-        
-        # Find driver
-        driver = Driver.query.filter_by(phone=phone).first()
-        if not driver:
-            return create_error_response("Driver not found")
-        
-        # Verify ride exists and belongs to this driver
-        ride = Ride.query.filter_by(id=ride_id, driver_id=driver.id).first()
-        if not ride:
-            return create_error_response("Ride not found or not assigned to you")
-        
-        # Only allow location updates for active rides
-        if ride.status not in ['accepted', 'arrived', 'started']:
-            return create_error_response("Can only update location for active rides")
-        
-        # Mark all previous locations as not latest for this ride
-        RideLocation.query.filter_by(ride_id=ride_id).update({'is_latest': False})
-        
-        # Create new location entry
-        new_location = RideLocation(
-            ride_id=ride_id,
-            latitude=latitude,
-            longitude=longitude,
-            is_latest=True
-        )
-        
-        db.session.add(new_location)
-        db.session.commit()
-        
-        logging.info(f"GPS location updated for ride {ride_id}: {latitude}, {longitude}")
-        
-        return create_success_response({
-            'ride_id': ride_id,
-            'latitude': latitude,
-            'longitude': longitude,
-            'timestamp': new_location.timestamp.isoformat()
-        }, "Location updated successfully")
-    
-    except Exception as e:
-        logging.error(f"Error updating location: {str(e)}")
-        db.session.rollback()
-        return create_error_response("Internal server error")
-
-@driver_bp.route('/update_current_location', methods=['POST'])
-@token_required
-def update_current_location(current_user_data):
-    """Update driver's current location for proximity-based dispatch (JWT protected)"""
-    try:
-        # Enhanced logging for debugging production issues
         logging.info(f"=== LOCATION UPDATE REQUEST ===")
         logging.info(f"User data from JWT: {current_user_data}")
         logging.info(f"Request headers: {dict(request.headers)}")
@@ -854,12 +777,11 @@ def update_current_location(current_user_data):
             logging.error("No JSON data provided in location update request")
             return create_error_response("No data provided")
         
-        # Validate required fields - accept both 'phone' and 'current_lat'/'current_lng' formats
+        # Parse coordinates from multiple possible formats
+        latitude = longitude = None
         if 'latitude' in data and 'longitude' in data:
-            # Format 1: latitude/longitude
             lat_field, lng_field = 'latitude', 'longitude'
         elif 'current_lat' in data and 'current_lng' in data:
-            # Format 2: current_lat/current_lng
             lat_field, lng_field = 'current_lat', 'current_lng'
         else:
             logging.error(f"Missing latitude/longitude fields in data: {data}")
@@ -873,27 +795,45 @@ def update_current_location(current_user_data):
             return create_error_response("Invalid latitude or longitude format")
         
         # Validate coordinates
-        if not (-90 <= latitude <= 90):
-            return create_error_response("Invalid latitude value")
-        if not (-180 <= longitude <= 180):
-            return create_error_response("Invalid longitude value")
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+            return create_error_response("Invalid latitude or longitude values")
         
-        # Get driver from JWT token (more reliable than phone lookup)
+        # Get driver from JWT token
         driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
-        # Update driver's current location
+        # ALWAYS update driver's current location for availability tracking
         driver.current_lat = latitude
         driver.current_lng = longitude
         driver.location_updated_at = get_ist_time()
         
-        # CRITICAL FIX: Mark driver online and update heartbeat when they send location
-        # This keeps drivers online even if they miss heartbeat calls
+        # Mark driver online and update heartbeat
         if driver.session_token:
             driver.is_online = True
             driver.last_seen = get_ist_time()
             logging.debug(f"Location update auto-marking driver {driver.name} as online")
+        
+        # If ride_id is provided, also update ride-specific tracking
+        ride_updated = False
+        if 'ride_id' in data and data['ride_id']:
+            ride_id = data['ride_id']
+            ride = Ride.query.filter_by(id=ride_id, driver_id=driver.id).first()
+            
+            if ride and ride.status in ['accepted', 'arrived', 'started']:
+                # Mark previous locations as not latest
+                RideLocation.query.filter_by(ride_id=ride_id).update({'is_latest': False})
+                
+                # Create new ride location entry
+                new_location = RideLocation(
+                    ride_id=ride_id,
+                    latitude=latitude,
+                    longitude=longitude,
+                    is_latest=True
+                )
+                db.session.add(new_location)
+                ride_updated = True
+                logging.info(f"Also updated ride tracking for ride {ride_id}")
         
         # Update zone assignment based on new location
         old_zone = driver.zone.zone_name if driver.zone else None
@@ -929,14 +869,20 @@ def update_current_location(current_user_data):
         except Exception as e:
             logging.warning(f"Failed to broadcast location update via WebSocket: {str(e)}")
         
-        return create_success_response({
+        response_data = {
             'driver_id': driver.id,
             'latitude': latitude,
             'longitude': longitude,
             'updated_at': driver.location_updated_at.isoformat(),
             'zone': driver.zone.zone_name if driver.zone else None,
-            'out_of_zone': driver.out_of_zone
-        }, "Current location updated successfully")
+            'out_of_zone': driver.out_of_zone,
+            'is_online': driver.is_online
+        }
+        
+        if ride_updated:
+            response_data['ride_tracking_updated'] = True
+            
+        return create_success_response(response_data, "Location updated successfully")
         
     except Exception as e:
         logging.error(f"Error updating driver current location: {str(e)}")
