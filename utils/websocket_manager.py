@@ -73,56 +73,11 @@ def handle_driver_connect(data):
         socketio.emit('error', {'message': 'Connection failed'})
 
 def handle_driver_location_update(data):
-    """Handle real-time driver location updates"""
-    try:
-        # TODO: Add JWT token authentication here  
-        driver_id = data.get('driver_id')  # For now, get from data
-        
-        if not driver_id:
-            socketio.emit('error', {'message': 'Driver ID required'})
-            return
-            
-        # Validate location data
-        required_fields = ['latitude', 'longitude']
-        if not all(field in data for field in required_fields):
-            socketio.emit('error', {'message': 'Missing location data'})
-            return
-            
-        location_data = {
-            'driver_id': driver_id,
-            'latitude': float(data['latitude']),
-            'longitude': float(data['longitude']),
-            'timestamp': datetime.utcnow().isoformat(),
-            'heading': data.get('heading'),
-            'speed': data.get('speed'),
-            'accuracy': data.get('accuracy')
-        }
-        
-        # Update database (import here to avoid circular imports)
-        from models import Driver, db
-        from app import get_ist_time
-        
-        driver = Driver.query.get(driver_id)
-        if driver:
-            driver.current_lat = location_data['latitude']
-            driver.current_lng = location_data['longitude']
-            driver.location_updated_at = get_ist_time()
-            db.session.commit()
-            
-            logging.debug(f"WebSocket: Updated location for driver {driver_id}")
-            
-            # Broadcast to admin dashboard and live map
-            socketio.emit('driver_location_updated', location_data, room='admin')
-            socketio.emit('driver_location_updated', location_data, room='live_map')
-            
-            # Confirm update to driver
-            socketio.emit('location_update_confirmed', {'timestamp': location_data['timestamp']})
-        else:
-            socketio.emit('error', {'message': 'Driver not found'})
-            
-    except Exception as e:
-        logging.error(f"Error in driver_location_update: {str(e)}")
-        socketio.emit('error', {'message': 'Location update failed'})
+    """DEPRECATED: Use REST API /driver/update_location instead"""
+    socketio.emit('error', {
+        'message': 'WebSocket location updates deprecated. Use REST API /driver/update_location', 
+        'redirect_to': '/driver/update_location'
+    })
 
 def handle_admin_connect(data):
     """Handle admin dashboard connection"""
