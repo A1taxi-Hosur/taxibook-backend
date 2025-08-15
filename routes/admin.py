@@ -1353,7 +1353,7 @@ def api_live_driver_locations():
         
         # Get current time for staleness check (naive IST time to match stored timestamps)
         current_time_naive = get_ist_time()  # Returns naive IST time
-        staleness_threshold = timedelta(seconds=30)  # Consider locations older than 30 seconds as stale
+        staleness_threshold = timedelta(hours=24)  # Consider locations older than 24 hours as stale (matching main driver API)
         
         # Get all drivers with their current locations
         drivers = Driver.query.all()
