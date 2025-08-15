@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app import token_required
+from utils.auth_manager import token_required
 from models import db, Driver, Customer, Ride
 from utils.validators import validate_phone, create_error_response, create_success_response
 from sqlalchemy import func, extract

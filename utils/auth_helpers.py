@@ -98,15 +98,15 @@ def enhanced_token_required(f):
             
             # Validate session if session_token is present
             if current_user_data['session_token']:
-                from utils.session_manager import validate_driver_session, validate_customer_session
+                from utils.auth_manager import AuthenticationManager
                 
                 user_type = current_user_data['user_type']
                 session_token = current_user_data['session_token']
                 
                 if user_type == 'driver':
-                    user = validate_driver_session(session_token)
+                    user = AuthenticationManager.validate_driver_session(session_token)
                 elif user_type == 'customer':
-                    user = validate_customer_session(session_token)
+                    user = AuthenticationManager.validate_customer_session(session_token)
                 else:
                     user = None
                 
