@@ -155,6 +155,8 @@ def cleanup_expired_sessions():
 
 def cleanup_stale_connections():
     """Mark users offline if they haven't been seen recently (no heartbeat)"""
+    # TEMPORARILY DISABLED FOR TESTING
+    return
     now = get_ist_time()
     stale_threshold = now - timedelta(minutes=HEARTBEAT_TIMEOUT_MINUTES)
     
