@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app import db, get_ist_time, token_required, generate_jwt_token
+from app import db, get_ist_time, generate_jwt_token
+from utils.auth_manager import token_required
 from models import Driver, Ride, RideRejection, RideLocation, Zone
 from utils.validators import validate_phone, validate_required_fields, create_error_response, create_success_response
 from utils.maps import get_distance_to_pickup
@@ -114,16 +115,14 @@ def login():
         if not check_password_hash(driver.password_hash, password):
             return create_error_response("Invalid username or password")
         
-        # Login successful - create session and set driver online
-        from utils.session_manager import create_driver_session
-        session_token = create_driver_session(driver)
+        # Login successful - create session and set driver online using centralized auth manager
+        from utils.auth_manager import AuthenticationManager
+        session_token = AuthenticationManager.create_driver_session(driver)
         
-        # Generate JWT token for mobile app authentication  
+        # Generate JWT token for mobile app authentication using centralized system
         token_data = {
-            'driver_id': str(driver.id),  # Mobile apps expect 'driver_id' as string
-            'user_id': driver.id,         # Keep for backward compatibility
+            'user_id': driver.id,
             'username': driver.username,
-            'phone': driver.phone,
             'user_type': 'driver',
             'session_token': session_token
         }
@@ -160,15 +159,15 @@ def login():
 def driver_logout(current_user_data):
     """Driver logout - invalidates session and JWT token"""
     try:
-        from utils.session_manager import invalidate_driver_sessions
+        from utils.auth_manager import AuthenticationManager
         
         # Get driver
         driver = Driver.query.get(current_user_data['user_id'])
         if not driver:
             return create_error_response("Driver not found")
         
-        # Invalidate all sessions for this driver
-        invalidate_driver_sessions(driver.id)
+        # Invalidate all sessions for this driver using centralized auth manager
+        AuthenticationManager.invalidate_driver_sessions(driver.id)
         
         logging.info(f"Driver logged out: {driver.name} ({driver.username})")
         

@@ -14,14 +14,16 @@ Preferred communication style: Simple, everyday language.
 The platform uses a **Flask-based modular architecture** with blueprint-based route organization. The core application (`app.py`) initializes SQLAlchemy with PostgreSQL for production and SQLite for development, configured for the Asia/Kolkata timezone. The system implements dual authentication strategies and real-time WebSocket communication through Socket.IO.
 
 ### Authentication Architecture
-The system employs a **comprehensive dual authentication strategy** with enhanced session management:
-- **JWT Token Authentication**: Used for mobile applications (driver and customer apps) with 7-day token expiration and Bearer token validation
-- **Flask-Login Sessions**: Traditional session-based authentication for the admin panel's server-rendered templates
-- **Session Management System**: Implemented single-session-per-user policy with database-backed session tracking, automatic session expiration, and background cleanup processes (August 2025)
-- **Lenient Heartbeat System**: 60-second heartbeat interval for mobile apps with 30-minute timeout (increased from 10 minutes) for inactive connections to prevent drivers from logging out easily
-- **Location-Based Session Recovery**: Location updates automatically mark drivers online and refresh their heartbeat, ensuring continuous availability even with temporary network issues
-- **Frontend Session Fix (August 2025)**: Disabled aggressive 5-minute frontend session validation that was causing premature "An Error has Occurred" logouts. Backend 30-minute timeout now handles session management properly
-- **Security Features**: Session token validation, automatic cleanup of expired sessions, protection against multiple login abuse
+The system employs a **centralized authentication management system** with enhanced session control (August 2025):
+- **Centralized Auth Manager**: All authentication logic consolidated in `utils/auth_manager.py` for easy configuration and maintenance
+- **JWT Token Authentication**: Used for mobile applications with 7-day token expiration and Bearer token validation
+- **Flask-Login Sessions**: Traditional session-based authentication for admin panel's server-rendered templates
+- **Easy Configuration System**: Simple on/off toggles for debug logging, session validation, JWT tokens, and duration settings
+- **Session Management**: Single-session-per-user policy with database-backed tracking and automatic cleanup
+- **Lenient Heartbeat System**: 30-minute timeout for inactive connections with location-based session recovery
+- **Unified Token Handling**: Single `@token_required` decorator handles all authentication scenarios
+- **Configuration Control Script**: `auth_config_control.py` allows runtime configuration changes without code modifications
+- **Security Features**: Session validation, automatic cleanup, protection against multiple login abuse
 
 ### Database Design
 The SQLAlchemy ORM manages five core models:

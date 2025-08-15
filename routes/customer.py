@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from app import db, get_ist_time, generate_jwt_token, token_required
+from app import db, get_ist_time, generate_jwt_token
+from utils.auth_manager import token_required
 from models import Customer, Ride, RideLocation, FareConfig, Driver, SpecialFareConfig, Zone, Advertisement, PromoCode
 from utils.validators import validate_phone, validate_required_fields, validate_ride_type, create_error_response, create_success_response
 from utils.maps import get_distance_and_fare
@@ -39,9 +40,9 @@ def login_or_register():
         customer = Customer.query.filter_by(phone=phone).first()
         
         if customer:
-            # Login existing customer - create session and generate JWT token
-            from utils.session_manager import create_customer_session
-            session_token = create_customer_session(customer)
+            # Login existing customer - create session and generate JWT token using centralized auth manager
+            from utils.auth_manager import AuthenticationManager
+            session_token = AuthenticationManager.create_customer_session(customer)
             
             token_data = {
                 'user_id': customer.id,
@@ -66,8 +67,8 @@ def login_or_register():
             db.session.add(customer)
             db.session.commit()
             
-            from utils.session_manager import create_customer_session
-            session_token = create_customer_session(customer)
+            from utils.auth_manager import AuthenticationManager
+            session_token = AuthenticationManager.create_customer_session(customer)
             
             token_data = {
                 'user_id': customer.id,
