@@ -813,7 +813,7 @@ window.addEventListener('load', function() {
         let attempts = 0;
         const maxAttempts = 30; // 3 seconds total
         
-        const checkGoogleMaps = setInterval(() => {
+        const checkGoogleMaps = () => {
             attempts++;
             if (typeof google !== 'undefined' && google.maps) {
                 clearInterval(checkGoogleMaps);

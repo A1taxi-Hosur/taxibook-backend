@@ -621,10 +621,8 @@ function startAutoRefresh() {
         displayDriversOnMap(data.drivers);
     });
     
-    // Fallback: Refresh every 10 seconds (reduced since WebSocket handles real-time updates)
-    autoRefreshInterval = setInterval(() => {
-        refreshDrivers();
-    }, 10000);
+    // NO POLLING: Pure WebSocket-driven updates only
+    console.log('Live map using WebSocket-only updates (no polling)');
 }
 
 function loadZones() {

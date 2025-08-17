@@ -418,8 +418,8 @@ window.wsClient.on('ride_status_updated', (data) => {
     refreshStats(); // Refresh to show latest changes
 });
 
-// Fallback: Auto-refresh every 60 seconds (reduced since WebSocket handles real-time updates)
-setInterval(refreshStats, 60000);
+// NO POLLING: Pure WebSocket-driven updates only
+console.log('Dashboard using WebSocket-only updates (no polling)');
 
 // Refresh on page visibility change
 document.addEventListener('visibilitychange', () => {

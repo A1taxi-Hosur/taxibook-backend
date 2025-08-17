@@ -397,8 +397,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateDriverLocationInOngoingRides(data);
     });
     
-    // Fallback: Auto-refresh every 30 seconds (reduced since WebSocket handles real-time updates)
-    setInterval(refreshOngoingRides, 30000);
+    // NO POLLING: Pure WebSocket-driven updates only
+    console.log('Ongoing rides using WebSocket-only updates (no polling)');
 });
 </script>
 

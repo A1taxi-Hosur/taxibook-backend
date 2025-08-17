@@ -106,12 +106,8 @@
             connectDriver();
         };
         
-        // Send GPS updates every 10 seconds after connection
-        setInterval(function() {
-            if (socket && socket.connected) {
-                sendGPS();
-            }
-        }, 10000);
+        // WebSocket test: Manual GPS updates only (no auto-polling)
+        console.log('WebSocket test ready - click "Send GPS Update" to test real-time updates');
     </script>
 </body>
 </html>
