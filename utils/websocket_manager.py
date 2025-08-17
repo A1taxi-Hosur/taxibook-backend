@@ -61,15 +61,15 @@ def handle_driver_connect(data):
                 driver_id = driver.id
                 
         if not driver_id:
-            socketio.emit('error', {'message': 'Driver identification required'})
+            emit('error', {'message': 'Driver identification required'})
             return
             
         # Store connection
         active_connections['drivers'][driver_id] = socket_id
-        socketio.server.enter_room(socket_id, f'driver_{driver_id}')
+        join_room(f'driver_{driver_id}')
         
         logging.info(f"Driver {driver_id} connected via WebSocket (socket: {socket_id})")
-        socketio.emit('connection_established', {'status': 'connected', 'driver_id': driver_id})
+        emit('connection_established', {'status': 'connected', 'driver_id': driver_id})
         
         # Notify admin about new driver connection
         socketio.emit('driver_connected', {
@@ -79,7 +79,7 @@ def handle_driver_connect(data):
         
     except Exception as e:
         logging.error(f"Error in driver_connect: {str(e)}")
-        socketio.emit('error', {'message': 'Connection failed'})
+        emit('error', {'message': 'Connection failed'})
 
 def handle_driver_location_update(data):
     """Handle real-time driver location updates via WebSocket"""
@@ -94,7 +94,7 @@ def handle_driver_location_update(data):
         driver_id = data.get('driver_id')
         
         if not latitude or not longitude:
-            socketio.emit('error', {'message': 'Missing latitude or longitude'})
+            emit('error', {'message': 'Missing latitude or longitude'})
             return
             
         # Find driver by phone if driver_id not provided
@@ -105,7 +105,7 @@ def handle_driver_location_update(data):
                 driver_id = driver.id
                 
         if not driver_id:
-            socketio.emit('error', {'message': 'Driver identification required'})
+            emit('error', {'message': 'Driver identification required'})
             return
             
         # Import models here to avoid circular imports
@@ -114,7 +114,7 @@ def handle_driver_location_update(data):
         
         driver = Driver.query.get(driver_id)
         if not driver:
-            socketio.emit('error', {'message': 'Driver not found'})
+            emit('error', {'message': 'Driver not found'})
             return
             
         # Update driver location
@@ -133,7 +133,7 @@ def handle_driver_location_update(data):
         broadcast_driver_location_update(driver)
         
         # Confirm successful update to driver app
-        socketio.emit('location_update_success', {
+        emit('location_update_success', {
             'driver_id': driver_id,
             'latitude': latitude,
             'longitude': longitude,
@@ -142,7 +142,7 @@ def handle_driver_location_update(data):
         
     except Exception as e:
         logging.error(f"Error in WebSocket location update: {str(e)}")
-        socketio.emit('error', {'message': 'Location update failed'})
+        emit('error', {'message': 'Location update failed'})
 
 def handle_customer_connect(data):
     """Handle customer connection"""
@@ -160,15 +160,15 @@ def handle_customer_connect(data):
                 customer_id = customer.id
                 
         if not customer_id:
-            socketio.emit('error', {'message': 'Customer identification required'})
+            emit('error', {'message': 'Customer identification required'})
             return
             
         # Store connection
         active_connections['customers'][customer_id] = socket_id
-        socketio.server.enter_room(socket_id, f'customer_{customer_id}')
+        join_room(f'customer_{customer_id}')
         
         logging.info(f"Customer {customer_id} connected via WebSocket (socket: {socket_id})")
-        socketio.emit('connection_established', {'status': 'connected', 'customer_id': customer_id})
+        emit('connection_established', {'status': 'connected', 'customer_id': customer_id})
         
         # Notify admin about new customer connection
         socketio.emit('customer_connected', {
@@ -178,7 +178,7 @@ def handle_customer_connect(data):
         
     except Exception as e:
         logging.error(f"Error in customer_connect: {str(e)}")
-        socketio.emit('error', {'message': 'Connection failed'})
+        emit('error', {'message': 'Connection failed'})
 
 def handle_admin_connect(data):
     """Handle admin dashboard connection"""
@@ -187,14 +187,14 @@ def handle_admin_connect(data):
         
         # Store connection (no auth required for admin in same session)
         active_connections['admin'].append(socket_id)
-        socketio.server.enter_room(socket_id, 'admin')
+        join_room('admin')
         
         logging.info(f"Admin connected via WebSocket (socket: {socket_id})")
-        socketio.emit('connection_established', {'status': 'connected', 'type': 'admin'})
+        emit('connection_established', {'status': 'connected', 'type': 'admin'})
         
     except Exception as e:
         logging.error(f"Error in admin_connect: {str(e)}")
-        socketio.emit('error', {'message': 'Connection failed'})
+        emit('error', {'message': 'Connection failed'})
 
 def handle_live_map_connect(data):
     """Handle live map viewer connection"""

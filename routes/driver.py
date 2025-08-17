@@ -769,15 +769,11 @@ def get_status():
 
 @driver_bp.route('/update_location', methods=['POST'])
 @driver_bp.route('/update_current_location', methods=['POST'])  # Keep both for backward compatibility
-def update_location(current_user_data=None):
-    """Unified location update endpoint - handles both driver availability and ride tracking (JWT protected)"""
+def update_location():
+    """Unified location update endpoint - handles both driver availability and ride tracking (phone-based)"""
     try:
-        logging.info(f"=== LOCATION UPDATE REQUEST ===")
-        logging.info(f"User data from JWT: {current_user_data}")
-        logging.info(f"Request headers: {dict(request.headers)}")
-        logging.info(f"Content-Type: {request.content_type}")
-        
         data = request.get_json()
+        logging.info(f"=== LOCATION UPDATE REQUEST ===")
         logging.info(f"Received location data: {data}")
         
         if not data:
@@ -805,16 +801,17 @@ def update_location(current_user_data=None):
         if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
             return create_error_response("Invalid latitude or longitude values")
         
-        # Get driver from JWT token or phone parameter for testing
-        if current_user_data:
-            driver = Driver.query.get(current_user_data['user_id'])
-        else:
-            # Fallback for testing without JWT
-            driver_phone = data.get('driver_phone') or request.args.get('driver_phone') 
-            if driver_phone:
-                driver = Driver.query.filter_by(phone=driver_phone).first()
-            else:
-                return create_error_response("Driver identification required")
+        # Get driver by phone number (mobile apps send phone in the request)
+        driver_phone = data.get('phone') or data.get('driver_phone') or request.args.get('driver_phone')
+        if not driver_phone:
+            return create_error_response("Driver phone number required")
+        
+        # Validate and find driver
+        valid, phone_or_error = validate_phone(driver_phone)
+        if not valid:
+            return create_error_response(phone_or_error)
+        
+        driver = Driver.query.filter_by(phone=phone_or_error).first()
         
         if not driver:
             return create_error_response("Driver not found")

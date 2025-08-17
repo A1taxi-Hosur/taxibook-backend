@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Driver App WebSocket Test with JWT</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f1b0b7; }
+        .info { background-color: #d1ecf1; border-color: #b6d4ea; }
+        button { margin: 5px; padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 3px; }
+        #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f8f9fa; }
+        .message { margin: 5px 0; padding: 5px; border-left: 3px solid #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 Driver App WebSocket Test with JWT Authentication</h1>
+        
+        <div class="section info">
+            <h3>1. Login and Get JWT Token</h3>
+            <input type="text" id="username" value="DRVVJ53TA" placeholder="Username">
+            <input type="password" id="password" value="6655@Taxi" placeholder="Password">
+            <button onclick="loginDriver()">Login Driver</button>
+            <div id="loginStatus"></div>
+            <div id="tokenDisplay" style="word-break: break-all; font-size: 12px; margin-top: 10px;"></div>
+        </div>
+
+        <div class="section">
+            <h3>2. WebSocket Connection</h3>
+            <button onclick="connectWebSocket()">Connect to WebSocket</button>
+            <button onclick="disconnectWebSocket()">Disconnect</button>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <div class="section">
+            <h3>3. Driver Actions</h3>
+            <button onclick="updateLocation()">Update Location (Chennai)</button>
+            <button onclick="sendHeartbeat()">Send Heartbeat</button>
+            <button onclick="getIncomingRides()">Get Incoming Rides</button>
+            <div id="actionStatus"></div>
+        </div>
+
+        <div class="section">
+            <h3>4. WebSocket Messages</h3>
+            <button onclick="clearMessages()">Clear Messages</button>
+            <div id="messages"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let jwtToken = null;
+        let driverData = null;
+
+        function log(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            
+            if (type === 'error') messageDiv.style.borderLeftColor = '#dc3545';
+            if (type === 'success') messageDiv.style.borderLeftColor = '#28a745';
+            if (type === 'warning') messageDiv.style.borderLeftColor = '#ffc107';
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function loginDriver() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/driver/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.token) {
+                    jwtToken = data.token;
+                    driverData = data.driver;
+                    document.getElementById('loginStatus').innerHTML = 
+                        `<div class="success">✅ Login successful! Driver: ${driverData.name}</div>`;
+                    document.getElementById('tokenDisplay').innerHTML = 
+                        `<strong>JWT Token:</strong> ${jwtToken.substring(0, 100)}...`;
+                    log(`Login successful for driver ${driverData.name} (${driverData.phone})`, 'success');
+                } else {
+                    document.getElementById('loginStatus').innerHTML = 
+                        `<div class="error">❌ Login failed: ${data.message || 'Unknown error'}</div>`;
+                    log(`Login failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('loginStatus').innerHTML = 
+                    `<div class="error">❌ Login error: ${error.message}</div>`;
+                log(`Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function connectWebSocket() {
+            if (!jwtToken) {
+                log('Please login first to get JWT token', 'error');
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/socket.io/?EIO=4&transport=websocket`;
+            
+            try {
+                socket = io({
+                    auth: {
+                        token: jwtToken,
+                        user_type: 'driver',
+                        driver_id: driverData.id
+                    }
+                });
+
+                socket.on('connect', () => {
+                    document.getElementById('connectionStatus').innerHTML = 
+                        '<div class="success">✅ WebSocket Connected</div>';
+                    log('WebSocket connected successfully', 'success');
+                });
+
+                socket.on('disconnect', () => {
+                    document.getElementById('connectionStatus').innerHTML = 
+                        '<div class="error">❌ WebSocket Disconnected</div>';
+                    log('WebSocket disconnected', 'warning');
+                });
+
+                socket.on('connect_error', (error) => {
+                    document.getElementById('connectionStatus').innerHTML = 
+                        `<div class="error">❌ Connection Error: ${error.message}</div>`;
+                    log(`WebSocket connection error: ${error.message}`, 'error');
+                });
+
+                // Driver-specific events
+                socket.on('new_ride_request', (data) => {
+                    log(`🚕 New ride request received: Pickup: ${data.pickup_address}, Drop: ${data.drop_address}, Fare: ₹${data.fare_amount}`, 'success');
+                });
+
+                socket.on('ride_status_update', (data) => {
+                    log(`📱 Ride status update: Ride ${data.ride_id} is now ${data.status}`, 'info');
+                });
+
+                socket.on('driver_status_update', (data) => {
+                    log(`👤 Driver status update: ${JSON.stringify(data)}`, 'info');
+                });
+
+                socket.on('location_update_confirmed', (data) => {
+                    log(`📍 Location update confirmed: ${JSON.stringify(data)}`, 'success');
+                });
+
+            } catch (error) {
+                document.getElementById('connectionStatus').innerHTML = 
+                    `<div class="error">❌ WebSocket Error: ${error.message}</div>`;
+                log(`WebSocket error: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                document.getElementById('connectionStatus').innerHTML = 
+                    '<div class="info">⚪ WebSocket Disconnected</div>';
+                log('WebSocket manually disconnected', 'info');
+            }
+        }
+
+        async function updateLocation() {
+            if (!jwtToken) {
+                log('Please login first to get JWT token', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/driver/update_current_location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}`
+                    },
+                    body: JSON.stringify({
+                        latitude: 13.0444052,
+                        longitude: 80.1763357
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('actionStatus').innerHTML = 
+                        `<div class="success">✅ Location updated: ${data.data.zone} zone</div>`;
+                    log(`Location updated successfully: ${data.data.zone} zone (${data.data.latitude}, ${data.data.longitude})`, 'success');
+                } else {
+                    document.getElementById('actionStatus').innerHTML = 
+                        `<div class="error">❌ Location update failed: ${data.message}</div>`;
+                    log(`Location update failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('actionStatus').innerHTML = 
+                    `<div class="error">❌ Location update error: ${error.message}</div>`;
+                log(`Location update error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendHeartbeat() {
+            if (!jwtToken) {
+                log('Please login first to get JWT token', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/driver/heartbeat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('Heartbeat sent successfully', 'success');
+                } else {
+                    log(`Heartbeat failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`Heartbeat error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getIncomingRides() {
+            if (!jwtToken) {
+                log('Please login first to get JWT token', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/driver/incoming_rides', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`Found ${data.data.count} incoming rides`, 'info');
+                    if (data.data.rides.length > 0) {
+                        data.data.rides.forEach(ride => {
+                            log(`🚕 Ride ${ride.id}: ${ride.pickup_address} → ${ride.drop_address} (₹${ride.fare_amount})`, 'info');
+                        });
+                    }
+                } else {
+                    log(`Incoming rides fetch failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`Incoming rides error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Auto-connect when page loads if there's a token
+        window.onload = () => {
+            log('Driver WebSocket test page loaded', 'info');
+        };
+    </script>
+    
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+</body>
+</html>

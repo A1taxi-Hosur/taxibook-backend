@@ -21,7 +21,7 @@ class AuthConfig:
     
     # Authentication modes - can be easily toggled
     REQUIRE_SESSION_VALIDATION = True
-    ENABLE_JWT_TOKENS = False  # DISABLED FOR TESTING
+    ENABLE_JWT_TOKENS = True  # ENABLED FOR MOBILE APP AUTHENTICATION
     ENABLE_DEBUG_LOGGING = True
     
     @classmethod
