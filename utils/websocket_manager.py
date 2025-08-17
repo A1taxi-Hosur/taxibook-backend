@@ -47,12 +47,20 @@ def handle_disconnect():
 def handle_driver_connect(data):
     """Handle driver connection"""
     try:
-        # TODO: Add JWT token authentication here
-        driver_id = data.get('driver_id')  # For now, get from data
+        # Accept both driver_id and driver_phone for flexibility
+        driver_id = data.get('driver_id')
+        driver_phone = data.get('driver_phone') or data.get('phone')
         socket_id = request.sid
         
+        # Find driver by phone if driver_id not provided
+        if not driver_id and driver_phone:
+            from models import Driver
+            driver = Driver.query.filter_by(phone=driver_phone).first()
+            if driver:
+                driver_id = driver.id
+                
         if not driver_id:
-            socketio.emit('error', {'message': 'Driver ID required'})
+            socketio.emit('error', {'message': 'Driver identification required'})
             return
             
         # Store connection
@@ -73,11 +81,67 @@ def handle_driver_connect(data):
         socketio.emit('error', {'message': 'Connection failed'})
 
 def handle_driver_location_update(data):
-    """DEPRECATED: Use REST API /driver/update_location instead"""
-    socketio.emit('error', {
-        'message': 'WebSocket location updates deprecated. Use REST API /driver/update_location', 
-        'redirect_to': '/driver/update_location'
-    })
+    """Handle real-time driver location updates via WebSocket"""
+    try:
+        logging.info(f"=== WEBSOCKET LOCATION UPDATE ===")
+        logging.info(f"Received WebSocket location data: {data}")
+        
+        # Extract location data
+        latitude = data.get('latitude') or data.get('lat')
+        longitude = data.get('longitude') or data.get('lng')
+        driver_phone = data.get('driver_phone') or data.get('phone')
+        driver_id = data.get('driver_id')
+        
+        if not latitude or not longitude:
+            socketio.emit('error', {'message': 'Missing latitude or longitude'})
+            return
+            
+        # Find driver by phone if driver_id not provided
+        if not driver_id and driver_phone:
+            from models import Driver
+            driver = Driver.query.filter_by(phone=driver_phone).first()
+            if driver:
+                driver_id = driver.id
+                
+        if not driver_id:
+            socketio.emit('error', {'message': 'Driver identification required'})
+            return
+            
+        # Import models here to avoid circular imports
+        from models import Driver, RideLocation, Ride
+        from app import db, get_ist_time
+        
+        driver = Driver.query.get(driver_id)
+        if not driver:
+            socketio.emit('error', {'message': 'Driver not found'})
+            return
+            
+        # Update driver location
+        driver.current_lat = float(latitude)
+        driver.current_lng = float(longitude) 
+        driver.location_updated_at = get_ist_time()
+        driver.is_online = True
+        driver.last_seen = get_ist_time()
+        
+        db.session.commit()
+        
+        logging.info(f"✅ WEBSOCKET: Updated location for driver {driver.name} ({driver.phone})")
+        logging.info(f"✅ WEBSOCKET: Location: ({latitude}, {longitude})")
+        
+        # Broadcast to admin dashboard and live map
+        broadcast_driver_location_update(driver)
+        
+        # Confirm successful update to driver app
+        socketio.emit('location_update_success', {
+            'driver_id': driver_id,
+            'latitude': latitude,
+            'longitude': longitude,
+            'timestamp': driver.location_updated_at.isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in WebSocket location update: {str(e)}")
+        socketio.emit('error', {'message': 'Location update failed'})
 
 def handle_admin_connect(data):
     """Handle admin dashboard connection"""

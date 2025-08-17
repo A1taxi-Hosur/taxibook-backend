@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket GPS Test</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Driver WebSocket GPS Test</h1>
+    <div id="status">Connecting...</div>
+    <button onclick="connectDriver()">Connect as Driver</button>
+    <button onclick="sendGPS()">Send GPS Update</button>
+    <button onclick="disconnect()">Disconnect</button>
+    
+    <div id="log"></div>
+
+    <script>
+        let socket = null;
+        const driverPhone = '9988776655';
+        const driverId = 20;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+        
+        function connectDriver() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            updateStatus('Connecting...');
+            socket = io('http://0.0.0.0:5000', {
+                transports: ['websocket'],
+                timeout: 5000
+            });
+            
+            socket.on('connect', function() {
+                updateStatus('Connected');
+                log('✅ Connected to WebSocket server');
+                
+                // Send driver connection event
+                socket.emit('driver_connect', {
+                    driver_id: driverId,
+                    driver_phone: driverPhone
+                });
+            });
+            
+            socket.on('disconnect', function() {
+                updateStatus('Disconnected');
+                log('❌ Disconnected from server');
+            });
+            
+            socket.on('connect_error', function(error) {
+                updateStatus('Connection Error');
+                log('❌ Connection error: ' + error);
+            });
+            
+            socket.on('connection_established', function(data) {
+                log('🎯 Connection established: ' + JSON.stringify(data));
+            });
+            
+            socket.on('location_update_success', function(data) {
+                log('📍 Location update success: ' + JSON.stringify(data));
+            });
+            
+            socket.on('error', function(data) {
+                log('❌ Error: ' + JSON.stringify(data));
+            });
+        }
+        
+        function sendGPS() {
+            if (!socket || !socket.connected) {
+                log('❌ Not connected to server');
+                return;
+            }
+            
+            const gpsData = {
+                latitude: 13.0444052 + (Math.random() - 0.5) * 0.001, // Slight random variation
+                longitude: 80.1763357 + (Math.random() - 0.5) * 0.001,
+                driver_phone: driverPhone,
+                driver_id: driverId,
+                timestamp: new Date().toISOString()
+            };
+            
+            log('📡 Sending GPS update: ' + JSON.stringify(gpsData));
+            socket.emit('driver_location_update', gpsData);
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateStatus('Disconnected');
+                log('🔌 Manual disconnect');
+            }
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            connectDriver();
+        };
+        
+        // Send GPS updates every 10 seconds after connection
+        setInterval(function() {
+            if (socket && socket.connected) {
+                sendGPS();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
