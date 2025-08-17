@@ -769,7 +769,6 @@ def get_status():
 
 @driver_bp.route('/update_location', methods=['POST'])
 @driver_bp.route('/update_current_location', methods=['POST'])  # Keep both for backward compatibility
-# @token_required  # TEMPORARILY DISABLED FOR TESTING
 def update_location(current_user_data=None):
     """Unified location update endpoint - handles both driver availability and ride tracking (JWT protected)"""
     try:
