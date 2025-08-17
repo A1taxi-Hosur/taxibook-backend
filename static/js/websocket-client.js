@@ -47,7 +47,14 @@ class WebSocketClient {
         const socketConfig = {
             transports: ['websocket', 'polling'],
             upgrade: true,
-            rememberUpgrade: true
+            rememberUpgrade: true,
+            timeout: 10000,           // 10 second connection timeout
+            forceNew: false,          // Reuse connections when possible
+            multiplex: true,          // Share connection across namespaces
+            reconnection: true,       // Enable auto-reconnection
+            reconnectionAttempts: 5,  // Limit reconnection attempts
+            reconnectionDelay: 2000,  // 2 second delay between attempts
+            maxReconnectionAttempts: 5
         };
         
         // Add auth token if provided

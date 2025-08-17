@@ -36,12 +36,12 @@ def init_websocket_handlers(socketio_instance):
     socketio.on_event('live_map_connect', handle_live_map_connect)
 
 def handle_connect():
-    """Handle client connection"""
-    logging.info(f"Client connected: {request.sid}")
+    """Handle client connection - minimal logging for performance"""
+    logging.debug(f"Client connected: {request.sid}")
 
 def handle_disconnect():
-    """Handle client disconnection"""
-    logging.info(f"Client disconnected: {request.sid}")
+    """Handle client disconnection - minimal logging for performance"""
+    logging.debug(f"Client disconnected: {request.sid}")
     cleanup_connection(request.sid)
 
 def handle_driver_connect(data):

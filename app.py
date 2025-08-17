@@ -16,8 +16,8 @@ from functools import wraps
 # Load environment variables from .env file
 load_dotenv()
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+# Set up logging - reduce verbosity for performance
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
 
 class Base(DeclarativeBase):
     pass
@@ -31,8 +31,16 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "dev-placeholder-key"
 app.config['SECRET_KEY'] = os.environ.get("JWT_SECRET_KEY") or "a1taxi-jwt-secret-key"  # JWT secret
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=False)
+# Initialize SocketIO with optimized settings for performance
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*", 
+    logger=False,          # Disable verbose logging for performance
+    engineio_logger=False,
+    async_mode='eventlet', # Use eventlet for better WebSocket performance
+    ping_timeout=60,       # Increase timeout
+    ping_interval=25       # Reduce ping frequency
+)
 
 # Initialize WebSocket handlers after socketio is created
 from utils.websocket_manager import init_websocket_handlers
