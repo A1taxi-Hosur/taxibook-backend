@@ -32,6 +32,7 @@ def init_websocket_handlers(socketio_instance):
     socketio.on_event('disconnect', handle_disconnect)
     socketio.on_event('driver_connect', handle_driver_connect)
     socketio.on_event('driver_location_update', handle_driver_location_update)
+    socketio.on_event('customer_connect', handle_customer_connect)
     socketio.on_event('admin_connect', handle_admin_connect)
     socketio.on_event('live_map_connect', handle_live_map_connect)
 
@@ -142,6 +143,42 @@ def handle_driver_location_update(data):
     except Exception as e:
         logging.error(f"Error in WebSocket location update: {str(e)}")
         socketio.emit('error', {'message': 'Location update failed'})
+
+def handle_customer_connect(data):
+    """Handle customer connection"""
+    try:
+        # Accept both customer_id and customer_phone for flexibility
+        customer_id = data.get('customer_id')
+        customer_phone = data.get('customer_phone') or data.get('phone')
+        socket_id = request.sid
+        
+        # Find customer by phone if customer_id not provided
+        if not customer_id and customer_phone:
+            from models import Customer
+            customer = Customer.query.filter_by(phone=customer_phone).first()
+            if customer:
+                customer_id = customer.id
+                
+        if not customer_id:
+            socketio.emit('error', {'message': 'Customer identification required'})
+            return
+            
+        # Store connection
+        active_connections['customers'][customer_id] = socket_id
+        socketio.server.enter_room(socket_id, f'customer_{customer_id}')
+        
+        logging.info(f"Customer {customer_id} connected via WebSocket (socket: {socket_id})")
+        socketio.emit('connection_established', {'status': 'connected', 'customer_id': customer_id})
+        
+        # Notify admin about new customer connection
+        socketio.emit('customer_connected', {
+            'customer_id': customer_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room='admin')
+        
+    except Exception as e:
+        logging.error(f"Error in customer_connect: {str(e)}")
+        socketio.emit('error', {'message': 'Connection failed'})
 
 def handle_admin_connect(data):
     """Handle admin dashboard connection"""
