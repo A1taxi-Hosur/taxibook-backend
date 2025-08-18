@@ -176,9 +176,29 @@ class WebSocketClient {
     /**
      * Connect as driver with authentication
      */
-    connectAsDriver(authToken) {
+    connectAsDriver(authToken, driverPhone = null) {
         this.connect(authToken);
-        this.socket.emit('driver_connect', {});
+        // Extract phone from token or use provided phone
+        const connectData = {};
+        
+        // Try to get driver phone from JWT token
+        if (authToken) {
+            try {
+                const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+                if (tokenPayload.phone) {
+                    connectData.driver_phone = tokenPayload.phone;
+                }
+            } catch (e) {
+                console.debug('Could not parse JWT token for phone');
+            }
+        }
+        
+        // Use provided phone if available
+        if (driverPhone) {
+            connectData.driver_phone = driverPhone;
+        }
+        
+        this.socket.emit('driver_connect', connectData);
     }
     
     /**
@@ -384,7 +404,7 @@ function initLiveMapWebSocket() {
 /**
  * Initialize WebSocket client for driver app
  */
-function initDriverWebSocket(authToken) {
+function initDriverWebSocket(authToken, driverPhone = null) {
     if (window.wsClient) {
         window.wsClient.disconnect();
     }
@@ -397,6 +417,10 @@ function initDriverWebSocket(authToken) {
     // Setup driver-specific event handlers
     window.wsClient.on('connected', () => {
         console.log('✅ Driver WebSocket connected');
+    });
+    
+    window.wsClient.on('connection_established', (data) => {
+        console.log('🔗 Driver connection established:', data);
     });
     
     window.wsClient.on('location_update_confirmed', (data) => {
@@ -419,6 +443,10 @@ function initDriverWebSocket(authToken) {
         }
     });
     
-    // Connect as driver
-    window.wsClient.connectAsDriver(authToken);
+    window.wsClient.on('error', (data) => {
+        console.error('❌ WebSocket error:', data);
+    });
+    
+    // Connect as driver with phone identification
+    window.wsClient.connectAsDriver(authToken, driverPhone);
 }

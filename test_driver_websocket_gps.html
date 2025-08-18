@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Driver WebSocket GPS</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Driver WebSocket GPS Test</h1>
+    <div id="status">Disconnected</div>
+    <br>
+    <button onclick="connectAsDriver()">Connect as Driver</button>
+    <button onclick="sendGPSUpdate()">Send GPS Update</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <br><br>
+    <div id="log"></div>
+
+    <script src="static/js/websocket-client.js"></script>
+    <script>
+        let wsClient = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<p>[${timestamp}] ${message}</p>`;
+            console.log(message);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+        
+        function connectAsDriver() {
+            if (wsClient) {
+                wsClient.disconnect();
+            }
+            
+            wsClient = new WebSocketClient({
+                debug: true,
+                autoConnect: false
+            });
+            
+            wsClient.on('connected', () => {
+                log('✅ Connected to WebSocket server');
+                updateStatus('Connected - establishing driver connection...');
+            });
+            
+            wsClient.on('connection_established', (data) => {
+                log(`🔗 Driver connection established: ${JSON.stringify(data)}`);
+                updateStatus('Connected as Driver');
+            });
+            
+            wsClient.on('location_update_success', (data) => {
+                log(`📍 Location update confirmed: ${JSON.stringify(data)}`);
+            });
+            
+            wsClient.on('error', (data) => {
+                log(`❌ Error: ${JSON.stringify(data)}`);
+                updateStatus('Error');
+            });
+            
+            wsClient.on('disconnected', (reason) => {
+                log(`🔌 Disconnected: ${reason}`);
+                updateStatus('Disconnected');
+            });
+            
+            // Connect as driver with Ricco's phone number
+            wsClient.connectAsDriver(null, '9988776655');
+        }
+        
+        function sendGPSUpdate() {
+            if (!wsClient || !wsClient.connected) {
+                log('❌ Not connected to WebSocket');
+                return;
+            }
+            
+            // Send GPS update for Ricco at Chennai coordinates
+            const locationData = {
+                driver_phone: '9988776655',
+                latitude: 13.0444052,
+                longitude: 80.1763357,
+                timestamp: new Date().toISOString()
+            };
+            
+            log(`📡 Sending GPS update: ${JSON.stringify(locationData)}`);
+            
+            const success = wsClient.updateDriverLocation(locationData);
+            if (success) {
+                log('📍 GPS update sent successfully');
+            } else {
+                log('❌ Failed to send GPS update');
+            }
+        }
+        
+        function disconnect() {
+            if (wsClient) {
+                wsClient.disconnect();
+                wsClient = null;
+            }
+        }
+        
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded, ready to test WebSocket GPS');
+        });
+    </script>
+</body>
+</html>
