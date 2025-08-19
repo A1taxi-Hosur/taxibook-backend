@@ -11,26 +11,95 @@ from models import db
 # Create blueprint
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/login', methods=['POST'])
-def jwt_login():
+@auth_bp.route('/driver/login', methods=['POST'])
+def driver_login():
     """
-    JWT-based login endpoint for both drivers and customers
-    Supports phone-based authentication with optional password
+    Driver login endpoint - requires username/phone + password
     """
     try:
         data = request.get_json()
         if not data:
             return create_error_response("Invalid JSON data")
         
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return create_error_response("Username and password are required")
+        
+        # Try to find driver by username or phone
+        from models import Driver
+        driver = Driver.query.filter(
+            (Driver.username == username) | (Driver.phone == username)
+        ).first()
+        
+        if not driver:
+            return create_error_response("Invalid username or password")
+        
+        # Verify password if driver has one
+        if driver.password_hash:
+            from werkzeug.security import check_password_hash
+            if not check_password_hash(driver.password_hash, password):
+                return create_error_response("Invalid username or password")
+        else:
+            return create_error_response("Driver account not properly configured")
+        
+        # Create user data for JWT token
+        user_data = {
+            'user_id': driver.id,
+            'username': driver.name,
+            'user_type': 'driver',
+            'phone': driver.phone
+        }
+        
+        # Generate JWT token pair
+        token_data = JWTAuthenticationManager.create_token_pair(user_data)
+        if not token_data['access_token']:
+            return create_error_response("Failed to create authentication token")
+        
+        # Update driver online status
+        driver.is_online = True
+        driver.last_seen = db.func.now()
+        db.session.commit()
+        
+        # Log successful login
+        logging.info(f"Driver login successful: {driver.name} ({driver.phone})")
+        
+        # Return response with tokens
+        response_data = {
+            'user': {
+                'id': driver.id,
+                'name': driver.name,
+                'phone': driver.phone,
+                'username': driver.username,
+                'user_type': 'driver',
+                'car_type': driver.car_type,
+                'car_number': driver.car_number
+            },
+            'auth': token_data
+        }
+        
+        return create_success_response(response_data, "Login successful")
+        
+    except Exception as e:
+        logging.error(f"Driver login error: {str(e)}")
+        return create_error_response("An error occurred during login")
+
+@auth_bp.route('/customer/login', methods=['POST'])
+def customer_login():
+    """
+    Customer login/registration endpoint - requires name + phone (auto-registers if not exists)
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return create_error_response("Invalid JSON data")
+        
+        name = data.get('name')
         phone = data.get('phone')
-        password = data.get('password')  # Optional for OTP-based auth
-        user_type = data.get('user_type', 'driver')  # Default to driver
         
-        if not phone:
-            return create_error_response("Phone number is required")
-        
-        if user_type not in ['driver', 'customer']:
-            return create_error_response("Invalid user type. Must be 'driver' or 'customer'")
+        if not name or not phone:
+            return create_error_response("Name and phone number are required")
         
         # Validate phone number format
         valid, phone_or_error = validate_phone(phone)
@@ -39,23 +108,28 @@ def jwt_login():
         
         phone = phone_or_error
         
-        # Validate user credentials
-        success, user_or_error, error_type = JWTAuthenticationManager.validate_user_credentials(
-            phone, password, user_type
-        )
+        # Find or create customer
+        from models import Customer
+        customer = Customer.query.filter_by(phone=phone).first()
         
-        if not success:
-            logging.warning(f"Login failed for {user_type} {phone}: {user_or_error}")
-            return create_error_response(user_or_error)
-        
-        user = user_or_error
+        if not customer:
+            # Auto-register new customer
+            customer = Customer(name=name, phone=phone)
+            db.session.add(customer)
+            db.session.commit()
+            logging.info(f"New customer registered: {name} ({phone})")
+        else:
+            # Update name if different
+            if customer.name != name:
+                customer.name = name
+                db.session.commit()
         
         # Create user data for JWT token
         user_data = {
-            'user_id': user.id,
-            'username': user.name,
-            'user_type': user_type,
-            'phone': user.phone
+            'user_id': customer.id,
+            'username': customer.name,
+            'user_type': 'customer',
+            'phone': customer.phone
         }
         
         # Generate JWT token pair
@@ -63,21 +137,21 @@ def jwt_login():
         if not token_data['access_token']:
             return create_error_response("Failed to create authentication token")
         
-        # Update user online status
-        user.is_online = True
-        user.last_seen = db.func.now()
+        # Update customer online status
+        customer.is_online = True
+        customer.last_seen = db.func.now()
         db.session.commit()
         
         # Log successful login
-        logging.info(f"JWT login successful: {user_type} {user.name} ({phone})")
+        logging.info(f"Customer login successful: {customer.name} ({phone})")
         
         # Return response with tokens
         response_data = {
             'user': {
-                'id': user.id,
-                'name': user.name,
-                'phone': user.phone,
-                'user_type': user_type
+                'id': customer.id,
+                'name': customer.name,
+                'phone': customer.phone,
+                'user_type': 'customer'
             },
             'auth': token_data
         }
@@ -85,8 +159,15 @@ def jwt_login():
         return create_success_response(response_data, "Login successful")
         
     except Exception as e:
-        logging.error(f"Error in JWT login: {str(e)}")
-        return create_error_response("Login failed. Please try again.")
+        logging.error(f"Customer login error: {str(e)}")
+        return create_error_response("An error occurred during login")
+
+@auth_bp.route('/login', methods=['POST'])
+def unified_login():
+    """
+    DEPRECATED: Unified login endpoint - Use /auth/driver/login or /auth/customer/login instead
+    """
+    return create_error_response("This endpoint is deprecated. Use /auth/driver/login for drivers or /auth/customer/login for customers.")
 
 
 @auth_bp.route('/refresh', methods=['POST'])
