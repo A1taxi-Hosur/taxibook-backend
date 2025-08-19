@@ -33,9 +33,9 @@ class BackgroundTaskManager:
         """Worker thread that runs cleanup tasks periodically"""
         from app import app, db, get_ist_time
         
-        # Wait 5 minutes after startup before first cleanup to allow proper initialization
-        logging.info("Background cleanup starting in 5 minutes...")
-        time.sleep(300)
+        # Wait 10 minutes after startup before first cleanup to allow proper initialization
+        logging.info("Background cleanup starting in 10 minutes...")
+        time.sleep(600)
         
         while self.running:
             try:
