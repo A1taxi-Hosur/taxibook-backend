@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Session</title>
+</head>
+<body>
+    <h1>Admin Session Test</h1>
+    <button onclick="testZoneAPI()">Test Zone API</button>
+    <button onclick="checkLoginStatus()">Check Login Status</button>
+    <div id="result"></div>
+    
+    <script>
+        function testZoneAPI() {
+            document.getElementById('result').innerHTML = 'Testing zone API...';
+            
+            fetch('/admin/api/zones', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                document.getElementById('result').innerHTML += `<br>Status: ${response.status}`;
+                
+                if (response.status === 302) {
+                    document.getElementById('result').innerHTML += '<br>REDIRECTED - Session expired!';
+                    return null;
+                }
+                
+                return response.text();
+            })
+            .then(text => {
+                if (!text) return;
+                document.getElementById('result').innerHTML += `<br>Response: ${text.substring(0, 200)}...`;
+                
+                try {
+                    const data = JSON.parse(text);
+                    if (data.status === 'success') {
+                        document.getElementById('result').innerHTML += `<br>SUCCESS: Found ${data.data.zones.length} zones`;
+                    }
+                } catch (e) {
+                    document.getElementById('result').innerHTML += '<br>ERROR: Invalid JSON response';
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').innerHTML += `<br>ERROR: ${error.message}`;
+            });
+        }
+        
+        function checkLoginStatus() {
+            fetch('/admin/dashboard', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.status === 200) {
+                    document.getElementById('result').innerHTML = 'Admin session is ACTIVE';
+                } else if (response.status === 302) {
+                    document.getElementById('result').innerHTML = 'Admin session EXPIRED - redirected to login';
+                } else {
+                    document.getElementById('result').innerHTML = `Admin session status: ${response.status}`;
+                }
+            });
+        }
+        
+        // Auto-test when page loads
+        setTimeout(() => {
+            checkLoginStatus();
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Session</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #result { margin: 20px 0; padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; min-height: 100px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>Admin Session Test</h1>
+    <p>This page tests if the admin session is working properly.</p>
+    
+    <button onclick="testZoneAPI()">Test Zone API</button>
+    <button onclick="checkLoginStatus()">Check Login Status</button>
+    <button onclick="clearResults()">Clear</button>
+    
+    <div id="result">Loading...</div>
+    
+    <script>
+        function clearResults() {
+            document.getElementById('result').innerHTML = '';
+        }
+        
+        function log(message, className = '') {
+            const result = document.getElementById('result');
+            result.innerHTML += `<div class="${className}">${message}</div>`;
+        }
+        
+        function testZoneAPI() {
+            clearResults();
+            log('Testing zone API...', 'warning');
+            
+            fetch('/admin/api/zones', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                log(`Response Status: ${response.status} ${response.statusText}`);
+                
+                if (response.status === 302) {
+                    log('🚫 REDIRECTED - Admin session expired!', 'error');
+                    log('<a href="/admin/login">Click here to login</a>');
+                    return null;
+                } else if (response.status === 200) {
+                    log('✅ Request successful - session is valid', 'success');
+                } else {
+                    log(`❌ Unexpected status: ${response.status}`, 'error');
+                }
+                
+                return response.text();
+            })
+            .then(text => {
+                if (!text) return;
+                
+                try {
+                    const data = JSON.parse(text);
+                    if (data.status === 'success') {
+                        log(`🎉 SUCCESS: Found ${data.data.zones.length} zones`, 'success');
+                        data.data.zones.forEach(zone => {
+                            log(`  - Zone: ${zone.zone_name} (${zone.is_active ? 'active' : 'inactive'})`);
+                        });
+                    } else {
+                        log(`❌ API Error: ${data.message}`, 'error');
+                    }
+                } catch (e) {
+                    log('❌ ERROR: Invalid JSON response', 'error');
+                    log(`Raw response: ${text.substring(0, 200)}...`);
+                }
+            })
+            .catch(error => {
+                log(`❌ Network Error: ${error.message}`, 'error');
+            });
+        }
+        
+        function checkLoginStatus() {
+            clearResults();
+            log('Checking admin login status...', 'warning');
+            
+            fetch('/admin/dashboard', {
+                method: 'GET',
+                credentials: 'same-origin',
+                redirect: 'manual'
+            })
+            .then(response => {
+                if (response.status === 200) {
+                    log('✅ Admin session is ACTIVE', 'success');
+                    log('You can now test the Zone API');
+                } else if (response.status === 302 || response.type === 'opaqueredirect') {
+                    log('🚫 Admin session EXPIRED - redirected to login', 'error');
+                    log('<a href="/admin/login">Click here to login first</a>');
+                } else {
+                    log(`⚠️ Unexpected status: ${response.status}`, 'warning');
+                }
+            })
+            .catch(error => {
+                log(`❌ Error checking login: ${error.message}`, 'error');
+            });
+        }
+        
+        // Auto-test when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoginStatus();
+        });
+    </script>
+</body>
+</html>

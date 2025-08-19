@@ -41,6 +41,11 @@ def generate_driver_password(phone):
     """Generate driver password using last 4 digits of phone + @Taxi"""
     return f"{phone[-4:]}@Taxi"
 
+@admin_bp.route('/test-session')
+def test_session():
+    """Test page for debugging admin session issues"""
+    return render_template('test_session.html')
+
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Admin login page"""

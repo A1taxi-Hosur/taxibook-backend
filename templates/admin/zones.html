@@ -270,12 +270,20 @@ function refreshZones() {
             }
         })
         .then(response => {
+            console.log('Zone API Response Status:', response.status, response.statusText);
+            if (response.status === 302) {
+                // Session expired - redirect to login
+                window.location.href = '/admin/login';
+                return;
+            }
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
         .then(data => {
+            if (!data) return; // Handle redirect case
+            console.log('Zone API Data:', data);
             if (data.status === 'success') {
                 displayZones(data.data.zones);
             } else {
