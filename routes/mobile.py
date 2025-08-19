@@ -12,8 +12,8 @@ mobile_bp = Blueprint('mobile', __name__)
 
 @mobile_bp.route('/driver/profile', methods=['GET'])
 @token_required
-def driver_profile(current_user):
-    """Get driver profile information"""
+def driver_profile(current_user_data):
+    """Get driver profile information (JWT protected)"""
     try:
         username = request.args.get('username')
         if not username:
@@ -52,8 +52,8 @@ def driver_profile(current_user):
 
 @mobile_bp.route('/driver/history', methods=['GET'])
 @token_required
-def driver_history(current_user):
-    """Get paginated driver ride history"""
+def driver_history(current_user_data):
+    """Get paginated driver ride history (JWT protected)"""
     try:
         username = request.args.get('username')
         if not username:

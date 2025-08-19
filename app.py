@@ -113,11 +113,6 @@ with app.app_context():
     from utils.background_tasks import initialize_background_tasks
     initialize_background_tasks()
     
-    # Register testing blueprint for development
-    if os.environ.get('ENV', 'development') == 'development':
-        from routes.auth_test import auth_test_bp
-        app.register_blueprint(auth_test_bp, url_prefix='/auth_test')
-    
     # Register blueprints
     app.register_blueprint(customer_bp, url_prefix='/customer')
     app.register_blueprint(driver_bp, url_prefix='/driver')

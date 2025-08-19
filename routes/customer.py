@@ -6,7 +6,7 @@ from utils.validators import validate_phone, validate_required_fields, validate_
 from utils.maps import get_distance_and_fare
 from utils.distance import haversine_distance, filter_drivers_by_proximity
 from utils.ride_dispatch_engine import RideDispatchEngine
-from utils.auth_helpers import standardized_auth_response, handle_auth_error
+
 import logging
 from datetime import datetime, date, time
 
@@ -14,89 +14,13 @@ customer_bp = Blueprint('customer', __name__)
 
 @customer_bp.route('/login_or_register', methods=['POST'])
 def login_or_register():
-    """Customer login or registration endpoint"""
-    try:
-        data = request.get_json()
-        if not data:
-            return create_error_response("Invalid JSON data")
-        
-        # Validate required fields
-        valid, error = validate_required_fields(data, ['phone', 'name'])
-        if not valid:
-            return create_error_response(error)
-        
-        # Validate phone number
-        valid, phone_or_error = validate_phone(data['phone'])
-        if not valid:
-            return create_error_response(phone_or_error)
-        
-        phone = phone_or_error
-        name = data['name'].strip()
-        
-        if not name:
-            return create_error_response("Name cannot be empty")
-        
-        # Check if customer exists
-        customer = Customer.query.filter_by(phone=phone).first()
-        
-        if customer:
-            # Login existing customer - create session and generate JWT token using centralized auth manager
-            from utils.auth_manager import AuthenticationManager
-            session_token = AuthenticationManager.create_customer_session(customer)
-            
-            token_data = {
-                'user_id': customer.id,
-                'username': customer.phone,
-                'user_type': 'customer',
-                'session_token': session_token
-            }
-            token = generate_jwt_token(token_data)
-            logging.info(f"Customer logged in: {customer.name} ({customer.phone})")
-            return jsonify({
-                'success': True,
-                'token': token,
-                'customer': {
-                    'id': customer.id,
-                    'phone': customer.phone,
-                    'name': customer.name
-                }
-            })
-        else:
-            # Register new customer - create session and generate JWT token
-            customer = Customer(name=name, phone=phone)
-            db.session.add(customer)
-            db.session.commit()
-            
-            from utils.auth_manager import AuthenticationManager
-            session_token = AuthenticationManager.create_customer_session(customer)
-            
-            token_data = {
-                'user_id': customer.id,
-                'username': customer.phone,
-                'user_type': 'customer',
-                'session_token': session_token
-            }
-            token = generate_jwt_token(token_data)
-            logging.info(f"New customer registered: {customer.name} ({customer.phone})")
-            return jsonify({
-                'success': True,
-                'token': token,
-                'customer': {
-                    'id': customer.id,
-                    'phone': customer.phone,
-                    'name': customer.name
-                }
-            })
-            
-    except Exception as e:
-        logging.error(f"Error in customer login/register: {str(e)}")
-        db.session.rollback()
-        return create_error_response("Internal server error")
+    """DEPRECATED: Use /auth/login instead for JWT authentication"""
+    return create_error_response("This endpoint is deprecated. Please use /auth/login for JWT authentication.")
 
 @customer_bp.route('/book_ride', methods=['POST'])
 @token_required
-def book_ride(current_user):
-    """Book a new ride"""
+def book_ride(current_user_data):
+    """Book a new ride (JWT protected)"""
     try:
         data = request.get_json()
         if not data:

@@ -7,7 +7,7 @@ import threading
 import time
 import logging
 from datetime import datetime, timedelta
-from utils.session_manager import cleanup_expired_sessions, cleanup_stale_connections
+# Session cleanup removed - pure JWT doesn't need session cleanup
 
 class BackgroundTaskManager:
     def __init__(self):
@@ -31,18 +31,29 @@ class BackgroundTaskManager:
     
     def _cleanup_worker(self):
         """Worker thread that runs cleanup tasks periodically"""
-        from app import app
+        from app import app, db, get_ist_time
         while self.running:
             try:
                 with app.app_context():
-                    # Run session cleanup every 5 minutes
-                    cleanup_expired_sessions()
+                    # Mark drivers offline if they haven't been seen for too long
+                    threshold = get_ist_time() - timedelta(minutes=15)
                     
-                    # Run stale connection cleanup every 2 minutes
-                    cleanup_stale_connections()
+                    from models import Driver
+                    stale_drivers = Driver.query.filter(
+                        Driver.is_online == True,
+                        Driver.last_seen < threshold
+                    ).all()
+                    
+                    for driver in stale_drivers:
+                        driver.is_online = False
+                        logging.info(f"Marked driver {driver.name} ({driver.phone}) as offline due to inactivity")
+                    
+                    if stale_drivers:
+                        db.session.commit()
+                        logging.info(f"Background cleanup completed - marked {len(stale_drivers)} stale drivers offline")
                 
-                # Sleep for 2 minutes before next cleanup
-                time.sleep(120)
+                # Sleep for 5 minutes before next cleanup
+                time.sleep(300)
                 
             except Exception as e:
                 logging.error(f"Error in background cleanup worker: {str(e)}")

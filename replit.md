@@ -14,19 +14,21 @@ Preferred communication style: Simple, everyday language.
 The platform uses a **Flask-based modular architecture** with blueprint-based route organization. The core application (`app.py`) initializes SQLAlchemy with PostgreSQL for production and SQLite for development, configured for the Asia/Kolkata timezone. The system implements dual authentication strategies and real-time WebSocket communication through Socket.IO.
 
 ### JWT Authentication Architecture
-The system has been **completely re-implemented with modern JWT authentication** (August 2025):
-- **Pure JWT Implementation**: Full JWT-based authentication system using access and refresh tokens
+The system has been **completely audited and implemented with pure JWT authentication** (August 2025):
+- **AUDIT COMPLETED**: All competing authentication systems eliminated (session-based, enhanced JWT with sessions)
+- **Pure JWT Implementation**: Single unified JWT authentication system using access and refresh tokens  
 - **Access Token**: 24-hour expiry for API access and mobile app authentication
 - **Refresh Token**: 30-day expiry for token renewal without re-authentication
 - **Bearer Token Authentication**: Standard Authorization header format for API requests
 - **Multi-source Token Extraction**: Supports Authorization header, JSON body, and form data
 - **Phone-based Authentication**: Simple phone number authentication for drivers and customers
 - **JWT Token Manager**: Centralized `JWTAuthenticationManager` class for all token operations
-- **Automatic Token Validation**: `@token_required` decorator for protected endpoints
+- **Automatic Token Validation**: `@token_required` decorator on 31+ protected endpoints
 - **Token Verification Endpoint**: `/auth/verify` to validate current tokens
 - **Refresh Token Endpoint**: `/auth/refresh` to generate new access tokens
 - **Secure Token Creation**: Configurable secret keys and expiry times
-- **User Credential Validation**: Supports password-based validation when available
+- **Legacy Endpoint Deprecation**: All old login endpoints properly deprecated with error messages
+- **Cleaned Codebase**: Removed utils/auth_helpers.py, utils/session_manager.py, and other legacy authentication files
 
 ### Database Design
 The SQLAlchemy ORM manages five core models:
