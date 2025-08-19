@@ -32,11 +32,17 @@ class BackgroundTaskManager:
     def _cleanup_worker(self):
         """Worker thread that runs cleanup tasks periodically"""
         from app import app, db, get_ist_time
+        
+        # Wait 5 minutes after startup before first cleanup to allow proper initialization
+        logging.info("Background cleanup starting in 5 minutes...")
+        time.sleep(300)
+        
         while self.running:
             try:
                 with app.app_context():
                     # Mark drivers offline if they haven't been seen for too long
-                    threshold = get_ist_time() - timedelta(minutes=15)
+                    # Use 60 minutes threshold to be much less aggressive 
+                    threshold = get_ist_time() - timedelta(minutes=60)
                     
                     from models import Driver
                     stale_drivers = Driver.query.filter(
@@ -52,8 +58,8 @@ class BackgroundTaskManager:
                         db.session.commit()
                         logging.info(f"Background cleanup completed - marked {len(stale_drivers)} stale drivers offline")
                 
-                # Sleep for 5 minutes before next cleanup
-                time.sleep(300)
+                # Sleep for 15 minutes before next cleanup
+                time.sleep(900)
                 
             except Exception as e:
                 logging.error(f"Error in background cleanup worker: {str(e)}")

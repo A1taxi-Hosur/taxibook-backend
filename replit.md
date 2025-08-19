@@ -58,6 +58,12 @@ The dispatch system implements **zone-based driver assignment** with sophisticat
 - **Vehicle Type Matching**: Requests filtered by compatible car types (sedan, SUV, hatchback)
 - **Special Category Handling**: Airport rides restricted to sedan/SUV, with separate fare matrices for rental and outstation categories
 
+**DISPATCH SYSTEM FIXES COMPLETED (August 2025)**:
+- **Timezone Synchronization**: Fixed critical UTC/IST mismatch between database timestamps and notification system calculations
+- **Location Freshness Logic**: Increased threshold to 120 seconds for realistic mobile GPS tracking scenarios
+- **Background Cleanup Optimization**: Delayed startup by 5 minutes and extended inactivity threshold to 60 minutes to prevent aggressive driver offline marking
+- **Automatic Notification Working**: Regular rides now successfully trigger automatic driver notifications in pickup zones
+
 ### API Architecture
 The REST API follows a standardized response format: `{success: boolean, message: string, data: object}`. Routes are organized into modular blueprints:
 - **Customer Routes** (`/customer/*`): Login/registration, ride booking, status tracking

@@ -6,6 +6,7 @@ Handles notifying matching drivers in zones about new rides
 import logging
 from models import Driver, Zone, Ride, db
 from utils.distance import haversine_distance
+from app import get_ist_time
 
 def notify_matching_drivers_in_zone(ride_id, pickup_lat, pickup_lng, ride_type):
     """
@@ -34,9 +35,10 @@ def notify_matching_drivers_in_zone(ride_id, pickup_lat, pickup_lng, ride_type):
         
         # Find matching drivers in the zone - use case insensitive matching for car type
         # Only include drivers with recent location data (within 30 seconds)
-        from datetime import timedelta
-        current_time = get_ist_time()
-        staleness_threshold = timedelta(seconds=30)
+        from datetime import timedelta, datetime
+        # Use UTC time to match database timestamps (which are in UTC)
+        current_time = datetime.utcnow()
+        staleness_threshold = timedelta(seconds=120)  # More realistic threshold for driver locations
         
         all_zone_drivers = Driver.query.filter(
             Driver.zone_id == pickup_zone.id,
