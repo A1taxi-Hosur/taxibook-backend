@@ -1,48 +1,35 @@
 """
-Centralized Authentication Manager - Complete token and session management system
-This module consolidates all authentication logic in one place for easy management
+JWT Authentication Manager - Complete JWT-based authentication system
+This module provides comprehensive JWT authentication for mobile apps and API access
 """
 
 import os
 import jwt
 import logging
-import secrets
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, current_app
-# Import will be done inside functions to avoid circular imports
 
-# Configuration constants (easy to modify)
+# Configuration constants
 class AuthConfig:
     JWT_ALGORITHM = "HS256"
-    JWT_EXPIRY_HOURS = 24 * 7  # 7 days for mobile apps
-    SESSION_DURATION_HOURS = 24 * 30  # 30 days for session tokens
-    HEARTBEAT_TIMEOUT_MINUTES = 30  # Driver considered offline after this
+    JWT_ACCESS_TOKEN_EXPIRY_HOURS = 24  # 24 hours for access tokens
+    JWT_REFRESH_TOKEN_EXPIRY_DAYS = 30  # 30 days for refresh tokens
     
-    # Authentication modes - can be easily toggled
-    REQUIRE_SESSION_VALIDATION = True
-    ENABLE_JWT_TOKENS = True  # ENABLED FOR MOBILE APP AUTHENTICATION
+    # Authentication modes
     ENABLE_DEBUG_LOGGING = True
     
     @classmethod
     def set_debug_logging(cls, enabled):
         cls.ENABLE_DEBUG_LOGGING = enabled
-    
-    @classmethod
-    def set_session_validation(cls, enabled):
-        cls.REQUIRE_SESSION_VALIDATION = enabled
         
     @classmethod
-    def set_jwt_tokens(cls, enabled):
-        cls.ENABLE_JWT_TOKENS = enabled
+    def set_access_token_expiry(cls, hours):
+        cls.JWT_ACCESS_TOKEN_EXPIRY_HOURS = hours
         
     @classmethod
-    def set_session_duration(cls, hours):
-        cls.SESSION_DURATION_HOURS = hours
-        
-    @classmethod
-    def set_jwt_expiry(cls, hours):
-        cls.JWT_EXPIRY_HOURS = hours
+    def set_refresh_token_expiry(cls, days):
+        cls.JWT_REFRESH_TOKEN_EXPIRY_DAYS = days
     
     # Error messages (centralized for consistency)
     ERRORS = {
@@ -50,13 +37,14 @@ class AuthConfig:
         "token_invalid": "Authentication failed. Please login again.",
         "token_missing": "Authentication required. Please login to access this feature.",
         "token_format": "Invalid authentication format. Please login again.",
-        "session_expired": "Your session has expired. Please login again.",
-        "user_not_found": "User not found. Please login again."
+        "refresh_token_expired": "Your session has expired. Please login again.",
+        "user_not_found": "User not found. Please login again.",
+        "invalid_credentials": "Invalid phone number or password."
     }
 
 
-class AuthenticationManager:
-    """Centralized authentication management system"""
+class JWTAuthenticationManager:
+    """JWT-based authentication management system"""
     
     @staticmethod
     def get_jwt_secret():
@@ -64,56 +52,101 @@ class AuthenticationManager:
         return os.environ.get("JWT_SECRET_KEY") or current_app.config.get('SECRET_KEY') or "a1taxi-jwt-secret-key"
     
     @staticmethod
-    def generate_session_token():
-        """Generate a secure session token"""
-        return secrets.token_urlsafe(32)
-    
-    @staticmethod
-    def create_jwt_token(user_data):
+    def create_access_token(user_data):
         """
-        Create JWT token with standardized payload
+        Create JWT access token
         Args:
-            user_data: dict with keys: user_id, username, user_type, session_token (optional)
+            user_data: dict with keys: user_id, username, user_type, phone
+        Returns:
+            JWT access token string
         """
-        if not AuthConfig.ENABLE_JWT_TOKENS:
-            return None
-            
         now = datetime.utcnow()
         payload = {
             'user_id': user_data['user_id'],
             'username': user_data['username'],
             'user_type': user_data['user_type'],
+            'phone': user_data['phone'],
+            'token_type': 'access',
             'iat': now,
-            'exp': now + timedelta(hours=AuthConfig.JWT_EXPIRY_HOURS)
+            'exp': now + timedelta(hours=AuthConfig.JWT_ACCESS_TOKEN_EXPIRY_HOURS)
         }
         
-        # Add session token if provided
-        if user_data.get('session_token'):
-            payload['session_token'] = user_data['session_token']
-            
         try:
-            token = jwt.encode(payload, AuthenticationManager.get_jwt_secret(), algorithm=AuthConfig.JWT_ALGORITHM)
+            token = jwt.encode(payload, JWTAuthenticationManager.get_jwt_secret(), algorithm=AuthConfig.JWT_ALGORITHM)
             if AuthConfig.ENABLE_DEBUG_LOGGING:
-                logging.debug(f"Created JWT token for {user_data['user_type']} {user_data['username']}")
+                logging.debug(f"Created access token for {user_data['user_type']} {user_data['username']}")
             return token
         except Exception as e:
-            logging.error(f"Error creating JWT token: {str(e)}")
+            logging.error(f"Error creating access token: {str(e)}")
             return None
     
     @staticmethod
-    def decode_jwt_token(token):
+    def create_refresh_token(user_data):
+        """
+        Create JWT refresh token
+        Args:
+            user_data: dict with keys: user_id, username, user_type, phone
+        Returns:
+            JWT refresh token string
+        """
+        now = datetime.utcnow()
+        payload = {
+            'user_id': user_data['user_id'],
+            'username': user_data['username'],
+            'user_type': user_data['user_type'],
+            'phone': user_data['phone'],
+            'token_type': 'refresh',
+            'iat': now,
+            'exp': now + timedelta(days=AuthConfig.JWT_REFRESH_TOKEN_EXPIRY_DAYS)
+        }
+        
+        try:
+            token = jwt.encode(payload, JWTAuthenticationManager.get_jwt_secret(), algorithm=AuthConfig.JWT_ALGORITHM)
+            if AuthConfig.ENABLE_DEBUG_LOGGING:
+                logging.debug(f"Created refresh token for {user_data['user_type']} {user_data['username']}")
+            return token
+        except Exception as e:
+            logging.error(f"Error creating refresh token: {str(e)}")
+            return None
+    
+    @staticmethod
+    def create_token_pair(user_data):
+        """
+        Create both access and refresh tokens
+        Returns:
+            dict with access_token and refresh_token
+        """
+        access_token = JWTAuthenticationManager.create_access_token(user_data)
+        refresh_token = JWTAuthenticationManager.create_refresh_token(user_data)
+        
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'expires_in': AuthConfig.JWT_ACCESS_TOKEN_EXPIRY_HOURS * 3600,  # seconds
+            'token_type': 'Bearer'
+        }
+    
+    @staticmethod
+    def decode_jwt_token(token, token_type='access'):
         """
         Decode and validate JWT token
+        Args:
+            token: JWT token string
+            token_type: 'access' or 'refresh'
         Returns: (success, payload_or_error, error_type)
         """
-        if not token or not AuthConfig.ENABLE_JWT_TOKENS:
+        if not token:
             return False, "Token required", "token_missing"
             
         try:
-            payload = jwt.decode(token, AuthenticationManager.get_jwt_secret(), algorithms=[AuthConfig.JWT_ALGORITHM])
+            payload = jwt.decode(token, JWTAuthenticationManager.get_jwt_secret(), algorithms=[AuthConfig.JWT_ALGORITHM])
+            
+            # Validate token type
+            if payload.get('token_type') != token_type:
+                return False, f"Invalid token type. Expected {token_type}", "token_invalid"
             
             # Validate required fields
-            required_fields = ['user_id', 'username', 'user_type']
+            required_fields = ['user_id', 'username', 'user_type', 'phone']
             for field in required_fields:
                 if field not in payload:
                     logging.error(f"Token missing required field: {field}")
@@ -167,156 +200,102 @@ class AuthenticationManager:
         return token, None
     
     @staticmethod
-    def create_driver_session(driver):
-        """Create new driver session, invalidating existing ones"""
-        # Invalidate existing sessions
-        AuthenticationManager.invalidate_driver_sessions(driver.id)
-        
-        # Create new session
-        session_token = AuthenticationManager.generate_session_token()
-        from app import get_ist_time
-        from models import db
-        now = get_ist_time()
-        expires = now + timedelta(hours=AuthConfig.SESSION_DURATION_HOURS)
-        
-        driver.session_token = session_token
-        driver.last_seen = now
-        driver.session_expires = expires
-        driver.is_online = True
-        
-        db.session.commit()
-        logging.info(f"Created new session for driver {driver.name} (ID: {driver.id})")
-        
-        return session_token
+    def validate_user_credentials(phone, password, user_type):
+        """
+        Validate user credentials for login
+        Args:
+            phone: Phone number
+            password: Password (optional for OTP-based auth)
+            user_type: 'driver' or 'customer'
+        Returns:
+            (success, user_or_error, error_type)
+        """
+        try:
+            if user_type == 'driver':
+                from models import Driver
+                user = Driver.query.filter_by(phone=phone).first()
+                if not user:
+                    return False, "Driver not found", "user_not_found"
+                    
+                # If password is provided, validate it
+                if password and user.password_hash:
+                    from werkzeug.security import check_password_hash
+                    if not check_password_hash(user.password_hash, password):
+                        return False, "Invalid credentials", "invalid_credentials"
+                
+                return True, user, None
+                
+            elif user_type == 'customer':
+                from models import Customer
+                user = Customer.query.filter_by(phone=phone).first()
+                if not user:
+                    return False, "Customer not found", "user_not_found"
+                    
+                return True, user, None
+                
+            else:
+                return False, "Invalid user type", "token_invalid"
+                
+        except Exception as e:
+            logging.error(f"Error validating user credentials: {str(e)}")
+            return False, "Validation error", "token_invalid"
     
     @staticmethod
-    def create_customer_session(customer):
-        """Create new customer session, invalidating existing ones"""
-        # Invalidate existing sessions
-        AuthenticationManager.invalidate_customer_sessions(customer.id)
+    def refresh_access_token(refresh_token):
+        """
+        Generate new access token using refresh token
+        Args:
+            refresh_token: Valid refresh token
+        Returns:
+            dict with new access token or error
+        """
+        success, payload_or_error, error_type = JWTAuthenticationManager.decode_jwt_token(refresh_token, 'refresh')
+        if not success:
+            return {"success": False, "error": error_type, "message": payload_or_error}
         
-        # Create new session
-        session_token = AuthenticationManager.generate_session_token()
-        from app import get_ist_time
-        from models import db
-        now = get_ist_time()
-        expires = now + timedelta(hours=AuthConfig.SESSION_DURATION_HOURS)
+        payload = payload_or_error
+        user_data = {
+            'user_id': payload['user_id'],
+            'username': payload['username'],
+            'user_type': payload['user_type'],
+            'phone': payload['phone']
+        }
         
-        customer.session_token = session_token
-        customer.last_seen = now
-        customer.session_expires = expires
-        customer.is_online = True
+        # Create new access token
+        new_access_token = JWTAuthenticationManager.create_access_token(user_data)
+        if not new_access_token:
+            return {"success": False, "error": "token_invalid", "message": "Failed to create access token"}
         
-        db.session.commit()
-        logging.info(f"Created new session for customer {customer.name} (ID: {customer.id})")
-        
-        return session_token
+        return {
+            "success": True,
+            "access_token": new_access_token,
+            "expires_in": AuthConfig.JWT_ACCESS_TOKEN_EXPIRY_HOURS * 3600,
+            "token_type": "Bearer"
+        }
     
     @staticmethod
-    def validate_driver_session(session_token):
-        """Validate driver session and return driver if valid"""
-        if not session_token or not AuthConfig.REQUIRE_SESSION_VALIDATION:
-            return None
-            
-        from models import Driver, db
-        from app import get_ist_time
+    def handle_auth_error(error_type="token_invalid"):
+        """Handle authentication errors with consistent responses"""
+        message = AuthConfig.ERRORS.get(error_type, "Authentication error. Please login again.")
         
-        driver = Driver.query.filter_by(session_token=session_token).first()
-        if not driver:
-            return None
-            
-        # Check if session expired
-        now = get_ist_time()
-        if not driver.session_expires or now >= driver.session_expires:
-            # Session expired, mark offline
-            AuthenticationManager.invalidate_driver_sessions(driver.id)
-            return None
-            
-        # Update last seen (heartbeat)
-        driver.last_seen = now
-        db.session.commit()
+        if AuthConfig.ENABLE_DEBUG_LOGGING:
+            logging.warning(f"Authentication error: {error_type} - {message}")
         
-        return driver
+        return jsonify({
+            "success": False,
+            "message": message,
+            "data": {"auth_error": True, "error_type": error_type}
+        }), 401
+
+
+# Backward compatibility alias
+class AuthenticationManager(JWTAuthenticationManager):
+    """Alias for backward compatibility"""
     
     @staticmethod
-    def validate_customer_session(session_token):
-        """Validate customer session and return customer if valid"""
-        if not session_token or not AuthConfig.REQUIRE_SESSION_VALIDATION:
-            return None
-            
-        from models import Customer, db
-        from app import get_ist_time
-        
-        customer = Customer.query.filter_by(session_token=session_token).first()
-        if not customer:
-            return None
-            
-        # Check if session expired
-        now = get_ist_time()
-        if not customer.session_expires or now >= customer.session_expires:
-            # Session expired, mark offline
-            AuthenticationManager.invalidate_customer_sessions(customer.id)
-            return None
-            
-        # Update last seen
-        customer.last_seen = now
-        db.session.commit()
-        
-        return customer
-    
-    @staticmethod
-    def invalidate_driver_sessions(driver_id):
-        """Invalidate all sessions for a driver"""
-        from models import Driver, db
-        driver = Driver.query.get(driver_id)
-        if driver:
-            driver.session_token = None
-            driver.session_expires = None
-            driver.is_online = False
-            db.session.commit()
-            logging.info(f"Invalidated sessions for driver {driver.name} (ID: {driver_id})")
-    
-    @staticmethod
-    def invalidate_customer_sessions(customer_id):
-        """Invalidate all sessions for a customer"""
-        from models import Customer, db
-        customer = Customer.query.get(customer_id)
-        if customer:
-            customer.session_token = None
-            customer.session_expires = None
-            customer.is_online = False
-            db.session.commit()
-            logging.info(f"Invalidated sessions for customer {customer.name} (ID: {customer_id})")
-    
-    @staticmethod
-    def cleanup_expired_sessions():
-        """Clean up expired sessions (background task)"""
-        from models import Driver, Customer
-        from app import get_ist_time
-        
-        now = get_ist_time()
-        
-        # Find expired driver sessions
-        expired_drivers = Driver.query.filter(
-            Driver.session_expires.isnot(None),
-            Driver.session_expires < now
-        ).all()
-        
-        # Find expired customer sessions
-        expired_customers = Customer.query.filter(
-            Customer.session_expires.isnot(None),
-            Customer.session_expires < now
-        ).all()
-        
-        # Cleanup expired sessions
-        for driver in expired_drivers:
-            AuthenticationManager.invalidate_driver_sessions(driver.id)
-            
-        for customer in expired_customers:
-            AuthenticationManager.invalidate_customer_sessions(customer.id)
-            
-        if expired_drivers or expired_customers:
-            logging.info(f"Cleaned up {len(expired_drivers)} expired driver sessions and {len(expired_customers)} expired customer sessions")
+    def create_jwt_token(user_data):
+        """Create JWT access token (backward compatibility)"""
+        return JWTAuthenticationManager.create_access_token(user_data)
     
     @staticmethod
     def create_auth_response(success=False, message="", data=None, status_code=200):
@@ -328,68 +307,35 @@ class AuthenticationManager:
         if data is not None:
             response["data"] = data
         return jsonify(response), status_code
-    
-    @staticmethod
-    def handle_auth_error(error_type="token_invalid"):
-        """Handle authentication errors with consistent responses"""
-        message = AuthConfig.ERRORS.get(error_type, "Authentication error. Please login again.")
-        
-        if AuthConfig.ENABLE_DEBUG_LOGGING:
-            logging.warning(f"Authentication error: {error_type} - {message}")
-        
-        return AuthenticationManager.create_auth_response(
-            success=False,
-            message=message,
-            data={"auth_error": True, "error_type": error_type},
-            status_code=401
-        )
 
 
-# Centralized decorator for token authentication
+# JWT token authentication decorator
 def token_required(f):
     """
-    Centralized JWT token authentication decorator
+    JWT token authentication decorator
     Usage: @token_required
     """
     @wraps(f)
     def decorated(*args, **kwargs):
         # Extract token from request
-        token, error_type = AuthenticationManager.extract_token_from_request()
+        token, error_type = JWTAuthenticationManager.extract_token_from_request()
         if error_type:
-            return AuthenticationManager.handle_auth_error(error_type)
+            return JWTAuthenticationManager.handle_auth_error(error_type)
         
         # Decode and validate JWT token
-        success, payload_or_error, error_type = AuthenticationManager.decode_jwt_token(token)
+        success, payload_or_error, error_type = JWTAuthenticationManager.decode_jwt_token(token)
         if not success:
-            if error_type:
-                return AuthenticationManager.handle_auth_error(error_type)
-            else:
-                return AuthenticationManager.handle_auth_error("token_invalid")
+            return JWTAuthenticationManager.handle_auth_error(error_type or "token_invalid")
         
         payload = payload_or_error
         current_user_data = {
             'user_id': payload.get('user_id'),
             'username': payload.get('username'),  
             'user_type': payload.get('user_type'),
-            'session_token': payload.get('session_token'),
+            'phone': payload.get('phone'),
             'exp': payload.get('exp'),
             'iat': payload.get('iat')
         }
-        
-        # Validate session if session_token is present and validation is enabled
-        if AuthConfig.REQUIRE_SESSION_VALIDATION and current_user_data.get('session_token'):
-            session_token = current_user_data['session_token']
-            user_type = current_user_data['user_type']
-            
-            if user_type == 'driver':
-                user = AuthenticationManager.validate_driver_session(session_token)
-            elif user_type == 'customer':
-                user = AuthenticationManager.validate_customer_session(session_token)
-            else:
-                user = None
-                
-            if not user:
-                return AuthenticationManager.handle_auth_error("session_expired")
         
         # Log successful authentication
         if AuthConfig.ENABLE_DEBUG_LOGGING:
@@ -405,18 +351,10 @@ def set_auth_debug(enabled=True):
     """Enable/disable authentication debug logging"""
     AuthConfig.set_debug_logging(enabled)
 
-def set_session_validation(enabled=True):
-    """Enable/disable session validation"""
-    AuthConfig.set_session_validation(enabled)
+def set_access_token_expiry(hours=24):
+    """Set access token expiry in hours (default: 24 hours)"""
+    AuthConfig.set_access_token_expiry(hours)
 
-def set_jwt_tokens(enabled=True):
-    """Enable/disable JWT token system"""
-    AuthConfig.set_jwt_tokens(enabled)
-
-def set_session_duration(hours=720):
-    """Set session duration in hours (default: 30 days)"""
-    AuthConfig.set_session_duration(hours)
-
-def set_jwt_expiry(hours=168):
-    """Set JWT token expiry in hours (default: 7 days)"""
-    AuthConfig.set_jwt_expiry(hours)
+def set_refresh_token_expiry(days=30):
+    """Set refresh token expiry in days (default: 30 days)"""
+    AuthConfig.set_refresh_token_expiry(days)

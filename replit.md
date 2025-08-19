@@ -13,17 +13,20 @@ Preferred communication style: Simple, everyday language.
 ### Backend Framework
 The platform uses a **Flask-based modular architecture** with blueprint-based route organization. The core application (`app.py`) initializes SQLAlchemy with PostgreSQL for production and SQLite for development, configured for the Asia/Kolkata timezone. The system implements dual authentication strategies and real-time WebSocket communication through Socket.IO.
 
-### Authentication Architecture
-The system employs a **centralized authentication management system** with enhanced session control (August 2025):
-- **Centralized Auth Manager**: All authentication logic consolidated in `utils/auth_manager.py` for easy configuration and maintenance
-- **JWT Token Authentication**: Used for mobile applications with 7-day token expiration and Bearer token validation
-- **Flask-Login Sessions**: Traditional session-based authentication for admin panel's server-rendered templates
-- **Easy Configuration System**: Simple on/off toggles for debug logging, session validation, JWT tokens, and duration settings
-- **Session Management**: Single-session-per-user policy with database-backed tracking and automatic cleanup
-- **Lenient Heartbeat System**: 30-minute timeout for inactive connections with location-based session recovery
-- **Unified Token Handling**: Single `@token_required` decorator handles all authentication scenarios
-- **Configuration Control Script**: `auth_config_control.py` allows runtime configuration changes without code modifications
-- **Security Features**: Session validation, automatic cleanup, protection against multiple login abuse
+### JWT Authentication Architecture
+The system has been **completely re-implemented with modern JWT authentication** (August 2025):
+- **Pure JWT Implementation**: Full JWT-based authentication system using access and refresh tokens
+- **Access Token**: 24-hour expiry for API access and mobile app authentication
+- **Refresh Token**: 30-day expiry for token renewal without re-authentication
+- **Bearer Token Authentication**: Standard Authorization header format for API requests
+- **Multi-source Token Extraction**: Supports Authorization header, JSON body, and form data
+- **Phone-based Authentication**: Simple phone number authentication for drivers and customers
+- **JWT Token Manager**: Centralized `JWTAuthenticationManager` class for all token operations
+- **Automatic Token Validation**: `@token_required` decorator for protected endpoints
+- **Token Verification Endpoint**: `/auth/verify` to validate current tokens
+- **Refresh Token Endpoint**: `/auth/refresh` to generate new access tokens
+- **Secure Token Creation**: Configurable secret keys and expiry times
+- **User Credential Validation**: Supports password-based validation when available
 
 ### Database Design
 The SQLAlchemy ORM manages five core models:

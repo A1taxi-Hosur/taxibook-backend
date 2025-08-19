@@ -107,6 +107,7 @@ with app.app_context():
     from routes.driver import driver_bp
     from routes.admin import admin_bp
     from routes.mobile import mobile_bp
+    from routes.auth import auth_bp
     
     # Initialize background tasks for session management
     from utils.background_tasks import initialize_background_tasks
@@ -122,6 +123,7 @@ with app.app_context():
     app.register_blueprint(driver_bp, url_prefix='/driver')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(mobile_bp, url_prefix='')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     
     # Add catch-all login route for backwards compatibility
     @app.route('/login', methods=['POST'])
