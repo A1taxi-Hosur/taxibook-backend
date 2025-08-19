@@ -261,18 +261,30 @@ function refreshZones() {
         </div>
     `;
     
-    fetch('/admin/api/zones')
-        .then(response => response.json())
+    fetch('/admin/api/zones', {
+            method: 'GET',
+            credentials: 'same-origin',  // Include cookies for authentication
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.status === 'success') {
                 displayZones(data.data.zones);
             } else {
-                showError('Failed to load zones');
+                showError('Failed to load zones: ' + (data.message || 'Unknown error'));
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showError('Network error occurred');
+            console.error('Error loading zones:', error);
+            showError('Network error: ' + error.message);
         });
 }
 
@@ -848,3 +860,9 @@ window.addEventListener('load', function() {
 }
 </style>
 {% endblock %}
+<script>
+// Load zones when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    refreshZones();
+});
+</script>
